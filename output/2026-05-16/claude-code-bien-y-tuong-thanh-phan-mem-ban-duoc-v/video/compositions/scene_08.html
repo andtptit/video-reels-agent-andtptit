@@ -1,0 +1,122 @@
+<template id="scene-08-template">
+  <div data-composition-id="scene-08" data-width="1080" data-height="1920">
+
+    <div class="s8-bg" data-layout-ignore>
+      <div class="s8-dots"></div>
+      <div class="s8-glow"></div>
+      <div class="s8-scanlines"></div>
+    </div>
+    <div class="s8-corner s8-tl" data-layout-ignore></div>
+    <div class="s8-corner s8-tr" data-layout-ignore></div>
+    <div class="s8-corner s8-bl" data-layout-ignore></div>
+    <div class="s8-corner s8-br" data-layout-ignore></div>
+
+    <div class="s8-content">
+      <div class="s8-notifs">
+        <div class="s8-notif s8-n1">
+          <span class="s8-notif-icon">🔔</span>
+          <div class="s8-notif-body">
+            <div class="s8-notif-title">Thanh toán thành công</div>
+            <div class="s8-notif-sub">Ai đó vừa mua sản phẩm của bạn &nbsp;✓</div>
+          </div>
+        </div>
+        <div class="s8-notif s8-n2">
+          <span class="s8-notif-icon">🔔</span>
+          <div class="s8-notif-body">
+            <div class="s8-notif-title">Thanh toán thành công</div>
+            <div class="s8-notif-sub">Người dùng mới đã đăng ký &nbsp;✓</div>
+          </div>
+        </div>
+        <div class="s8-notif s8-n3">
+          <span class="s8-notif-icon">🔔</span>
+          <div class="s8-notif-body">
+            <div class="s8-notif-title">Thanh toán thành công</div>
+            <div class="s8-notif-sub">Lúc bạn đang ngủ &nbsp;🌙</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="s8-badge">THU NHẬP THỤ ĐỘNG</div>
+
+      <p class="s8-desc">Từ ý tưởng của bạn.<br>Xây bởi AI.</p>
+    </div>
+
+    <style>
+      #scene-08 {
+        position: relative; width: 1080px; height: 1920px;
+        background: #060810; overflow: hidden;
+      }
+      .s8-bg { position: absolute; inset: 0; pointer-events: none; z-index: 0; }
+      .s8-dots {
+        position: absolute; inset: 0;
+        background-image: radial-gradient(circle, rgba(57,255,20,0.22) 1.5px, transparent 1.5px);
+        background-size: 48px 48px;
+      }
+      .s8-glow {
+        position: absolute; inset: 0;
+        background: radial-gradient(ellipse 800px 800px at 50% 42%, rgba(57,255,20,0.18) 0%, transparent 60%);
+      }
+      .s8-scanlines {
+        position: absolute; inset: 0;
+        background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.04) 3px, rgba(0,0,0,0.04) 4px);
+      }
+      .s8-corner {
+        position: absolute; width: 56px; height: 56px;
+        border-color: #39FF14; border-style: solid; opacity: 0.45; z-index: 3;
+      }
+      .s8-tl { top: 60px; left: 60px; border-width: 3px 0 0 3px; }
+      .s8-tr { top: 60px; right: 60px; border-width: 3px 3px 0 0; }
+      .s8-bl { bottom: 60px; left: 60px; border-width: 0 0 3px 3px; }
+      .s8-br { bottom: 60px; right: 60px; border-width: 0 3px 3px 0; }
+
+      .s8-content {
+        position: relative; width: 100%; height: 100%;
+        display: flex; flex-direction: column; justify-content: center;
+        padding: 140px 88px; gap: 44px; box-sizing: border-box; z-index: 2;
+      }
+
+      .s8-notifs { display: flex; flex-direction: column; gap: 18px; }
+      .s8-notif {
+        display: flex; align-items: center; gap: 20px;
+        background: rgba(57,255,20,0.07);
+        border: 1.5px solid rgba(57,255,20,0.3);
+        border-radius: 14px; padding: 20px 24px;
+      }
+      .s8-notif-icon { font-size: 42px; flex-shrink: 0; }
+      .s8-notif-body { display: flex; flex-direction: column; gap: 4px; }
+      .s8-notif-title {
+        font-family: 'Exo 2', sans-serif; font-weight: 700;
+        font-size: 32px; color: #FFFFFF;
+      }
+      .s8-notif-sub {
+        font-family: 'Inter', sans-serif; font-weight: 400;
+        font-size: 28px; color: rgba(255,255,255,0.55);
+      }
+
+      .s8-badge {
+        font-family: 'Exo 2', sans-serif; font-weight: 900;
+        font-size: 52px; color: #39FF14; letter-spacing: 0.06em;
+        text-shadow: 0 0 24px rgba(57,255,20,0.7), 0 0 60px rgba(57,255,20,0.3);
+      }
+
+      .s8-desc {
+        font-family: 'Inter', sans-serif; font-weight: 500;
+        font-size: 46px; color: rgba(255,255,255,0.7); margin: 0; line-height: 1.4;
+      }
+    </style>
+
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+
+      tl.from(".s8-n1", { x: 80, opacity: 0, duration: 0.5, ease: "expo.out" }, 0.3);
+      tl.from(".s8-n2", { x: 80, opacity: 0, duration: 0.5, ease: "expo.out" }, 2.2);
+      tl.from(".s8-n3", { x: 80, opacity: 0, duration: 0.5, ease: "expo.out" }, 4.0);
+      tl.from(".s8-badge", { scale: 0.7, opacity: 0, duration: 0.6, ease: "back.out(2)" }, 5.5);
+      tl.from(".s8-desc", { y: 30, opacity: 0, duration: 0.5, ease: "power2.out" }, 7.5);
+
+      window.__timelines["scene-08"] = tl;
+    </script>
+  </div>
+</template>

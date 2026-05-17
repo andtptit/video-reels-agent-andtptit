@@ -1,0 +1,70 @@
+{
+  "title": "Claude Code: Từ Ý Tưởng Thành Phần Mềm Bán Được",
+  "format": "9:16",
+  "music": { "mood": "snappy", "volume": 0.18 },
+  "scenes": [
+    {
+      "sceneId": "scene_01",
+      "meaning": "Hook — chạm nỗi đau: có ý tưởng nhưng không biết code, chi phí cao",
+      "estimated_duration": 10,
+      "narration": "Bạn có một ý tưởng. Một ứng dụng, một công cụ, hay một dịch vụ số. Nhưng bạn không biết code. Và thuê lập trình viên thì tốn mấy chục triệu.",
+      "sfx_picks": [{ "id": "impact" }]
+    },
+    {
+      "sceneId": "scene_02",
+      "meaning": "Revelation — thế giới mới: không cần code, chỉ cần ý tưởng rõ ràng",
+      "estimated_duration": 12,
+      "narration": "Đó là vấn đề của thế giới cũ. Hôm nay, với Claude Code, bạn không cần biết một dòng code nào. Bạn chỉ cần một ý tưởng rõ ràng và biết cách nói chuyện với AI.",
+      "sfx_picks": [{ "id": "whoosh" }]
+    },
+    {
+      "sceneId": "scene_03",
+      "meaning": "Credibility — Claude Code là gì, mạnh như thế nào",
+      "estimated_duration": 14,
+      "narration": "Claude Code là AI coding agent của Anthropic. Không phải chỉ một trợ lý chat. Nó đọc file, viết code, chạy lệnh, fix bug, và xây dựng cả một sản phẩm từ đầu — ngay trong terminal của bạn.",
+      "sfx_picks": [{ "id": "click" }]
+    },
+    {
+      "sceneId": "scene_04",
+      "meaning": "Step 1 — Describe your idea in plain language",
+      "estimated_duration": 14,
+      "narration": "Bước một: Mô tả sản phẩm bạn muốn xây dựng bằng ngôn ngữ tự nhiên. Ví dụ — tôi muốn một web app cho phép freelancer tạo invoice và gửi cho khách hàng. Claude Code hiểu ngay, hỏi thêm để làm rõ, rồi bắt tay vào xây.",
+      "sfx_picks": [{ "id": "click" }]
+    },
+    {
+      "sceneId": "scene_05",
+      "meaning": "Step 2 — Claude Code builds: directories, frontend, backend, DB",
+      "estimated_duration": 14,
+      "narration": "Bước hai: Claude Code làm việc. Nó tạo cấu trúc thư mục, viết frontend, viết backend, cài dependencies, kết nối database. Bạn ngồi điều hướng. Bạn hỏi. Bạn quyết định. Claude Code thực thi.",
+      "sfx_picks": [{ "id": "whoosh-soft" }]
+    },
+    {
+      "sceneId": "scene_06",
+      "meaning": "Triumph — MVP trong vài giờ, code thật, không phải mockup",
+      "estimated_duration": 13,
+      "narration": "Trong vài giờ, bạn có một MVP thực sự. Không phải mockup. Không phải prototype giả. Code chạy được, UI đẹp, logic đúng — sản phẩm thật, sẵn sàng để deploy.",
+      "sfx_picks": [{ "id": "ding" }]
+    },
+    {
+      "sceneId": "scene_07",
+      "meaning": "Step 3 — Launch: Vercel, Gumroad, landing page",
+      "estimated_duration": 14,
+      "narration": "Bước ba: Launch và bán. Đẩy lên Vercel trong hai phút. List sản phẩm trên Gumroad hoặc LemonSqueezy. Đặt giá. Viết landing page. Claude Code làm tất cả những bước đó cùng bạn.",
+      "sfx_picks": [{ "id": "chime" }]
+    },
+    {
+      "sceneId": "scene_08",
+      "meaning": "Income — doanh thu thụ động, con số cụ thể truyền cảm hứng",
+      "estimated_duration": 13,
+      "narration": "Khách hàng đầu tiên đến. Rồi người thứ hai. Thu nhập thụ động bắt đầu chảy. Một sản phẩm nhỏ, mười đô mỗi tháng, nhân với một ngàn người dùng — là mười ngàn đô thu nhập định kỳ.",
+      "sfx_picks": [{ "id": "count-up-end" }]
+    },
+    {
+      "sceneId": "scene_09",
+      "meaning": "CTA — kêu gọi hành động ngay, không chần chừ",
+      "estimated_duration": 10,
+      "narration": "Ý tưởng của bạn chỉ cần một buổi tối với Claude Code để trở thành phần mềm có thể bán. Ý tưởng bạn đang nghĩ lúc này — tại sao không thử ngay hôm nay?",
+      "sfx_picks": [{ "id": "drum-hit" }]
+    }
+  ]
+}

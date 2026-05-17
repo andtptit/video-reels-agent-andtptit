@@ -1,0 +1,214 @@
+<template id="scene-02-template">
+  <div data-composition-id="scene-02" data-width="1080" data-height="1920">
+
+    <!-- Background layers -->
+    <div class="s2-bg" data-layout-ignore>
+      <div class="s2-dot-grid"></div>
+      <div class="s2-radial-glow"></div>
+      <div class="s2-scanlines"></div>
+    </div>
+
+    <!-- Corner brackets -->
+    <div class="s2-corner s2-corner-tl" data-layout-ignore></div>
+    <div class="s2-corner s2-corner-tr" data-layout-ignore></div>
+    <div class="s2-corner s2-corner-bl" data-layout-ignore></div>
+    <div class="s2-corner s2-corner-br" data-layout-ignore></div>
+
+    <!-- Particle dots -->
+    <div class="s2-particles" data-layout-ignore>
+      <div class="s2-particle s2-p1"></div>
+      <div class="s2-particle s2-p2"></div>
+      <div class="s2-particle s2-p3"></div>
+      <div class="s2-particle s2-p4"></div>
+      <div class="s2-particle s2-p5"></div>
+    </div>
+
+    <!-- Main content -->
+    <div class="s2-content">
+      <div class="s2-old-badge">THẾ GIỚI CŨ</div>
+
+      <h1 class="s2-brand">Claude Code</h1>
+
+      <div class="s2-benefits">
+        <p class="s2-benefit-1">Không cần code.</p>
+        <p class="s2-benefit-2">Chỉ cần ý tưởng rõ ràng.</p>
+      </div>
+    </div>
+
+    <style>
+      #scene-02 {
+        position: relative;
+        width: 1080px;
+        height: 1920px;
+        background: #060810;
+        overflow: hidden;
+      }
+
+      /* ── Background ── */
+      .s2-bg {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      .s2-dot-grid {
+        position: absolute;
+        inset: 0;
+        background-image: radial-gradient(circle, rgba(57,255,20,0.28) 1.5px, transparent 1.5px);
+        background-size: 48px 48px;
+      }
+
+      .s2-radial-glow {
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(ellipse 800px 800px at 50% 48%, rgba(57,255,20,0.22) 0%, transparent 65%);
+      }
+
+      .s2-scanlines {
+        position: absolute;
+        inset: 0;
+        background: repeating-linear-gradient(
+          0deg,
+          transparent,
+          transparent 3px,
+          rgba(0,0,0,0.04) 3px,
+          rgba(0,0,0,0.04) 4px
+        );
+      }
+
+      /* ── Corner brackets ── */
+      .s2-corner {
+        position: absolute;
+        width: 56px;
+        height: 56px;
+        border-color: #39FF14;
+        border-style: solid;
+        opacity: 0.5;
+        z-index: 3;
+      }
+
+      .s2-corner-tl { top: 60px; left: 60px; border-width: 3px 0 0 3px; }
+      .s2-corner-tr { top: 60px; right: 60px; border-width: 3px 3px 0 0; }
+      .s2-corner-bl { bottom: 60px; left: 60px; border-width: 0 0 3px 3px; }
+      .s2-corner-br { bottom: 60px; right: 60px; border-width: 0 3px 3px 0; }
+
+      /* ── Particles ── */
+      .s2-particles {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        z-index: 1;
+      }
+
+      .s2-particle {
+        position: absolute;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #39FF14;
+        opacity: 0;
+      }
+
+      .s2-p1 { left: 18%; bottom: 35%; }
+      .s2-p2 { left: 32%; bottom: 28%; }
+      .s2-p3 { left: 55%; bottom: 32%; }
+      .s2-p4 { left: 70%; bottom: 25%; }
+      .s2-p5 { left: 82%; bottom: 40%; }
+
+      /* ── Content ── */
+      .s2-content {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: 140px 88px;
+        gap: 52px;
+        box-sizing: border-box;
+        z-index: 2;
+      }
+
+      .s2-old-badge {
+        font-family: 'Inter', sans-serif;
+        font-weight: 700;
+        font-size: 28px;
+        color: rgba(255,255,255,0.35);
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+      }
+
+      .s2-brand {
+        font-family: 'Exo 2', sans-serif;
+        font-weight: 900;
+        font-size: 112px;
+        color: #39FF14;
+        text-shadow:
+          0 0 30px rgba(57,255,20,0.7),
+          0 0 80px rgba(57,255,20,0.35),
+          0 0 160px rgba(57,255,20,0.15);
+        line-height: 1.0;
+        margin: 0;
+      }
+
+      .s2-benefits {
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+      }
+
+      .s2-benefit-1 {
+        font-family: 'Exo 2', sans-serif;
+        font-weight: 700;
+        font-size: 68px;
+        color: #FFFFFF;
+        margin: 0;
+        line-height: 1.1;
+      }
+
+      .s2-benefit-2 {
+        font-family: 'Inter', sans-serif;
+        font-weight: 500;
+        font-size: 46px;
+        color: rgba(255,255,255,0.65);
+        margin: 0;
+        line-height: 1.2;
+      }
+    </style>
+
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <script>
+      window.__timelines = window.__timelines || {};
+
+      const tl = gsap.timeline({ paused: true });
+
+      // Old-world badge fades out quickly
+      tl.from(".s2-old-badge", { opacity: 0, y: -20, duration: 0.4, ease: "power2.out" }, 0.2);
+      tl.to(".s2-old-badge", { opacity: 0, duration: 0.5, ease: "power2.in" }, 1.2);
+
+      // Brand name sweeps in from left — snappy back.out
+      tl.from(".s2-brand", { x: -80, opacity: 0, duration: 0.7, ease: "back.out(1.5)" }, 1.5);
+
+      // Benefits stagger in
+      tl.from(".s2-benefit-1", { y: 40, opacity: 0, duration: 0.55, ease: "expo.out" }, 2.6);
+      tl.from(".s2-benefit-2", { y: 30, opacity: 0, duration: 0.5, ease: "power3.out" }, 3.2);
+
+      // Particles float up
+      const particles = [".s2-p1", ".s2-p2", ".s2-p3", ".s2-p4", ".s2-p5"];
+      const startTimes = [3.5, 3.8, 4.1, 4.4, 4.7];
+      particles.forEach((sel, i) => {
+        const cycleDuration = 3.2;
+        const sceneEnd = 9.61;
+        const repeatCount = Math.ceil((sceneEnd - startTimes[i]) / cycleDuration);
+        tl.fromTo(sel,
+          { y: 0, opacity: 0 },
+          { y: -280, opacity: 0.6, duration: cycleDuration, ease: "power1.out", repeat: repeatCount },
+          startTimes[i]
+        );
+      });
+
+      window.__timelines["scene-02"] = tl;
+    </script>
+  </div>
+</template>

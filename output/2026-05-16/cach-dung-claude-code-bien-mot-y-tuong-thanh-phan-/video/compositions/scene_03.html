@@ -1,0 +1,235 @@
+<template id="scene-03-template">
+  <div data-composition-id="scene-03" data-width="1080" data-height="1920">
+
+    <!-- Background layers -->
+    <div class="s3-bg" data-layout-ignore>
+      <div class="s3-dot-grid"></div>
+      <div class="s3-radial-glow"></div>
+      <div class="s3-scanlines"></div>
+    </div>
+
+    <!-- Corner brackets -->
+    <div class="s3-corner s3-corner-tl" data-layout-ignore></div>
+    <div class="s3-corner s3-corner-tr" data-layout-ignore></div>
+    <div class="s3-corner s3-corner-bl" data-layout-ignore></div>
+    <div class="s3-corner s3-corner-br" data-layout-ignore></div>
+
+    <!-- Main content -->
+    <div class="s3-content">
+      <div class="s3-label">AI CODING AGENT · Anthropic</div>
+
+      <h1 class="s3-brand">Claude Code</h1>
+
+      <div class="s3-capability-grid">
+        <div class="s3-cap">
+          <span class="s3-cap-icon">⌘</span>
+          <span class="s3-cap-text">đọc file</span>
+        </div>
+        <div class="s3-cap">
+          <span class="s3-cap-icon">&lt;/&gt;</span>
+          <span class="s3-cap-text">viết code</span>
+        </div>
+        <div class="s3-cap">
+          <span class="s3-cap-icon">▶</span>
+          <span class="s3-cap-text">chạy lệnh</span>
+        </div>
+        <div class="s3-cap">
+          <span class="s3-cap-icon">✦</span>
+          <span class="s3-cap-text">fix bug</span>
+        </div>
+      </div>
+
+      <div class="s3-closing-wrap">
+        <p class="s3-closing">Xây dựng cả sản phẩm từ đầu.</p>
+        <div class="s3-underline"></div>
+      </div>
+
+      <p class="s3-footer">Ngay trong terminal của bạn.</p>
+    </div>
+
+    <style>
+      #scene-03 {
+        position: relative;
+        width: 1080px;
+        height: 1920px;
+        background: #060810;
+        overflow: hidden;
+        font-family: 'Inter', monospace;
+      }
+
+      /* ── Background ── */
+      .s3-bg {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      .s3-dot-grid {
+        position: absolute;
+        inset: 0;
+        background-image: radial-gradient(circle, rgba(57,255,20,0.28) 1.5px, transparent 1.5px);
+        background-size: 48px 48px;
+      }
+
+      .s3-radial-glow {
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(ellipse 700px 700px at 50% 42%, rgba(57,255,20,0.15) 0%, transparent 70%);
+      }
+
+      .s3-scanlines {
+        position: absolute;
+        inset: 0;
+        background: repeating-linear-gradient(
+          0deg,
+          transparent,
+          transparent 3px,
+          rgba(0,0,0,0.04) 3px,
+          rgba(0,0,0,0.04) 4px
+        );
+      }
+
+      /* ── Corner brackets ── */
+      .s3-corner {
+        position: absolute;
+        width: 56px;
+        height: 56px;
+        border-color: #39FF14;
+        border-style: solid;
+        opacity: 0.5;
+        z-index: 3;
+      }
+
+      .s3-corner-tl { top: 60px; left: 60px; border-width: 3px 0 0 3px; }
+      .s3-corner-tr { top: 60px; right: 60px; border-width: 3px 3px 0 0; }
+      .s3-corner-bl { bottom: 60px; left: 60px; border-width: 0 0 3px 3px; }
+      .s3-corner-br { bottom: 60px; right: 60px; border-width: 0 3px 3px 0; }
+
+      /* ── Content ── */
+      .s3-content {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: 140px 88px;
+        gap: 44px;
+        box-sizing: border-box;
+        z-index: 2;
+      }
+
+      .s3-label {
+        font-family: 'Inter', sans-serif;
+        font-weight: 700;
+        font-size: 26px;
+        color: #39FF14;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+      }
+
+      .s3-brand {
+        font-family: 'Exo 2', sans-serif;
+        font-weight: 900;
+        font-size: 96px;
+        color: #FFFFFF;
+        text-shadow: 0 0 30px rgba(57,255,20,0.2);
+        line-height: 1.0;
+        margin: 0;
+      }
+
+      /* ── Capability grid ── */
+      .s3-capability-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+      }
+
+      .s3-cap {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        background: rgba(57,255,20,0.08);
+        border: 1.5px solid rgba(57,255,20,0.3);
+        border-radius: 12px;
+        padding: 22px 28px;
+      }
+
+      .s3-cap-icon {
+        font-family: 'Inter', monospace;
+        font-size: 32px;
+        color: #39FF14;
+        flex-shrink: 0;
+      }
+
+      .s3-cap-text {
+        font-family: 'Inter', monospace;
+        font-weight: 600;
+        font-size: 34px;
+        color: #39FF14;
+        letter-spacing: 0.02em;
+      }
+
+      /* ── Closing line ── */
+      .s3-closing-wrap {
+        position: relative;
+        display: block;
+        width: 100%;
+      }
+
+      .s3-closing {
+        font-family: 'Exo 2', sans-serif;
+        font-weight: 700;
+        font-size: 60px;
+        color: #FFFFFF;
+        margin: 0;
+        line-height: 1.15;
+        padding-bottom: 12px;
+      }
+
+      .s3-underline {
+        height: 3px;
+        background: #39FF14;
+        box-shadow: 0 0 12px rgba(57,255,20,0.7);
+        transform-origin: left center;
+        transform: scaleX(0);
+      }
+
+      .s3-footer {
+        font-family: 'Inter', sans-serif;
+        font-weight: 500;
+        font-size: 38px;
+        color: rgba(255,255,255,0.45);
+        margin: 0;
+      }
+    </style>
+
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <script>
+      window.__timelines = window.__timelines || {};
+
+      const tl = gsap.timeline({ paused: true });
+
+      // Label slides down from top
+      tl.from(".s3-label", { y: -30, opacity: 0, duration: 0.5, ease: "power3.out" }, 0.2);
+
+      // Brand name fades in with slight scale
+      tl.from(".s3-brand", { scale: 0.92, opacity: 0, duration: 0.7, ease: "expo.out" }, 0.7);
+
+      // Capability cards appear one by one (left-right, top-down order)
+      tl.from(".s3-cap", { x: -40, opacity: 0, duration: 0.45, ease: "power3.out", stagger: 0.18 }, 2.2);
+
+      // Closing line slides in
+      tl.from(".s3-closing", { y: 30, opacity: 0, duration: 0.6, ease: "back.out(1.8)" }, 4.5);
+
+      // Underline sweeps right
+      tl.to(".s3-underline", { scaleX: 1, duration: 0.6, ease: "power3.inOut" }, 5.2);
+
+      // Footer fades in last
+      tl.from(".s3-footer", { opacity: 0, duration: 0.5, ease: "power2.out" }, 7.0);
+
+      window.__timelines["scene-03"] = tl;
+    </script>
+  </div>
+</template>

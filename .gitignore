@@ -1,0 +1,12 @@
+# Secrets
+.env
+
+# Dependencies
+node_modules/
+
+# Binary media — không commit MP4/MP3
+*.mp4
+*.mp3
+
+# HyperFrames cache
+.hyperframes/

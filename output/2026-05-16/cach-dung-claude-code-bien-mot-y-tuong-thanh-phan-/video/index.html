@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body {
+        margin: 0;
+        width: 1080px;
+        height: 1920px;
+        overflow: hidden;
+        background: #060810;
+      }
+
+      /* Root atmosphere — visible under all scenes during crossfades */
+      #atm-base {
+        position: absolute;
+        inset: 0;
+        background-image: radial-gradient(circle, rgba(57,255,20,0.22) 1.5px, transparent 1.5px);
+        background-size: 48px 48px;
+        pointer-events: none;
+        z-index: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="main"
+      data-start="0"
+      data-duration="114.21"
+      data-width="1080"
+      data-height="1920"
+    >
+
+      <!-- ── Track 0: Root atmosphere bg (full duration) ── -->
+      <div id="atm-base" class="clip"
+           data-start="0" data-duration="114.21" data-track-index="0"
+           data-layout-ignore></div>
+
+      <!-- ══════════════════════════════════════════
+           Track 10: Scene clips (odd scenes 01,03,05,07,09)
+           Track 11: Scene clips (even scenes 02,04,06,08)
+           Duration = scene_duration + 0.3s for crossfade window
+           ══════════════════════════════════════════ -->
+
+      <div id="sc01" class="clip"
+           data-composition-id="scene-01"
+           data-composition-src="compositions/scene_01.html"
+           data-start="0" data-duration="10.32"
+           data-width="1080" data-height="1920"
+           data-track-index="10"></div>
+
+      <div id="sc02" class="clip"
+           data-composition-id="scene-02"
+           data-composition-src="compositions/scene_02.html"
+           data-start="10.02" data-duration="9.91"
+           data-width="1080" data-height="1920"
+           data-track-index="11"></div>
+
+      <div id="sc03" class="clip"
+           data-composition-id="scene-03"
+           data-composition-src="compositions/scene_03.html"
+           data-start="19.63" data-duration="12.83"
+           data-width="1080" data-height="1920"
+           data-track-index="10"></div>
+
+      <div id="sc04" class="clip"
+           data-composition-id="scene-04"
+           data-composition-src="compositions/scene_04.html"
+           data-start="32.16" data-duration="14.42"
+           data-width="1080" data-height="1920"
+           data-track-index="11"></div>
+
+      <div id="sc05" class="clip"
+           data-composition-id="scene-05"
+           data-composition-src="compositions/scene_05.html"
+           data-start="46.28" data-duration="17.25"
+           data-width="1080" data-height="1920"
+           data-track-index="10"></div>
+
+      <div id="sc06" class="clip"
+           data-composition-id="scene-06"
+           data-composition-src="compositions/scene_06.html"
+           data-start="63.23" data-duration="14.96"
+           data-width="1080" data-height="1920"
+           data-track-index="11"></div>
+
+      <div id="sc07" class="clip"
+           data-composition-id="scene-07"
+           data-composition-src="compositions/scene_07.html"
+           data-start="77.89" data-duration="15.38"
+           data-width="1080" data-height="1920"
+           data-track-index="10"></div>
+
+      <div id="sc08" class="clip"
+           data-composition-id="scene-08"
+           data-composition-src="compositions/scene_08.html"
+           data-start="92.97" data-duration="12.34"
+           data-width="1080" data-height="1920"
+           data-track-index="11"></div>
+
+      <div id="sc09" class="clip"
+           data-composition-id="scene-09"
+           data-composition-src="compositions/scene_09.html"
+           data-start="105.01" data-duration="9.2"
+           data-width="1080" data-height="1920"
+           data-track-index="10"></div>
+
+      <!-- ══════════════════════════════════════════
+           Track 20: Background music (full duration)
+           ══════════════════════════════════════════ -->
+
+      <audio id="mus" class="clip"
+             data-start="0" data-duration="114.21"
+             data-track-index="20"
+             data-volume="0.18"
+             src="assets/music/fluid-ambient.mp3"></audio>
+
+      <!-- ══════════════════════════════════════════
+           Track 21: Voiceovers (one per scene, no overlap)
+           ══════════════════════════════════════════ -->
+
+      <audio id="vo01" class="clip"
+             data-start="0" data-duration="9.52"
+             data-track-index="21"
+             src="assets/audio/scene_01_vo.mp3"></audio>
+
+      <audio id="vo02" class="clip"
+             data-start="10.02" data-duration="9.114"
+             data-track-index="21"
+             src="assets/audio/scene_02_vo.mp3"></audio>
+
+      <audio id="vo03" class="clip"
+             data-start="19.63" data-duration="12.028"
+             data-track-index="21"
+             src="assets/audio/scene_03_vo.mp3"></audio>
+
+      <audio id="vo04" class="clip"
+             data-start="32.16" data-duration="13.618"
+             data-track-index="21"
+             src="assets/audio/scene_04_vo.mp3"></audio>
+
+      <audio id="vo05" class="clip"
+             data-start="46.28" data-duration="16.451"
+             data-track-index="21"
+             src="assets/audio/scene_05_vo.mp3"></audio>
+
+      <audio id="vo06" class="clip"
+             data-start="63.23" data-duration="14.164"
+             data-track-index="21"
+             src="assets/audio/scene_06_vo.mp3"></audio>
+
+      <audio id="vo07" class="clip"
+             data-start="77.89" data-duration="14.582"
+             data-track-index="21"
+             src="assets/audio/scene_07_vo.mp3"></audio>
+
+      <audio id="vo08" class="clip"
+             data-start="92.97" data-duration="11.54"
+             data-track-index="21"
+             src="assets/audio/scene_08_vo.mp3"></audio>
+
+      <audio id="vo09" class="clip"
+             data-start="105.01" data-duration="8.696"
+             data-track-index="21"
+             src="assets/audio/scene_09_vo.mp3"></audio>
+
+      <!-- ══════════════════════════════════════════
+           Tracks 30+: SFX (one range per scene)
+           Scene01:30, Scene02:32, Scene03:34...
+           ══════════════════════════════════════════ -->
+
+      <audio id="sfx01" class="clip"
+             data-start="0" data-duration="3"
+             data-track-index="30"
+             data-volume="0.7"
+             src="assets/sfx/impact.mp3"></audio>
+
+      <audio id="sfx02" class="clip"
+             data-start="10.32" data-duration="2"
+             data-track-index="32"
+             data-volume="0.6"
+             src="assets/sfx/whoosh.mp3"></audio>
+
+      <audio id="sfx03" class="clip"
+             data-start="22.13" data-duration="1"
+             data-track-index="34"
+             data-volume="0.5"
+             src="assets/sfx/click.mp3"></audio>
+
+      <audio id="sfx04" class="clip"
+             data-start="36.66" data-duration="1"
+             data-track-index="36"
+             data-volume="0.5"
+             src="assets/sfx/click.mp3"></audio>
+
+      <audio id="sfx05" class="clip"
+             data-start="47.78" data-duration="2"
+             data-track-index="38"
+             data-volume="0.5"
+             src="assets/sfx/whoosh-soft.mp3"></audio>
+
+      <audio id="sfx06" class="clip"
+             data-start="63.23" data-duration="2"
+             data-track-index="40"
+             data-volume="0.65"
+             src="assets/sfx/ding.mp3"></audio>
+
+      <audio id="sfx07" class="clip"
+             data-start="80.39" data-duration="2"
+             data-track-index="42"
+             data-volume="0.55"
+             src="assets/sfx/chime.mp3"></audio>
+
+      <audio id="sfx08" class="clip"
+             data-start="98.97" data-duration="2"
+             data-track-index="44"
+             data-volume="0.7"
+             src="assets/sfx/count-up-end.mp3"></audio>
+
+      <audio id="sfx09" class="clip"
+             data-start="105.01" data-duration="2"
+             data-track-index="46"
+             data-volume="0.8"
+             src="assets/sfx/drum-hit.mp3"></audio>
+
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+
+      const FADE = 0.3;
+
+      // Crossfade helper: fade out scOut, fade in scIn, hard kill scOut after
+      function xfade(t, scOut, scIn) {
+        tl.to(scOut, { opacity: 0, duration: FADE, ease: "power2.inOut" }, t);
+        tl.from(scIn, { opacity: 0, duration: FADE, ease: "power2.inOut" }, t);
+        tl.set(scOut, { opacity: 0 }, t + FADE);
+      }
+
+      // Scene boundaries (voiceover_start times)
+      xfade(10.02,  "#sc01", "#sc02");
+      xfade(19.63,  "#sc02", "#sc03");
+      xfade(32.16,  "#sc03", "#sc04");
+      xfade(46.28,  "#sc04", "#sc05");
+      xfade(63.23,  "#sc05", "#sc06");
+      xfade(77.89,  "#sc06", "#sc07");
+      xfade(92.97,  "#sc07", "#sc08");
+      xfade(105.01, "#sc08", "#sc09");
+
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>

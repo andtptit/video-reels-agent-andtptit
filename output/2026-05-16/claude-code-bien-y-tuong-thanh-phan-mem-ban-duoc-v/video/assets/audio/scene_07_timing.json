@@ -1,0 +1,112 @@
+[
+  {
+    "word": "Đẩy",
+    "start": 0,
+    "end": 0.163
+  },
+  {
+    "word": "lên",
+    "start": 0.221,
+    "end": 0.279
+  },
+  {
+    "word": "Vercel",
+    "start": 0.325,
+    "end": 0.639
+  },
+  {
+    "word": "trong",
+    "start": 0.755,
+    "end": 0.882
+  },
+  {
+    "word": "hai",
+    "start": 0.952,
+    "end": 1.033
+  },
+  {
+    "word": "phút",
+    "start": 1.103,
+    "end": 1.254
+  },
+  {
+    "word": "Tạo",
+    "start": 1.974,
+    "end": 2.113
+  },
+  {
+    "word": "trang",
+    "start": 2.194,
+    "end": 2.357
+  },
+  {
+    "word": "bán",
+    "start": 2.461,
+    "end": 2.601
+  },
+  {
+    "word": "hàng",
+    "start": 2.694,
+    "end": 2.844
+  },
+  {
+    "word": "Đặt",
+    "start": 3.692,
+    "end": 3.82
+  },
+  {
+    "word": "giá",
+    "start": 3.889,
+    "end": 3.947
+  },
+  {
+    "word": "chín",
+    "start": 4.075,
+    "end": 4.203
+  },
+  {
+    "word": "đô",
+    "start": 4.284,
+    "end": 4.307
+  },
+  {
+    "word": "một",
+    "start": 4.412,
+    "end": 4.528
+  },
+  {
+    "word": "tháng",
+    "start": 4.574,
+    "end": 4.783
+  },
+  {
+    "word": "Chia",
+    "start": 5.387,
+    "end": 5.538
+  },
+  {
+    "word": "sẻ",
+    "start": 5.608,
+    "end": 5.666
+  },
+  {
+    "word": "lên",
+    "start": 5.851,
+    "end": 5.979
+  },
+  {
+    "word": "mạng",
+    "start": 6.06,
+    "end": 6.235
+  },
+  {
+    "word": "Và",
+    "start": 6.908,
+    "end": 6.989
+  },
+  {
+    "word": "đợi",
+    "start": 7.094,
+    "end": 7.221
+  }
+]

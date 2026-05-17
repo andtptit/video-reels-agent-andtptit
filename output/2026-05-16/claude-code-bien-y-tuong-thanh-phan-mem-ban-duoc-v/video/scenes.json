@@ -1,0 +1,70 @@
+{
+  "title": "Claude Code: Founder Mode",
+  "format": "9:16",
+  "music": { "mood": "technical", "volume": 0.16 },
+  "scenes": [
+    {
+      "sceneId": "scene_01",
+      "meaning": "Cold open — nhận diện: ý tưởng lặp đi lặp lại nhưng không hành động",
+      "estimated_duration": 8,
+      "narration": "Sáng nay bạn nghĩ ra một ý tưởng. Lại một lần nữa. Và lại không làm gì.",
+      "sfx_picks": [{ "id": "impact" }]
+    },
+    {
+      "sceneId": "scene_02",
+      "meaning": "Frustration — ba rào cản thật: tiền, thời gian, kỹ thuật",
+      "estimated_duration": 10,
+      "narration": "Vì xây phần mềm tốn tiền. Tốn tháng trời. Mà bạn không biết code. Thuê người lại rủi ro.",
+      "sfx_picks": [{ "id": "whoosh-soft" }]
+    },
+    {
+      "sceneId": "scene_03",
+      "meaning": "Tia sáng — Claude Code xuất hiện, xóa mọi rào cản",
+      "estimated_duration": 8,
+      "narration": "Claude Code xóa sạch tất cả những rào cản đó. Ngay hôm nay.",
+      "sfx_picks": [{ "id": "whoosh" }]
+    },
+    {
+      "sceneId": "scene_04",
+      "meaning": "Cụ thể hóa 1 — gõ bằng tiếng Việt thường, AI hiểu và làm",
+      "estimated_duration": 16,
+      "narration": "Bạn chỉ cần gõ: mình muốn xây cái này. Bằng tiếng Việt bình thường. Claude Code lập tức hiểu, lên kế hoạch, và bắt tay viết code — trong khi bạn nhấm nháp cà phê.",
+      "sfx_picks": [{ "id": "click" }]
+    },
+    {
+      "sceneId": "scene_05",
+      "meaning": "Cụ thể hóa 2 — toàn bộ stack, không cần biết kỹ thuật",
+      "estimated_duration": 15,
+      "narration": "Frontend, backend, database, API — Claude Code xây từng phần. Bạn xem. Bạn phê duyệt. Bạn định hướng. Không cần biết React hay Python. Không cần Stack Overflow.",
+      "sfx_picks": [{ "id": "click" }]
+    },
+    {
+      "sceneId": "scene_06",
+      "meaning": "Kết quả — sản phẩm thật, không phải demo hay mockup",
+      "estimated_duration": 13,
+      "narration": "Vài giờ sau: bạn có một ứng dụng chạy thật. Không phải bản demo. Không phải mockup. Giao diện đẹp, logic đúng, sẵn sàng cho người dùng thật.",
+      "sfx_picks": [{ "id": "ding" }]
+    },
+    {
+      "sceneId": "scene_07",
+      "meaning": "Bán hàng — deploy → landing page → đặt giá → chờ",
+      "estimated_duration": 14,
+      "narration": "Đẩy lên Vercel trong hai phút. Tạo trang bán hàng. Đặt giá chín đô một tháng. Chia sẻ lên mạng. Và đợi.",
+      "sfx_picks": [{ "id": "chime" }]
+    },
+    {
+      "sceneId": "scene_08",
+      "meaning": "Khoảnh khắc đổi đời — notification, thu nhập thụ động khi ngủ",
+      "estimated_duration": 14,
+      "narration": "Thông báo đầu tiên đến: ai đó vừa mua. Rồi người thứ hai. Người thứ ba lúc bạn đang ngủ. Đó là thu nhập thụ động — từ ý tưởng của bạn, xây bởi AI.",
+      "sfx_picks": [{ "id": "count-up-end" }]
+    },
+    {
+      "sceneId": "scene_09",
+      "meaning": "Tầm nhìn + CTA — bạn là founder, Claude Code là CTO",
+      "estimated_duration": 10,
+      "narration": "Bạn là founder. Claude Code là CTO. Ý tưởng tiếp theo của bạn — gõ vào và bắt đầu ngay bây giờ.",
+      "sfx_picks": [{ "id": "drum-hit" }]
+    }
+  ]
+}

@@ -1,0 +1,70 @@
+{
+  "visual_identity": "DESIGN.md",
+  "arc": "Arc A — Problem → Solution",
+  "totalDuration": 21,
+  "plans": [
+    {
+      "sceneId": "scene_01",
+      "duration": 6,
+      "pattern": "title-card",
+      "transition": { "type": "flash-white", "duration": 0.3 },
+      "mood": "explosive",
+      "asset": { "kind": "none" },
+      "sfx_picks": [
+        { "id": "drum-hit", "at": 0.0, "volume": 0.55 }
+      ],
+      "narration": "Trong 5 phút, ChatGPT làm được gì?",
+      "layout": "Full-screen centered. Label nhỏ phía trên, headline '5 PHÚT' cực lớn chiếm 60% canvas, subheadline phía dưới, divider line kết thúc.",
+      "elements": [
+        { "id": "label",       "text": "CONTENT AUTOMATION",    "role": "eyebrow label nhỏ — neon green, letter-spacing rộng" },
+        { "id": "headline",    "text": "5 PHÚT",                "role": "hero number — 200px+, neon green, glow mạnh, dominates canvas" },
+        { "id": "subheadline", "text": "ChatGPT làm được gì?",  "role": "secondary headline — trắng, 58px" },
+        { "id": "divider",     "role": "horizontal line neon green, sweep từ trái sang phải" }
+      ],
+      "creative_brief": "Hero frame: '5 PHÚT' dominates center canvas — viewer nhìn vào phải hiểu ngay về tốc độ. Label 'CONTENT AUTOMATION' anchors phía trên như một tag kỹ thuật. Kinetic energy: explosive — headline bloom từ scale 0, label slam từ trên xuống, subheadline drift in từ dưới. Focal moment tại 0.8s: divider sweep hoàn chỉnh — resolve toàn bộ entrance. Viewer cảm nhận: impact, curiosity. Connection: mở đầu bằng số '5 phút', truyền câu hỏi 'làm được gì?' sang scene sau. Xuất hiện khi từ 'phút' được nói."
+    },
+    {
+      "sceneId": "scene_02",
+      "duration": 9,
+      "pattern": "flowchart",
+      "transition": { "type": "crossfade", "duration": 0.5 },
+      "mood": "technical",
+      "asset": { "kind": "none" },
+      "sfx_picks": [
+        { "id": "ding", "at": 3.0, "volume": 0.45 },
+        { "id": "ding", "at": 5.5, "volume": 0.4 }
+      ],
+      "narration": "Chỉ cần nhập một ý tưởng. ChatGPT sẽ tạo kịch bản video và bài đăng Facebook ngay lập tức.",
+      "layout": "Top-down flowchart. Node ChatGPT ở giữa-trên. Hai SVG lines draw-on xuống 2 output cards. Badge '5 PHÚT' ở góc top.",
+      "elements": [
+        { "id": "badge",       "text": "5 PHÚT",           "role": "badge top — neon green lớn, slam từ trên" },
+        { "id": "node",        "text": "ChatGPT",           "role": "center node — neon green circle, glow ring, pulsing" },
+        { "id": "line-left",                                "role": "SVG connector draw-on → card trái" },
+        { "id": "line-right",                               "role": "SVG connector draw-on → card phải" },
+        { "id": "card-video",  "icon": "▶", "text": "KỊCH BẢN VIDEO",    "role": "output card trái — dark surface, green border" },
+        { "id": "card-fb",     "icon": "f", "text": "BÀI ĐĂNG FACEBOOK", "role": "output card phải — dark surface, green border" }
+      ],
+      "creative_brief": "Hero frame: node ChatGPT anchors center-top, 2 output cards balance bên dưới — viewer thấy rõ luồng input→output. Technical build từ trên xuống: badge slam → node bloom → lines draw-on chậm rãi → cards cascade. Focal moment tại 3.0s (ding): hai cards vừa xuất hiện đầy đủ, node pulse xác nhận kết nối hoàn tất. Focal moment tại 5.5s (ding): card-video glow burst nhấn mạnh output. Kinetic energy: precise — không bounce, mọi thứ theo thứ tự logic như hệ thống đang chạy. Viewer cảm nhận: 'AI đang làm việc thay mình'. Connection: nhận câu hỏi từ scene 1, trả lời bằng visual flow. Khi từ 'kịch bản' được nói, card-video xuất hiện."
+    },
+    {
+      "sceneId": "scene_03",
+      "duration": 6,
+      "pattern": "cta",
+      "transition": null,
+      "mood": "fluid",
+      "asset": { "kind": "none" },
+      "sfx_picks": [
+        { "id": "chime", "at": 0.4, "volume": 0.5 }
+      ],
+      "narration": "Thử ngay hôm nay. Miễn phí và chỉ mất 5 phút.",
+      "layout": "Centered. Glow halo lớn ở background. Tagline nhỏ phía trên, CTA text lớn, badge action bên dưới.",
+      "elements": [
+        { "id": "halo",    "role": "circular glow halo lớn, neon green radial gradient, bloom từ center" },
+        { "id": "tagline", "text": "Bắt đầu ngay hôm nay",        "role": "tagline nhỏ — neon green mờ, letter-spacing rộng" },
+        { "id": "cta",     "text": "THỬ CHATGPT\nCHO CONTENT",    "role": "CTA headline — trắng 90px, bold, dominates center" },
+        { "id": "badge",   "text": "Miễn phí · 5 phút setup ⚡",  "role": "badge pill — dark surface, neon green border, pulse" }
+      ],
+      "creative_brief": "Hero frame: CTA text dominates center, badge anchors below như landing pad. Fluid flow: halo bloom chậm từ center → tagline drift → CTA snap → badge float in. Focal moment tại 2.0s: badge fully visible và bắt đầu pulse nhẹ — eye magnet. Viewer cảm nhận: tích cực, urge to act. Fade to black ở 5.2s — closure cảm giác complete. Connection: resolve narrative '5 phút' từ scene 1, answer 'vậy tôi làm gì?'."
+    }
+  ]
+}

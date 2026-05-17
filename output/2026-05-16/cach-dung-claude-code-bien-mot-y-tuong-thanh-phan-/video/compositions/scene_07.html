@@ -1,0 +1,260 @@
+<template id="scene-07-template">
+  <div data-composition-id="scene-07" data-width="1080" data-height="1920">
+
+    <!-- Background layers -->
+    <div class="s7-bg" data-layout-ignore>
+      <div class="s7-dot-grid"></div>
+      <div class="s7-radial-glow"></div>
+      <div class="s7-scanlines"></div>
+    </div>
+
+    <!-- Corner brackets -->
+    <div class="s7-corner s7-corner-tl" data-layout-ignore></div>
+    <div class="s7-corner s7-corner-tr" data-layout-ignore></div>
+    <div class="s7-corner s7-corner-bl" data-layout-ignore></div>
+    <div class="s7-corner s7-corner-br" data-layout-ignore></div>
+
+    <!-- Main content -->
+    <div class="s7-content">
+      <div class="s7-step-badge">BƯỚC 03</div>
+
+      <h1 class="s7-title">Launch &amp; Bán.</h1>
+
+      <!-- Platform cards -->
+      <div class="s7-platforms">
+        <div class="s7-platform s7-pf1">
+          <div class="s7-pf-icon">▲</div>
+          <div class="s7-pf-name">Vercel</div>
+          <div class="s7-pf-sub">Deploy trong 2 phút</div>
+        </div>
+        <div class="s7-platform s7-pf2">
+          <div class="s7-pf-icon">$</div>
+          <div class="s7-pf-name">Gumroad</div>
+          <div class="s7-pf-sub">Bán digital products</div>
+        </div>
+        <div class="s7-platform s7-pf3">
+          <div class="s7-pf-icon">◆</div>
+          <div class="s7-pf-name">LemonSqueezy</div>
+          <div class="s7-pf-sub">SaaS subscriptions</div>
+        </div>
+      </div>
+
+      <!-- Rocket element -->
+      <div class="s7-rocket-row">
+        <div class="s7-rocket">🚀</div>
+        <div class="s7-rocket-text">Viết landing page.<br>Đặt giá.<br>Launch.</div>
+      </div>
+
+      <p class="s7-tagline">Claude Code làm cùng bạn.</p>
+    </div>
+
+    <style>
+      #scene-07 {
+        position: relative;
+        width: 1080px;
+        height: 1920px;
+        background: #060810;
+        overflow: hidden;
+      }
+
+      /* ── Background ── */
+      .s7-bg {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      .s7-dot-grid {
+        position: absolute;
+        inset: 0;
+        background-image: radial-gradient(circle, rgba(57,255,20,0.28) 1.5px, transparent 1.5px);
+        background-size: 48px 48px;
+      }
+
+      .s7-radial-glow {
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(ellipse 700px 700px at 50% 50%, rgba(57,255,20,0.15) 0%, transparent 70%);
+      }
+
+      .s7-scanlines {
+        position: absolute;
+        inset: 0;
+        background: repeating-linear-gradient(
+          0deg,
+          transparent,
+          transparent 3px,
+          rgba(0,0,0,0.04) 3px,
+          rgba(0,0,0,0.04) 4px
+        );
+      }
+
+      /* ── Corner brackets ── */
+      .s7-corner {
+        position: absolute;
+        width: 56px;
+        height: 56px;
+        border-color: #39FF14;
+        border-style: solid;
+        opacity: 0.5;
+        z-index: 3;
+      }
+
+      .s7-corner-tl { top: 60px; left: 60px; border-width: 3px 0 0 3px; }
+      .s7-corner-tr { top: 60px; right: 60px; border-width: 3px 3px 0 0; }
+      .s7-corner-bl { bottom: 60px; left: 60px; border-width: 0 0 3px 3px; }
+      .s7-corner-br { bottom: 60px; right: 60px; border-width: 0 3px 3px 0; }
+
+      /* ── Content ── */
+      .s7-content {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: 140px 88px;
+        gap: 44px;
+        box-sizing: border-box;
+        z-index: 2;
+      }
+
+      .s7-step-badge {
+        font-family: 'Exo 2', sans-serif;
+        font-weight: 700;
+        font-size: 28px;
+        color: #39FF14;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+      }
+
+      .s7-title {
+        font-family: 'Exo 2', sans-serif;
+        font-weight: 900;
+        font-size: 96px;
+        color: #FFFFFF;
+        line-height: 1.0;
+        margin: 0;
+      }
+
+      /* Platform cards */
+      .s7-platforms {
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+      }
+
+      .s7-platform {
+        display: flex;
+        align-items: center;
+        gap: 24px;
+        background: rgba(57,255,20,0.08);
+        border: 1.5px solid rgba(57,255,20,0.3);
+        border-radius: 14px;
+        padding: 20px 28px;
+      }
+
+      .s7-pf-icon {
+        font-family: 'Inter', sans-serif;
+        font-weight: 700;
+        font-size: 36px;
+        color: #39FF14;
+        width: 52px;
+        text-align: center;
+        flex-shrink: 0;
+      }
+
+      .s7-pf-name {
+        font-family: 'Exo 2', sans-serif;
+        font-weight: 700;
+        font-size: 40px;
+        color: #FFFFFF;
+        flex: 1;
+      }
+
+      .s7-pf-sub {
+        font-family: 'Inter', sans-serif;
+        font-weight: 500;
+        font-size: 26px;
+        color: rgba(255,255,255,0.45);
+      }
+
+      /* Rocket row */
+      .s7-rocket-row {
+        display: flex;
+        align-items: center;
+        gap: 28px;
+      }
+
+      .s7-rocket {
+        font-size: 72px;
+        flex-shrink: 0;
+      }
+
+      .s7-rocket-text {
+        font-family: 'Inter', sans-serif;
+        font-weight: 600;
+        font-size: 38px;
+        color: rgba(255,255,255,0.7);
+        line-height: 1.5;
+      }
+
+      .s7-tagline {
+        font-family: 'Inter', sans-serif;
+        font-weight: 600;
+        font-size: 40px;
+        color: #39FF14;
+        margin: 0;
+        text-shadow: 0 0 16px rgba(57,255,20,0.5);
+      }
+    </style>
+
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <script>
+      window.__timelines = window.__timelines || {};
+
+      const tl = gsap.timeline({ paused: true });
+
+      // Step badge
+      tl.from(".s7-step-badge", { y: -25, opacity: 0, duration: 0.4, ease: "power3.out" }, 0.2);
+
+      // Title snaps in
+      tl.from(".s7-title", { scale: 0.9, opacity: 0, duration: 0.55, ease: "back.out(2)" }, 0.6);
+
+      // Platforms slide in from right, stagger
+      tl.from(".s7-platform", { x: 80, opacity: 0, duration: 0.45, ease: "expo.out", stagger: 0.22 }, 1.8);
+
+      // Rocket row floats up
+      tl.from(".s7-rocket-row", { y: 40, opacity: 0, duration: 0.5, ease: "power2.out" }, 5.2);
+
+      // Rocket float animation
+      const rocketDuration = 14.58;
+      const floatCycle = 2.0;
+      const floatRepeat = Math.ceil(rocketDuration / floatCycle);
+      tl.to(".s7-rocket", {
+        y: -16,
+        duration: floatCycle / 2,
+        ease: "sine.inOut",
+        repeat: floatRepeat,
+        yoyo: true
+      }, 1.0);
+
+      // Tagline pulses in
+      tl.from(".s7-tagline", { opacity: 0, y: 20, duration: 0.5, ease: "power3.out" }, 8.5);
+
+      // Tagline subtle pulse glow
+      const pulseCycle = 1.5;
+      const pulseRepeat = Math.ceil(rocketDuration / pulseCycle);
+      tl.to(".s7-tagline", {
+        textShadow: "0 0 30px rgba(57,255,20,0.9), 0 0 60px rgba(57,255,20,0.4)",
+        duration: pulseCycle / 2,
+        ease: "sine.inOut",
+        repeat: pulseRepeat,
+        yoyo: true
+      }, 9.5);
+
+      window.__timelines["scene-07"] = tl;
+    </script>
+  </div>
+</template>

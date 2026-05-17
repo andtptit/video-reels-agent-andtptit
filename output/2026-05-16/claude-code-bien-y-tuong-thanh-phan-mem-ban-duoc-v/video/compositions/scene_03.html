@@ -1,0 +1,95 @@
+<template id="scene-03-template">
+  <div data-composition-id="scene-03" data-width="1080" data-height="1920">
+
+    <div class="s3-bg" data-layout-ignore>
+      <div class="s3-dots"></div>
+      <div class="s3-explosion"></div>
+      <div class="s3-scanlines"></div>
+    </div>
+    <div class="s3-corner s3-tl" data-layout-ignore></div>
+    <div class="s3-corner s3-tr" data-layout-ignore></div>
+    <div class="s3-corner s3-bl" data-layout-ignore></div>
+    <div class="s3-corner s3-br" data-layout-ignore></div>
+
+    <div class="s3-content">
+      <h1 class="s3-brand">Claude Code</h1>
+      <p class="s3-sub">xóa sạch tất cả<br>những rào cản đó.</p>
+      <div class="s3-stamp">
+        <span class="s3-stamp-text">NGAY HÔM NAY.</span>
+      </div>
+    </div>
+
+    <style>
+      #scene-03 {
+        position: relative; width: 1080px; height: 1920px;
+        background: #060810; overflow: hidden;
+      }
+      .s3-bg { position: absolute; inset: 0; pointer-events: none; z-index: 0; }
+      .s3-dots {
+        position: absolute; inset: 0;
+        background-image: radial-gradient(circle, rgba(57,255,20,0.22) 1.5px, transparent 1.5px);
+        background-size: 48px 48px;
+      }
+      .s3-explosion {
+        position: absolute; inset: 0;
+        background: radial-gradient(ellipse 900px 900px at 50% 48%, rgba(57,255,20,0.2) 0%, transparent 60%);
+        opacity: 0;
+      }
+      .s3-scanlines {
+        position: absolute; inset: 0;
+        background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.04) 3px, rgba(0,0,0,0.04) 4px);
+      }
+      .s3-corner {
+        position: absolute; width: 56px; height: 56px;
+        border-color: #39FF14; border-style: solid; opacity: 0.45; z-index: 3;
+      }
+      .s3-tl { top: 60px; left: 60px; border-width: 3px 0 0 3px; }
+      .s3-tr { top: 60px; right: 60px; border-width: 3px 3px 0 0; }
+      .s3-bl { bottom: 60px; left: 60px; border-width: 0 0 3px 3px; }
+      .s3-br { bottom: 60px; right: 60px; border-width: 0 3px 3px 0; }
+
+      .s3-content {
+        position: relative; width: 100%; height: 100%;
+        display: flex; flex-direction: column; justify-content: center;
+        padding: 140px 88px; gap: 44px; box-sizing: border-box; z-index: 2;
+      }
+      .s3-brand {
+        font-family: 'Exo 2', sans-serif;
+        font-weight: 900; font-size: 120px; color: #39FF14; margin: 0;
+        line-height: 1.0; letter-spacing: -2px;
+        text-shadow: 0 0 40px rgba(57,255,20,0.9), 0 0 100px rgba(57,255,20,0.4);
+      }
+      .s3-sub {
+        font-family: 'Inter', sans-serif;
+        font-weight: 500; font-size: 52px; color: rgba(255,255,255,0.8); margin: 0;
+        line-height: 1.4;
+      }
+      .s3-stamp {
+        display: inline-block;
+        border: 3px solid #39FF14;
+        border-radius: 10px;
+        padding: 14px 32px;
+        width: fit-content;
+      }
+      .s3-stamp-text {
+        font-family: 'Exo 2', sans-serif;
+        font-weight: 900; font-size: 52px; color: #39FF14;
+        letter-spacing: 0.08em;
+        text-shadow: 0 0 16px rgba(57,255,20,0.6);
+      }
+    </style>
+
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+
+      tl.to(".s3-explosion", { opacity: 1, duration: 0.5, ease: "power2.out" }, 0);
+      tl.from(".s3-brand", { scale: 0.5, opacity: 0, duration: 0.6, ease: "expo.out" }, 0.1);
+      tl.from(".s3-sub", { y: 40, opacity: 0, duration: 0.5, ease: "power3.out" }, 0.9);
+      tl.from(".s3-stamp", { scale: 0.7, opacity: 0, duration: 0.5, ease: "back.out(3)" }, 1.9);
+
+      window.__timelines["scene-03"] = tl;
+    </script>
+  </div>
+</template>

@@ -1,0 +1,114 @@
+<template id="scene-07-template">
+  <div data-composition-id="scene-07" data-width="1080" data-height="1920">
+
+    <div class="s7-bg" data-layout-ignore>
+      <div class="s7-dots"></div>
+      <div class="s7-glow"></div>
+      <div class="s7-scanlines"></div>
+    </div>
+    <div class="s7-corner s7-tl" data-layout-ignore></div>
+    <div class="s7-corner s7-tr" data-layout-ignore></div>
+    <div class="s7-corner s7-bl" data-layout-ignore></div>
+    <div class="s7-corner s7-br" data-layout-ignore></div>
+
+    <div class="s7-content">
+      <h1 class="s7-title">Sell.</h1>
+
+      <div class="s7-steps">
+        <div class="s7-step s7-s1">
+          <span class="s7-num">01</span>
+          <span class="s7-step-text">Đẩy lên Vercel — 2 phút</span>
+        </div>
+        <div class="s7-step s7-s2">
+          <span class="s7-num">02</span>
+          <span class="s7-step-text">Tạo trang bán hàng</span>
+        </div>
+        <div class="s7-step s7-s3">
+          <span class="s7-num">03</span>
+          <div class="s7-price-inline">
+            <span class="s7-step-text">Đặt giá </span>
+            <span class="s7-price-tag">$9/tháng</span>
+          </div>
+        </div>
+        <div class="s7-step s7-s4">
+          <span class="s7-num">04</span>
+          <span class="s7-step-text">Chia sẻ. Đợi.</span>
+        </div>
+      </div>
+    </div>
+
+    <style>
+      #scene-07 {
+        position: relative; width: 1080px; height: 1920px;
+        background: #060810; overflow: hidden;
+      }
+      .s7-bg { position: absolute; inset: 0; pointer-events: none; z-index: 0; }
+      .s7-dots {
+        position: absolute; inset: 0;
+        background-image: radial-gradient(circle, rgba(57,255,20,0.22) 1.5px, transparent 1.5px);
+        background-size: 48px 48px;
+      }
+      .s7-glow {
+        position: absolute; inset: 0;
+        background: radial-gradient(ellipse 700px 700px at 50% 50%, rgba(57,255,20,0.14) 0%, transparent 70%);
+      }
+      .s7-scanlines {
+        position: absolute; inset: 0;
+        background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.04) 3px, rgba(0,0,0,0.04) 4px);
+      }
+      .s7-corner {
+        position: absolute; width: 56px; height: 56px;
+        border-color: #39FF14; border-style: solid; opacity: 0.45; z-index: 3;
+      }
+      .s7-tl { top: 60px; left: 60px; border-width: 3px 0 0 3px; }
+      .s7-tr { top: 60px; right: 60px; border-width: 3px 3px 0 0; }
+      .s7-bl { bottom: 60px; left: 60px; border-width: 0 0 3px 3px; }
+      .s7-br { bottom: 60px; right: 60px; border-width: 0 3px 3px 0; }
+
+      .s7-content {
+        position: relative; width: 100%; height: 100%;
+        display: flex; flex-direction: column; justify-content: center;
+        padding: 140px 88px; gap: 52px; box-sizing: border-box; z-index: 2;
+      }
+      .s7-title {
+        font-family: 'Exo 2', sans-serif; font-weight: 900;
+        font-size: 160px; color: #39FF14; margin: 0; line-height: 1.0;
+        text-shadow: 0 0 40px rgba(57,255,20,0.7), 0 0 80px rgba(57,255,20,0.3);
+      }
+
+      .s7-steps { display: flex; flex-direction: column; gap: 20px; }
+      .s7-step {
+        display: flex; align-items: center; gap: 24px;
+        background: rgba(57,255,20,0.06);
+        border: 1.5px solid rgba(57,255,20,0.2);
+        border-radius: 12px; padding: 20px 28px;
+      }
+      .s7-num {
+        font-family: 'Exo 2', sans-serif; font-weight: 900;
+        font-size: 36px; color: rgba(57,255,20,0.6); flex-shrink: 0;
+        letter-spacing: 0.05em;
+      }
+      .s7-step-text {
+        font-family: 'Inter', sans-serif; font-weight: 600;
+        font-size: 38px; color: rgba(255,255,255,0.85);
+      }
+      .s7-price-inline { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+      .s7-price-tag {
+        font-family: 'Exo 2', sans-serif; font-weight: 900;
+        font-size: 44px; color: #39FF14;
+        text-shadow: 0 0 12px rgba(57,255,20,0.6);
+      }
+    </style>
+
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+
+      tl.from(".s7-title", { scale: 0.6, opacity: 0, duration: 0.6, ease: "expo.out" }, 0.1);
+      tl.from(".s7-step", { y: 35, opacity: 0, duration: 0.38, ease: "back.out(2)", stagger: 0.18 }, 0.9);
+
+      window.__timelines["scene-07"] = tl;
+    </script>
+  </div>
+</template>

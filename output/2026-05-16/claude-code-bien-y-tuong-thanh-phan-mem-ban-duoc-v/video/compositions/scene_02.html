@@ -1,0 +1,87 @@
+<template id="scene-02-template">
+  <div data-composition-id="scene-02" data-width="1080" data-height="1920">
+
+    <div class="s2-bg" data-layout-ignore>
+      <div class="s2-dots"></div>
+      <div class="s2-glow"></div>
+      <div class="s2-scanlines"></div>
+    </div>
+    <div class="s2-corner s2-tl" data-layout-ignore></div>
+    <div class="s2-corner s2-tr" data-layout-ignore></div>
+    <div class="s2-corner s2-bl" data-layout-ignore></div>
+    <div class="s2-corner s2-br" data-layout-ignore></div>
+
+    <div class="s2-content">
+      <p class="s2-because">Vì...</p>
+      <div class="s2-barriers">
+        <div class="s2-bar s2-b1"><span class="s2-bar-icon">💸</span><span class="s2-bar-text">Tốn tiền</span></div>
+        <div class="s2-bar s2-b2"><span class="s2-bar-icon">⏳</span><span class="s2-bar-text">Tốn tháng trời</span></div>
+        <div class="s2-bar s2-b3"><span class="s2-bar-icon">💻</span><span class="s2-bar-text">Không biết code</span></div>
+        <div class="s2-bar s2-b4"><span class="s2-bar-icon">⚠️</span><span class="s2-bar-text">Thuê người = rủi ro</span></div>
+      </div>
+    </div>
+
+    <style>
+      #scene-02 {
+        position: relative; width: 1080px; height: 1920px;
+        background: #060810; overflow: hidden;
+      }
+      .s2-bg { position: absolute; inset: 0; pointer-events: none; z-index: 0; }
+      .s2-dots {
+        position: absolute; inset: 0;
+        background-image: radial-gradient(circle, rgba(57,255,20,0.22) 1.5px, transparent 1.5px);
+        background-size: 48px 48px;
+      }
+      .s2-glow {
+        position: absolute; inset: 0;
+        background: radial-gradient(ellipse 600px 600px at 50% 50%, rgba(255,60,60,0.06) 0%, transparent 70%);
+      }
+      .s2-scanlines {
+        position: absolute; inset: 0;
+        background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.04) 3px, rgba(0,0,0,0.04) 4px);
+      }
+      .s2-corner {
+        position: absolute; width: 56px; height: 56px;
+        border-color: #39FF14; border-style: solid; opacity: 0.45; z-index: 3;
+      }
+      .s2-tl { top: 60px; left: 60px; border-width: 3px 0 0 3px; }
+      .s2-tr { top: 60px; right: 60px; border-width: 3px 3px 0 0; }
+      .s2-bl { bottom: 60px; left: 60px; border-width: 0 0 3px 3px; }
+      .s2-br { bottom: 60px; right: 60px; border-width: 0 3px 3px 0; }
+
+      .s2-content {
+        position: relative; width: 100%; height: 100%;
+        display: flex; flex-direction: column; justify-content: center;
+        padding: 140px 88px; gap: 48px; box-sizing: border-box; z-index: 2;
+      }
+      .s2-because {
+        font-family: 'Inter', sans-serif;
+        font-weight: 600; font-size: 38px; color: rgba(255,255,255,0.4);
+        letter-spacing: 0.05em; margin: 0;
+      }
+      .s2-barriers { display: flex; flex-direction: column; gap: 24px; }
+      .s2-bar {
+        display: flex; align-items: center; gap: 24px;
+        background: rgba(255,60,60,0.07);
+        border: 1.5px solid rgba(255,80,80,0.3);
+        border-radius: 14px; padding: 24px 32px;
+      }
+      .s2-bar-icon { font-size: 44px; flex-shrink: 0; }
+      .s2-bar-text {
+        font-family: 'Exo 2', sans-serif;
+        font-weight: 700; font-size: 48px; color: rgba(255,255,255,0.85);
+      }
+    </style>
+
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+
+      tl.from(".s2-because", { opacity: 0, duration: 0.3, ease: "power2.out" }, 0.2);
+      tl.from(".s2-bar", { x: -60, opacity: 0, duration: 0.4, ease: "expo.out", stagger: 0.22 }, 0.6);
+
+      window.__timelines["scene-02"] = tl;
+    </script>
+  </div>
+</template>

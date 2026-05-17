@@ -1,0 +1,56 @@
+<template id="scene-02-template">
+  <div id="scene-02" data-composition-id="scene-02" data-width="1080" data-height="1920">
+    <style>
+      #scene-02 { position: absolute; inset: 0; overflow: hidden; font-family: 'Exo 2', 'Inter', sans-serif; }
+      .s2-label   { position: absolute; top: 540px; left: 0; width: 1080px; text-align: center; font-family: 'Inter', sans-serif; font-size: 18px; font-weight: 600; color: rgba(57,255,20,0.65); letter-spacing: 7px; text-transform: uppercase; }
+      .s2-stat-1  { position: absolute; top: 590px; left: 0; width: 1080px; text-align: center; }
+      .s2-stat-1-num   { font-size: 110px; font-weight: 900; color: #39FF14; line-height: 0.88; text-shadow: 0 0 40px #39FF14, 0 0 80px rgba(57,255,20,0.45); letter-spacing: -4px; display: block; }
+      .s2-stat-1-label { font-size: 28px; font-weight: 600; color: rgba(255,255,255,0.6); letter-spacing: 2px; text-transform: uppercase; margin-top: 12px; display: block; }
+      .s2-divider { position: absolute; top: 910px; left: 100px; width: 880px; height: 1px; background: linear-gradient(to right, transparent, rgba(57,255,20,0.45) 20%, rgba(57,255,20,0.45) 80%, transparent); }
+      .s2-stat-2  { position: absolute; top: 940px; left: 0; width: 1080px; text-align: center; }
+      .s2-stat-2-num   { font-size: 90px; font-weight: 900; color: #fff; line-height: 1; letter-spacing: -2px; display: block; }
+      .s2-stat-2-label { font-size: 28px; font-weight: 600; color: rgba(255,255,255,0.55); letter-spacing: 2px; text-transform: uppercase; margin-top: 10px; display: block; }
+      .s2-badge { position: absolute; top: 1190px; left: 0; width: 1080px; display: flex; justify-content: center; }
+      .s2-badge-inner { display: inline-flex; align-items: center; gap: 12px; padding: 16px 36px; border-radius: 50px; background: rgba(8,12,24,0.92); border: 1.5px solid rgba(220,50,50,0.5); box-shadow: 0 0 24px rgba(220,50,50,0.15); font-size: 22px; font-weight: 700; color: rgba(255,255,255,0.8); letter-spacing: 1px; }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+
+    <audio id="s2-sfx-impact1" class="clip" data-start="0.5" data-duration="1.5" data-track-index="32" data-volume="0.5" src="../assets/sfx/impact.mp3"></audio>
+    <audio id="s2-sfx-impact2" class="clip" data-start="2.5" data-duration="1.5" data-track-index="33" data-volume="0.4" src="../assets/sfx/impact.mp3"></audio>
+
+    <span id="s2-label"   class="clip s2-label"   data-start="0.3" data-duration="8.4" data-track-index="1">THỰC TẾ HIỆN TẠI</span>
+    <div  id="s2-stat-1"  class="clip s2-stat-1"  data-start="0.5" data-duration="8.2" data-track-index="2">
+      <span class="s2-stat-1-num">TRIỆU ĐỒNG</span>
+      <span class="s2-stat-1-label">Thuê người viết / tháng</span>
+    </div>
+    <div  id="s2-divider" class="clip s2-divider" data-start="1.2" data-duration="7.5" data-track-index="3"></div>
+    <div  id="s2-stat-2"  class="clip s2-stat-2"  data-start="2.5" data-duration="6.2" data-track-index="4">
+      <span class="s2-stat-2-num">KIỆT SỨC</span>
+      <span class="s2-stat-2-label">Nếu tự viết mỗi ngày</span>
+    </div>
+    <div  id="s2-badge"   class="clip s2-badge"   data-start="3.8" data-duration="4.9" data-track-index="5">
+      <div class="s2-badge-inner">😤 Doanh nghiệp nhỏ không lối thoát</div>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      const DURATION = 8.7;
+      const tl = gsap.timeline({ paused: true });
+
+      // cinematic — drift in chậm
+      tl.from('#s2-label',   { opacity: 0, y: 20,  duration: 0.6,  ease: 'power2.out' }, 0.3);
+      tl.from('#s2-stat-1',  { opacity: 0, x: -40, duration: 0.85, ease: 'power3.out' }, 0.5);
+      tl.from('#s2-divider', { scaleX: 0,  transformOrigin: 'center', duration: 0.7, ease: 'power2.inOut' }, 1.2);
+      tl.from('#s2-stat-2',  { opacity: 0, x: 40,  duration: 0.85, ease: 'power3.out' }, 2.5);
+      tl.from('#s2-badge',   { opacity: 0, y: 20,  duration: 0.6,  ease: 'power2.out' }, 3.8);
+
+      // focal impact pulses
+      tl.to('#s2-stat-1', { scale: 1.05, transformOrigin: 'center', duration: 0.14, ease: 'power2.out'         }, 0.5);
+      tl.to('#s2-stat-1', { scale: 1.00, transformOrigin: 'center', duration: 0.35, ease: 'elastic.out(1,0.5)' }, 0.64);
+      tl.to('#s2-stat-2', { scale: 1.05, transformOrigin: 'center', duration: 0.14, ease: 'power2.out'         }, 2.5);
+      tl.to('#s2-stat-2', { scale: 1.00, transformOrigin: 'center', duration: 0.35, ease: 'elastic.out(1,0.5)', overwrite: 'auto' }, 2.64);
+
+      window.__timelines['scene-02'] = tl;
+    </script>
+  </div>
+</template>

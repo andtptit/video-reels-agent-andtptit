@@ -1,0 +1,261 @@
+<template id="scene-05-template">
+  <div data-composition-id="scene-05" data-width="1080" data-height="1920">
+
+    <!-- Background layers -->
+    <div class="s5-bg" data-layout-ignore>
+      <div class="s5-dot-grid"></div>
+      <div class="s5-radial-glow"></div>
+      <div class="s5-scanlines"></div>
+    </div>
+
+    <!-- Corner brackets -->
+    <div class="s5-corner s5-corner-tl" data-layout-ignore></div>
+    <div class="s5-corner s5-corner-tr" data-layout-ignore></div>
+    <div class="s5-corner s5-corner-bl" data-layout-ignore></div>
+    <div class="s5-corner s5-corner-br" data-layout-ignore></div>
+
+    <!-- Main content -->
+    <div class="s5-content">
+      <div class="s5-step-badge">BƯỚC 02</div>
+
+      <h1 class="s5-title">Claude Code<br>làm việc.</h1>
+
+      <!-- File tree -->
+      <div class="s5-file-tree">
+        <div class="s5-tree-row s5-tr1"><span class="s5-tree-icon">📁</span><span class="s5-tree-name">src/</span></div>
+        <div class="s5-tree-row s5-tr2"><span class="s5-tree-icon">  📁</span><span class="s5-tree-name">components/</span></div>
+        <div class="s5-tree-row s5-tr3"><span class="s5-tree-icon">  📁</span><span class="s5-tree-name">api/</span></div>
+        <div class="s5-tree-row s5-tr4"><span class="s5-tree-icon">  📁</span><span class="s5-tree-name">database/</span></div>
+        <div class="s5-tree-row s5-tr5"><span class="s5-tree-icon">  📄</span><span class="s5-tree-name">package.json</span></div>
+      </div>
+
+      <!-- Tech stack cards -->
+      <div class="s5-stack">
+        <div class="s5-stack-card s5-sc1">Frontend</div>
+        <div class="s5-stack-card s5-sc2">Backend</div>
+        <div class="s5-stack-card s5-sc3">Database</div>
+        <div class="s5-stack-card s5-sc4">Deploy-ready</div>
+      </div>
+
+      <!-- Progress bar -->
+      <div class="s5-progress-wrap">
+        <div class="s5-progress-label">Building...</div>
+        <div class="s5-progress-track">
+          <div class="s5-progress-fill"></div>
+        </div>
+      </div>
+
+      <p class="s5-tagline">Bạn điều hướng. Claude Code thực thi.</p>
+    </div>
+
+    <style>
+      #scene-05 {
+        position: relative;
+        width: 1080px;
+        height: 1920px;
+        background: #060810;
+        overflow: hidden;
+      }
+
+      /* ── Background ── */
+      .s5-bg {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      .s5-dot-grid {
+        position: absolute;
+        inset: 0;
+        background-image: radial-gradient(circle, rgba(57,255,20,0.28) 1.5px, transparent 1.5px);
+        background-size: 48px 48px;
+      }
+
+      .s5-radial-glow {
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(ellipse 700px 700px at 50% 50%, rgba(57,255,20,0.13) 0%, transparent 70%);
+      }
+
+      .s5-scanlines {
+        position: absolute;
+        inset: 0;
+        background: repeating-linear-gradient(
+          0deg,
+          transparent,
+          transparent 3px,
+          rgba(0,0,0,0.04) 3px,
+          rgba(0,0,0,0.04) 4px
+        );
+      }
+
+      /* ── Corner brackets ── */
+      .s5-corner {
+        position: absolute;
+        width: 56px;
+        height: 56px;
+        border-color: #39FF14;
+        border-style: solid;
+        opacity: 0.5;
+        z-index: 3;
+      }
+
+      .s5-corner-tl { top: 60px; left: 60px; border-width: 3px 0 0 3px; }
+      .s5-corner-tr { top: 60px; right: 60px; border-width: 3px 3px 0 0; }
+      .s5-corner-bl { bottom: 60px; left: 60px; border-width: 0 0 3px 3px; }
+      .s5-corner-br { bottom: 60px; right: 60px; border-width: 0 3px 3px 0; }
+
+      /* ── Content ── */
+      .s5-content {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: 140px 88px;
+        gap: 36px;
+        box-sizing: border-box;
+        z-index: 2;
+      }
+
+      .s5-step-badge {
+        font-family: 'Exo 2', sans-serif;
+        font-weight: 700;
+        font-size: 28px;
+        color: #39FF14;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+      }
+
+      .s5-title {
+        font-family: 'Exo 2', sans-serif;
+        font-weight: 900;
+        font-size: 84px;
+        color: #FFFFFF;
+        line-height: 1.05;
+        margin: 0;
+      }
+
+      /* File tree */
+      .s5-file-tree {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        background: rgba(0,0,0,0.4);
+        border: 1px solid rgba(57,255,20,0.2);
+        border-radius: 12px;
+        padding: 24px 28px;
+      }
+
+      .s5-tree-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-family: 'Inter', monospace;
+      }
+
+      .s5-tree-icon {
+        font-size: 26px;
+        flex-shrink: 0;
+      }
+
+      .s5-tree-name {
+        font-weight: 600;
+        font-size: 30px;
+        color: #39FF14;
+        letter-spacing: 0.02em;
+      }
+
+      /* Tech stack */
+      .s5-stack {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+      }
+
+      .s5-stack-card {
+        font-family: 'Exo 2', sans-serif;
+        font-weight: 700;
+        font-size: 36px;
+        color: #FFFFFF;
+        background: rgba(57,255,20,0.1);
+        border: 1.5px solid rgba(57,255,20,0.35);
+        border-radius: 12px;
+        padding: 20px 24px;
+        text-align: center;
+      }
+
+      /* Progress bar */
+      .s5-progress-wrap {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .s5-progress-label {
+        font-family: 'Inter', sans-serif;
+        font-weight: 600;
+        font-size: 28px;
+        color: rgba(255,255,255,0.5);
+        letter-spacing: 0.08em;
+      }
+
+      .s5-progress-track {
+        width: 100%;
+        height: 8px;
+        background: rgba(57,255,20,0.15);
+        border-radius: 4px;
+        overflow: hidden;
+      }
+
+      .s5-progress-fill {
+        height: 100%;
+        width: 0%;
+        background: #39FF14;
+        border-radius: 4px;
+        box-shadow: 0 0 12px rgba(57,255,20,0.8);
+      }
+
+      .s5-tagline {
+        font-family: 'Inter', sans-serif;
+        font-weight: 500;
+        font-size: 36px;
+        color: rgba(255,255,255,0.55);
+        margin: 0;
+        line-height: 1.3;
+      }
+    </style>
+
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <script>
+      window.__timelines = window.__timelines || {};
+
+      const tl = gsap.timeline({ paused: true });
+
+      // Step badge
+      tl.from(".s5-step-badge", { y: -25, opacity: 0, duration: 0.4, ease: "power3.out" }, 0.2);
+
+      // Title
+      tl.from(".s5-title", { x: -50, opacity: 0, duration: 0.6, ease: "expo.out" }, 0.6);
+
+      // File tree rows appear one by one — technical, top-to-bottom
+      const treeRows = [".s5-tr1", ".s5-tr2", ".s5-tr3", ".s5-tr4", ".s5-tr5"];
+      treeRows.forEach((sel, i) => {
+        tl.from(sel, { x: -30, opacity: 0, duration: 0.35, ease: "power2.out" }, 1.8 + i * 0.25);
+      });
+
+      // Stack cards pop in with back.out stagger
+      tl.from(".s5-stack-card", { scale: 0.8, opacity: 0, duration: 0.45, ease: "back.out(2)", stagger: 0.18 }, 4.2);
+
+      // Progress bar fills over ~8 seconds
+      tl.to(".s5-progress-fill", { width: "100%", duration: 10.5, ease: "power1.inOut" }, 1.5);
+
+      // Tagline fades in last
+      tl.from(".s5-tagline", { opacity: 0, y: 20, duration: 0.5, ease: "power2.out" }, 8.5);
+
+      window.__timelines["scene-05"] = tl;
+    </script>
+  </div>
+</template>

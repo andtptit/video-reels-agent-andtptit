@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body {
+        width: 1920px; height: 1080px;
+        overflow: hidden;
+        background: #060810;
+        font-family: 'Exo 2', 'Inter', sans-serif;
+      }
+
+      /* ── Background ── */
+      .bg-dots {
+        position: absolute; inset: 0;
+        background-image: radial-gradient(circle, rgba(57,255,20,0.28) 1.5px, transparent 1.5px);
+        background-size: 48px 48px;
+      }
+      .bg-glow {
+        position: absolute; inset: 0;
+        background: radial-gradient(ellipse 1100px 800px at 50% 48%, rgba(57,255,20,0.10) 0%, transparent 68%);
+      }
+      .bg-scanlines {
+        position: absolute; inset: 0;
+        background: repeating-linear-gradient(0deg, transparent 0px, transparent 3px, rgba(0,0,0,0.04) 3px, rgba(0,0,0,0.04) 4px);
+      }
+
+      /* ── Corner brackets ── */
+      .corner { position: absolute; width: 56px; height: 56px; }
+      .corner-tl { top: 40px; left: 40px; border-top: 3px solid rgba(57,255,20,0.5); border-left: 3px solid rgba(57,255,20,0.5); }
+      .corner-tr { top: 40px; right: 40px; border-top: 3px solid rgba(57,255,20,0.5); border-right: 3px solid rgba(57,255,20,0.5); }
+      .corner-bl { bottom: 40px; left: 40px; border-bottom: 3px solid rgba(57,255,20,0.5); border-left: 3px solid rgba(57,255,20,0.5); }
+      .corner-br { bottom: 40px; right: 40px; border-bottom: 3px solid rgba(57,255,20,0.5); border-right: 3px solid rgba(57,255,20,0.5); }
+
+      /* ── Glow rings (around node) ── */
+      .glow-ring-1 {
+        position: absolute; left: 830px; top: 290px;
+        width: 260px; height: 260px; border-radius: 50%;
+        border: 1.5px solid rgba(57,255,20,0.45);
+        box-shadow: 0 0 16px rgba(57,255,20,0.2);
+        z-index: 15;
+      }
+      .glow-ring-2 {
+        position: absolute; left: 800px; top: 260px;
+        width: 320px; height: 320px; border-radius: 50%;
+        border: 1px solid rgba(57,255,20,0.15);
+        z-index: 14;
+      }
+
+      /* ── ChatGPT center node ── */
+      .chatgpt-node {
+        position: absolute;
+        left: 860px; top: 320px;
+        width: 200px; height: 200px;
+        border-radius: 50%;
+        background: radial-gradient(circle at 38% 32%, rgba(57,255,20,0.25), rgba(57,255,20,0.04) 70%);
+        border: 2.5px solid #39FF14;
+        box-shadow: 0 0 30px #39FF14, 0 0 60px rgba(57,255,20,0.5), 0 0 100px rgba(57,255,20,0.22), inset 0 0 30px rgba(57,255,20,0.07);
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        gap: 6px; z-index: 20;
+      }
+      .chatgpt-main-text {
+        font-size: 40px; font-weight: 900; color: #39FF14; letter-spacing: -1px; line-height: 1;
+        text-shadow: 0 0 20px #39FF14, 0 0 40px rgba(57,255,20,0.7);
+      }
+      .chatgpt-sub-text {
+        font-size: 15px; font-weight: 700; color: rgba(255,255,255,0.85);
+        letter-spacing: 4px; text-transform: uppercase;
+      }
+
+      /* ── SVG connector layer ── */
+      .svg-layer {
+        position: absolute; inset: 0;
+        z-index: 16; pointer-events: none;
+        overflow: visible;
+      }
+
+      /* ── Output cards ── */
+      .output-card {
+        position: absolute;
+        width: 400px; height: 150px;
+        border-radius: 16px;
+        background: rgba(8, 12, 24, 0.92);
+        border: 2px solid rgba(57,255,20,0.55);
+        box-shadow: 0 0 28px rgba(57,255,20,0.18), 0 0 56px rgba(57,255,20,0.07), inset 0 0 20px rgba(57,255,20,0.04);
+        display: flex; align-items: center;
+        padding: 0 28px; gap: 20px;
+        z-index: 20;
+      }
+      .card-left  { left: 260px; top: 730px; }
+      .card-right { left: 1260px; top: 730px; }
+
+      .card-icon-box {
+        flex-shrink: 0; width: 60px; height: 60px;
+        border-radius: 10px; border: 1.5px solid rgba(57,255,20,0.45);
+        background: rgba(57,255,20,0.12);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 28px; font-weight: 900; color: #39FF14;
+        text-shadow: 0 0 10px rgba(57,255,20,0.8);
+      }
+      .card-body { display: flex; flex-direction: column; gap: 6px; }
+      .card-title {
+        font-size: 22px; font-weight: 800; color: #fff;
+        letter-spacing: 1.5px; text-transform: uppercase; line-height: 1.25;
+        max-width: 238px;
+      }
+      .card-tag {
+        font-size: 13px; font-weight: 600; color: rgba(57,255,20,0.75);
+        letter-spacing: 2.5px; text-transform: uppercase;
+      }
+
+      /* ── 5 PHÚT badge ── */
+      .badge-row {
+        position: absolute; top: 45px; left: 0; width: 1920px;
+        display: flex; justify-content: center; align-items: center; gap: 22px;
+        z-index: 30;
+      }
+      .badge-num {
+        font-size: 156px; font-weight: 900; color: #39FF14; line-height: 0.88;
+        text-shadow: 0 0 40px #39FF14, 0 0 80px rgba(57,255,20,0.5), 0 0 120px rgba(57,255,20,0.2);
+        letter-spacing: -6px;
+      }
+      .badge-label-col { display: flex; flex-direction: column; gap: 8px; }
+      .badge-word {
+        font-size: 72px; font-weight: 900; color: #fff; line-height: 1;
+        letter-spacing: 8px; text-transform: uppercase;
+        text-shadow: 0 0 30px rgba(255,255,255,0.2);
+      }
+      .badge-bar { width: 100%; height: 4px; background: #39FF14; box-shadow: 0 0 12px #39FF14; border-radius: 2px; }
+      .badge-desc {
+        font-size: 18px; font-weight: 600; color: rgba(57,255,20,0.6);
+        letter-spacing: 4px; text-transform: uppercase;
+      }
+
+      /* ── Particles ── */
+      .particle { position: absolute; border-radius: 50%; background: #39FF14; pointer-events: none; }
+    </style>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="main"
+      data-start="0"
+      data-duration="12"
+      data-width="1920"
+      data-height="1080"
+    >
+      <!-- ── Background: tracks 0-2 ── -->
+      <div id="bg-dots"      class="clip bg-dots"      data-start="0" data-duration="12" data-track-index="0"></div>
+      <div id="bg-glow"      class="clip bg-glow"      data-start="0" data-duration="12" data-track-index="1"></div>
+      <div id="bg-scanlines" class="clip bg-scanlines" data-start="0" data-duration="12" data-track-index="2"></div>
+
+      <!-- ── Corner brackets: tracks 3-6 ── -->
+      <div id="corner-tl" class="clip corner corner-tl" data-start="0" data-duration="12" data-track-index="3"></div>
+      <div id="corner-tr" class="clip corner corner-tr" data-start="0" data-duration="12" data-track-index="4"></div>
+      <div id="corner-bl" class="clip corner corner-bl" data-start="0" data-duration="12" data-track-index="5"></div>
+      <div id="corner-br" class="clip corner corner-br" data-start="0" data-duration="12" data-track-index="6"></div>
+
+      <!-- ── Glow rings: tracks 7-8 ── -->
+      <div id="glow-ring-2" class="clip glow-ring-2" data-start="0.3" data-duration="11.7" data-track-index="7"></div>
+      <div id="glow-ring-1" class="clip glow-ring-1" data-start="0.3" data-duration="11.7" data-track-index="8"></div>
+
+      <!-- ── ChatGPT center node: track 9 ── -->
+      <div id="chatgpt-node" class="clip chatgpt-node" data-start="0.3" data-duration="11.7" data-track-index="9">
+        <span class="chatgpt-main-text">GPT</span>
+        <span class="chatgpt-sub-text">ChatGPT</span>
+      </div>
+
+      <!-- ── SVG connectors: track 10 ── -->
+      <!-- Lines: node bottom (960,520) to left card top-center (460,730) and right (1460,730) -->
+      <!-- Path length = sqrt(500²+210²) ≈ 542 → dasharray 550 -->
+      <svg
+        id="svg-layer"
+        class="clip svg-layer"
+        data-start="1.5"
+        data-duration="10.5"
+        data-track-index="10"
+        viewBox="0 0 1920 1080"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <line id="line-left"  x1="960" y1="520" x2="460"  y2="730" stroke="#39FF14" stroke-width="2.5" stroke-dasharray="550" stroke-dashoffset="550" opacity="0.85"/>
+        <line id="line-right" x1="960" y1="520" x2="1460" y2="730" stroke="#39FF14" stroke-width="2.5" stroke-dasharray="550" stroke-dashoffset="550" opacity="0.85"/>
+        <circle id="dot-node"  cx="960"  cy="520" r="5" fill="#39FF14" opacity="0"/>
+        <circle id="dot-left"  cx="460"  cy="730" r="5" fill="#39FF14" opacity="0"/>
+        <circle id="dot-right" cx="1460" cy="730" r="5" fill="#39FF14" opacity="0"/>
+      </svg>
+
+      <!-- ── Output cards: tracks 11-12 ── -->
+      <div id="card-left" class="clip output-card card-left" data-start="2.6" data-duration="9.4" data-track-index="11">
+        <div class="card-icon-box">▶</div>
+        <div class="card-body">
+          <div class="card-title">KỊCH BẢN VIDEO</div>
+          <div class="card-tag">AI Generated</div>
+        </div>
+      </div>
+      <div id="card-right" class="clip output-card card-right" data-start="2.6" data-duration="9.4" data-track-index="12">
+        <div class="card-icon-box">f</div>
+        <div class="card-body">
+          <div class="card-title">BÀI ĐĂNG FACEBOOK</div>
+          <div class="card-tag">AI Generated</div>
+        </div>
+      </div>
+
+      <!-- ── 5 PHÚT badge: track 13 ── -->
+      <div id="badge-5phut" class="clip badge-row" data-start="0.8" data-duration="11.2" data-track-index="13">
+        <span class="badge-num">5</span>
+        <div class="badge-label-col">
+          <span class="badge-word">PHÚT</span>
+          <div class="badge-bar"></div>
+          <span class="badge-desc">Tự động hóa</span>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      function mulberry32(a) {
+        return function () {
+          a |= 0; a = (a + 0x6D2B79F5) | 0;
+          var t = Math.imul(a ^ (a >>> 15), 1 | a);
+          t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+          return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        };
+      }
+
+      // Deterministic particles — injected before timeline construction
+      const rng = mulberry32(7919);
+      const root = document.getElementById('root');
+      for (let i = 0; i < 22; i++) {
+        const el = document.createElement('div');
+        el.id = 'pt-' + i;
+        el.className = 'particle';
+        const sz = 2 + rng() * 3.5;
+        el.style.cssText =
+          'width:' + sz + 'px;height:' + sz + 'px;' +
+          'left:' + (rng() * 1920) + 'px;' +
+          'top:' + (rng() * 1080) + 'px;' +
+          'opacity:' + (0.12 + rng() * 0.35) + ';';
+        root.insertBefore(el, root.firstChild);
+      }
+
+      window.__timelines = window.__timelines || {};
+      const DURATION = 12;
+      const tl = gsap.timeline({ paused: true });
+
+      // ── Backgrounds ──
+      tl.from('#bg-dots',      { opacity: 0, duration: 1.4, ease: 'power2.out' }, 0);
+      tl.from('#bg-glow',      { opacity: 0, duration: 1.8, ease: 'power2.out' }, 0.1);
+      tl.from('#bg-scanlines', { opacity: 0, duration: 1.0, ease: 'linear'     }, 0.2);
+
+      // ── Corner brackets ──
+      tl.from('#corner-tl', { opacity: 0, scale: 0, transformOrigin: 'top left',     duration: 0.5, ease: 'back.out(1.7)' }, 0.10);
+      tl.from('#corner-tr', { opacity: 0, scale: 0, transformOrigin: 'top right',    duration: 0.5, ease: 'back.out(1.7)' }, 0.16);
+      tl.from('#corner-bl', { opacity: 0, scale: 0, transformOrigin: 'bottom left',  duration: 0.5, ease: 'back.out(1.7)' }, 0.22);
+      tl.from('#corner-br', { opacity: 0, scale: 0, transformOrigin: 'bottom right', duration: 0.5, ease: 'back.out(1.7)' }, 0.28);
+
+      // ── Particles float ──
+      const rng2 = mulberry32(1337);
+      for (let i = 0; i < 22; i++) {
+        const dy  = -(25 + rng2() * 55);
+        const dx  = (rng2() - 0.5) * 38;
+        const dur = 2.5 + rng2() * 3.5;
+        const del = rng2() * 1.8;
+        const rep = Math.ceil((DURATION - del) / dur);
+        tl.to('#pt-' + i, { y: dy, x: dx, opacity: 0, duration: dur, ease: 'power1.inOut', repeat: rep, yoyo: true }, del);
+      }
+
+      // ── Glow rings ──
+      tl.from('#glow-ring-2', { opacity: 0, scale: 0.4, transformOrigin: 'center', duration: 0.9,  ease: 'expo.out' }, 0.30);
+      tl.from('#glow-ring-1', { opacity: 0, scale: 0.5, transformOrigin: 'center', duration: 0.75, ease: 'expo.out' }, 0.42);
+
+      const ringPulse1 = Math.ceil(DURATION / 2.2);
+      const ringPulse2 = Math.ceil(DURATION / 3.2);
+      tl.to('#glow-ring-1', { scale: 1.06, opacity: 0.55, transformOrigin: 'center', duration: 1.1, ease: 'sine.inOut', repeat: ringPulse1, yoyo: true }, 1.4);
+      tl.to('#glow-ring-2', { scale: 1.10, opacity: 0.35, transformOrigin: 'center', duration: 1.6, ease: 'sine.inOut', repeat: ringPulse2, yoyo: true }, 1.6);
+
+      // ── ChatGPT node ──
+      tl.from('#chatgpt-node', { scale: 0, opacity: 0, transformOrigin: 'center', duration: 0.65, ease: 'back.out(2.2)' }, 0.35);
+
+      // ── 5 PHÚT badge — slam in from top ──
+      tl.from('#badge-5phut', { y: -130, opacity: 0, duration: 0.65, ease: 'expo.out' }, 0.8);
+
+      // ── SVG line draw-on ──
+      tl.set('#dot-node',  { opacity: 1 }, 1.50);
+      tl.to('#line-left',  { strokeDashoffset: 0, duration: 0.75, ease: 'power2.inOut' }, 1.55);
+      tl.to('#line-right', { strokeDashoffset: 0, duration: 0.75, ease: 'power2.inOut' }, 1.78);
+      tl.set('#dot-left',  { opacity: 1 }, 2.30);
+      tl.set('#dot-right', { opacity: 1 }, 2.53);
+
+      // ── Output cards rise in ──
+      tl.from('#card-left',  { y: 70, opacity: 0, duration: 0.65, ease: 'expo.out' }, 2.6);
+      tl.from('#card-right', { y: 70, opacity: 0, duration: 0.65, ease: 'expo.out' }, 2.82);
+
+      // ── Ding moment at 3.12s — node pulse ──
+      tl.to('#chatgpt-node', { scale: 1.08, transformOrigin: 'center', duration: 0.14, ease: 'power2.out'         }, 3.12);
+      tl.to('#chatgpt-node', { scale: 1.00, transformOrigin: 'center', duration: 0.32, ease: 'elastic.out(1,0.5)' }, 3.26);
+
+      // ── Ambient card glow pulse ──
+      const cardPulse = Math.ceil((DURATION - 3.8) / 2);
+      tl.to('#card-left',  { boxShadow: '0 0 48px rgba(57,255,20,0.4), 0 0 80px rgba(57,255,20,0.18)', duration: 1, ease: 'sine.inOut', repeat: cardPulse, yoyo: true }, 3.80);
+      tl.to('#card-right', { boxShadow: '0 0 48px rgba(57,255,20,0.4), 0 0 80px rgba(57,255,20,0.18)', duration: 1, ease: 'sine.inOut', repeat: cardPulse, yoyo: true }, 4.05);
+
+      window.__timelines['main'] = tl;
+    </script>
+  </body>
+</html>

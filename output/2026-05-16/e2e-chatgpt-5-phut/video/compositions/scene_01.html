@@ -1,0 +1,41 @@
+<template id="scene-01-template">
+  <div id="scene-01" data-composition-id="scene-01" data-width="1920" data-height="1080">
+    <style>
+      #scene-01 { position: absolute; inset: 0; overflow: hidden; font-family: 'Exo 2', 'Inter', sans-serif; }
+      .s1-label       { position: absolute; top: 342px; left: 0; width: 1920px; text-align: center; font-family: 'Inter', sans-serif; font-size: 18px; font-weight: 600; color: rgba(57,255,20,0.7); letter-spacing: 7px; text-transform: uppercase; }
+      .s1-headline    { position: absolute; top: 385px; left: 0; width: 1920px; text-align: center; font-size: 200px; font-weight: 900; color: #39FF14; line-height: 0.85; letter-spacing: -8px; text-shadow: 0 0 40px #39FF14, 0 0 80px rgba(57,255,20,0.5), 0 0 140px rgba(57,255,20,0.2); }
+      .s1-subheadline { position: absolute; top: 602px; left: 0; width: 1920px; text-align: center; font-size: 58px; font-weight: 700; color: #fff; letter-spacing: 2px; text-shadow: 0 0 30px rgba(255,255,255,0.12); }
+      .s1-divider     { position: absolute; top: 692px; left: 960px; transform: translateX(-50%); width: 0; height: 4px; background: #39FF14; box-shadow: 0 0 12px #39FF14; border-radius: 2px; }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+
+    <!-- SFX drum-hit at 0.0 -->
+    <audio id="s1-sfx-drum" class="clip" data-start="0.0" data-duration="1" data-track-index="8" data-volume="0.55" src="../assets/sfx/drum-hit.mp3"></audio>
+
+    <span id="s1-label"       class="clip s1-label"       data-start="0.10" data-duration="6.5" data-track-index="1">CONTENT AUTOMATION</span>
+    <span id="s1-headline"    class="clip s1-headline"    data-start="0.20" data-duration="6.4" data-track-index="2">5 PHÚT</span>
+    <span id="s1-subheadline" class="clip s1-subheadline" data-start="0.55" data-duration="6.05" data-track-index="3">ChatGPT làm được gì?</span>
+    <div  id="s1-divider"     class="clip s1-divider"     data-start="0.85" data-duration="5.75" data-track-index="4"></div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+
+      // explosive — word anchor "phút" @ 0.604s → headline đã visible, highlight bằng glow burst
+      tl.from('#s1-label',       { opacity: 0, scale: 0.7, y: -18,  duration: 0.45, ease: 'back.out(2)'        }, 0.10);
+      tl.from('#s1-headline',    { opacity: 0, scale: 0,           duration: 0.55, ease: 'back.out(2.5)', transformOrigin: 'center' }, 0.20);
+      tl.from('#s1-subheadline', { opacity: 0, y: 38,              duration: 0.5,  ease: 'expo.out'             }, 0.55);
+      tl.to(  '#s1-divider',     { width: 480,                     duration: 0.55, ease: 'expo.out'             }, 0.85);
+
+      // focal moment tại word "phút" (0.604s) — headline glow burst
+      tl.to('#s1-headline', { textShadow: '0 0 80px #39FF14, 0 0 160px rgba(57,255,20,0.7), 0 0 240px rgba(57,255,20,0.3)', duration: 0.15, ease: 'power2.out' }, 0.604);
+      tl.to('#s1-headline', { textShadow: '0 0 40px #39FF14, 0 0 80px rgba(57,255,20,0.5), 0 0 140px rgba(57,255,20,0.2)',  duration: 0.6,  ease: 'power2.in'  }, 0.754);
+
+      // ambient glow pulse
+      const pulseReps = Math.ceil(6.6 / 2.5);
+      tl.to('#s1-headline', { textShadow: '0 0 60px #39FF14, 0 0 120px rgba(57,255,20,0.6)', duration: 1.2, ease: 'sine.inOut', repeat: pulseReps, yoyo: true }, 1.8);
+
+      window.__timelines['scene-01'] = tl;
+    </script>
+  </div>
+</template>

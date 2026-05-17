@@ -1,0 +1,40 @@
+<template id="scene-01-template">
+  <div id="scene-01" data-composition-id="scene-01" data-width="1080" data-height="1920">
+    <style>
+      #scene-01 { position: absolute; inset: 0; overflow: hidden; font-family: 'Exo 2', 'Inter', sans-serif; }
+      .s1-label    { position: absolute; top: 680px; left: 0; width: 1080px; text-align: center; font-family: 'Inter', sans-serif; font-size: 20px; font-weight: 600; color: rgba(57,255,20,0.7); letter-spacing: 7px; text-transform: uppercase; }
+      .s1-headline { position: absolute; top: 720px; left: 0; width: 1080px; text-align: center; font-size: 130px; font-weight: 900; color: #39FF14; line-height: 0.9; letter-spacing: -4px; text-shadow: 0 0 40px #39FF14, 0 0 80px rgba(57,255,20,0.5), 0 0 140px rgba(57,255,20,0.2); }
+      .s1-sub      { position: absolute; top: 1000px; left: 0; width: 1080px; text-align: center; font-size: 48px; font-weight: 700; color: #fff; letter-spacing: 1px; text-shadow: 0 0 30px rgba(255,255,255,0.12); }
+      .s1-divider  { position: absolute; top: 1090px; left: 540px; transform: translateX(-50%); width: 0; height: 4px; background: #39FF14; box-shadow: 0 0 12px #39FF14; border-radius: 2px; }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+
+    <audio id="s1-sfx-drum"   class="clip" data-start="0.0" data-duration="1.0" data-track-index="30" data-volume="0.6"  src="../assets/sfx/drum-hit.mp3"></audio>
+    <audio id="s1-sfx-whoosh" class="clip" data-start="0.5" data-duration="1.0" data-track-index="31" data-volume="0.35" src="../assets/sfx/whoosh.mp3"></audio>
+
+    <span id="s1-label"    class="clip s1-label"    data-start="0.1"  data-duration="7.3" data-track-index="1">BẠN ĐANG LÃNG PHÍ</span>
+    <span id="s1-headline" class="clip s1-headline" data-start="0.2"  data-duration="7.2" data-track-index="2">3 GIỜ<br>MỖI NGÀY</span>
+    <span id="s1-sub"      class="clip s1-sub"      data-start="0.55" data-duration="6.85" data-track-index="3">chỉ để viết content?</span>
+    <div  id="s1-divider"  class="clip s1-divider"  data-start="0.85" data-duration="6.55" data-track-index="4"></div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+
+      // explosive — slam mạnh
+      tl.from('#s1-label',    { opacity: 0, scale: 0.7, y: -20, duration: 0.4,  ease: 'back.out(2)'        }, 0.10);
+      tl.from('#s1-headline', { opacity: 0, scale: 0,           duration: 0.55, ease: 'back.out(2.5)', transformOrigin: 'center' }, 0.20);
+      tl.from('#s1-sub',      { opacity: 0, y: 40,              duration: 0.5,  ease: 'expo.out'            }, 0.55);
+      tl.to(  '#s1-divider',  { width: 400,                     duration: 0.55, ease: 'expo.out'            }, 0.85);
+
+      // focal: word "3" tại 0.708s → headline glow burst
+      tl.to('#s1-headline', { textShadow: '0 0 80px #39FF14, 0 0 160px rgba(57,255,20,0.7)', duration: 0.15, ease: 'power2.out' }, 0.708);
+      tl.to('#s1-headline', { textShadow: '0 0 40px #39FF14, 0 0 80px rgba(57,255,20,0.5)',  duration: 0.6,  ease: 'power2.in'  }, 0.858);
+
+      const reps = Math.ceil(7.4 / 2.5);
+      tl.to('#s1-headline', { textShadow: '0 0 60px #39FF14, 0 0 120px rgba(57,255,20,0.55)', duration: 1.2, ease: 'sine.inOut', repeat: reps, yoyo: true }, 2.0);
+
+      window.__timelines['scene-01'] = tl;
+    </script>
+  </div>
+</template>

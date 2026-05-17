@@ -1,0 +1,61 @@
+<template id="scene-04-template">
+  <div id="scene-04" data-composition-id="scene-04" data-width="1080" data-height="1920">
+    <style>
+      #scene-04 { position: absolute; inset: 0; overflow: hidden; font-family: 'Exo 2', 'Inter', sans-serif; }
+      .s4-title  { position: absolute; top: 400px; left: 0; width: 1080px; text-align: center; font-family: 'Inter', sans-serif; font-size: 18px; font-weight: 600; color: rgba(57,255,20,0.65); letter-spacing: 7px; text-transform: uppercase; }
+      /* Step cards — vertical stack */
+      .s4-step   { position: absolute; left: 100px; width: 880px; height: 190px; border-radius: 16px; background: rgba(8,12,24,0.92); border: 2px solid rgba(57,255,20,0.5); box-shadow: 0 0 22px rgba(57,255,20,0.14); display: flex; align-items: center; padding: 0 30px; gap: 24px; }
+      .s4-step-1 { top: 460px; }
+      .s4-step-2 { top: 730px; }
+      .s4-step-3 { top: 1000px; }
+      .s4-step-num   { font-size: 72px; font-weight: 900; color: #39FF14; line-height: 1; text-shadow: 0 0 20px rgba(57,255,20,0.7); letter-spacing: -2px; flex-shrink: 0; width: 90px; }
+      .s4-step-icon  { font-size: 44px; flex-shrink: 0; }
+      .s4-step-label { font-size: 28px; font-weight: 800; color: #fff; letter-spacing: 1px; text-transform: uppercase; }
+      /* Arrows between steps */
+      .s4-arrow { position: absolute; left: 0; width: 1080px; text-align: center; font-size: 36px; color: rgba(57,255,20,0.6); }
+      .s4-arrow-1 { top: 662px; }
+      .s4-arrow-2 { top: 932px; }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+
+    <audio id="s4-sfx-click1" class="clip" data-start="1.0" data-duration="0.5" data-track-index="37" data-volume="0.4" src="../assets/sfx/click.mp3"></audio>
+    <audio id="s4-sfx-click2" class="clip" data-start="3.0" data-duration="0.5" data-track-index="38" data-volume="0.4" src="../assets/sfx/click.mp3"></audio>
+    <audio id="s4-sfx-click3" class="clip" data-start="5.0" data-duration="0.5" data-track-index="39" data-volume="0.4" src="../assets/sfx/click.mp3"></audio>
+
+    <span id="s4-title"   class="clip s4-title"   data-start="0.2" data-duration="9.2" data-track-index="1">3 BƯỚC ĐỂ BẮT ĐẦU</span>
+    <div  id="s4-step-1"  class="clip s4-step s4-step-1" data-start="1.0" data-duration="8.4" data-track-index="2">
+      <span class="s4-step-num">01</span><span class="s4-step-icon">🎭</span>
+      <div><div class="s4-step-label">Tạo Persona</div></div>
+    </div>
+    <span id="s4-arrow-1" class="clip s4-arrow s4-arrow-1" data-start="1.7" data-duration="7.7" data-track-index="3">↓</span>
+    <div  id="s4-step-2"  class="clip s4-step s4-step-2" data-start="3.0" data-duration="6.4" data-track-index="4">
+      <span class="s4-step-num">02</span><span class="s4-step-icon">⚙️</span>
+      <div><div class="s4-step-label">Setup Workflow</div></div>
+    </div>
+    <span id="s4-arrow-2" class="clip s4-arrow s4-arrow-2" data-start="3.7" data-duration="5.7" data-track-index="5">↓</span>
+    <div  id="s4-step-3"  class="clip s4-step s4-step-3" data-start="5.0" data-duration="4.4" data-track-index="6">
+      <span class="s4-step-num">03</span><span class="s4-step-icon">🚀</span>
+      <div><div class="s4-step-label">Chạy Tự Động</div></div>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      const DURATION = 9.4;
+      const tl = gsap.timeline({ paused: true });
+
+      // snappy — back.out, cascade theo click
+      tl.from('#s4-title',   { opacity: 0, y: -20, duration: 0.4,  ease: 'expo.out'    }, 0.2);
+      tl.from('#s4-step-1',  { opacity: 0, y: 40, scale: 0.92, transformOrigin: 'center bottom', duration: 0.45, ease: 'back.out(2)' }, 1.0);
+      tl.from('#s4-arrow-1', { opacity: 0, y: -10, duration: 0.3,  ease: 'expo.out'    }, 1.7);
+      tl.from('#s4-step-2',  { opacity: 0, y: 40, scale: 0.92, transformOrigin: 'center bottom', duration: 0.45, ease: 'back.out(2)' }, 3.0);
+      tl.from('#s4-arrow-2', { opacity: 0, y: -10, duration: 0.3,  ease: 'expo.out'    }, 3.7);
+      tl.from('#s4-step-3',  { opacity: 0, y: 40, scale: 0.92, transformOrigin: 'center bottom', duration: 0.45, ease: 'back.out(2)' }, 5.0);
+
+      // step-2 shimmer (processing)
+      const shimReps = Math.ceil((DURATION - 3.5) / 1.6);
+      tl.to('#s4-step-2', { boxShadow: '0 0 36px rgba(57,255,20,0.35)', duration: 0.8, ease: 'sine.inOut', repeat: shimReps, yoyo: true }, 3.5);
+
+      window.__timelines['scene-04'] = tl;
+    </script>
+  </div>
+</template>

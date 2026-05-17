@@ -1,0 +1,135 @@
+<template id="scene-05-template">
+  <div data-composition-id="scene-05" data-width="1080" data-height="1920">
+
+    <div class="s5-bg" data-layout-ignore>
+      <div class="s5-dots"></div>
+      <div class="s5-glow"></div>
+      <div class="s5-scanlines"></div>
+    </div>
+    <div class="s5-corner s5-tl" data-layout-ignore></div>
+    <div class="s5-corner s5-tr" data-layout-ignore></div>
+    <div class="s5-corner s5-bl" data-layout-ignore></div>
+    <div class="s5-corner s5-br" data-layout-ignore></div>
+
+    <div class="s5-content">
+      <div class="s5-title-row">
+        <div class="s5-brand-small">Claude Code</div>
+        <div class="s5-title">xây từng phần.</div>
+      </div>
+
+      <div class="s5-tech-grid">
+        <div class="s5-tech s5-t1"><span class="s5-tech-icon">🖥</span><span class="s5-tech-name">Frontend</span></div>
+        <div class="s5-tech s5-t2"><span class="s5-tech-icon">⚙️</span><span class="s5-tech-name">Backend</span></div>
+        <div class="s5-tech s5-t3"><span class="s5-tech-icon">🗄</span><span class="s5-tech-name">Database</span></div>
+        <div class="s5-tech s5-t4"><span class="s5-tech-icon">🔌</span><span class="s5-tech-name">API</span></div>
+      </div>
+
+      <div class="s5-roles">
+        <div class="s5-role s5-r1"><span class="s5-role-verb">Bạn xem.</span></div>
+        <div class="s5-role s5-r2"><span class="s5-role-verb">Bạn phê duyệt.</span></div>
+        <div class="s5-role s5-r3"><span class="s5-role-verb">Bạn định hướng.</span></div>
+      </div>
+
+      <div class="s5-no-need">
+        <span class="s5-cross">✕</span>
+        <span class="s5-no-text">React &nbsp;·&nbsp; Python &nbsp;·&nbsp; Stack Overflow</span>
+      </div>
+    </div>
+
+    <style>
+      #scene-05 {
+        position: relative; width: 1080px; height: 1920px;
+        background: #060810; overflow: hidden;
+      }
+      .s5-bg { position: absolute; inset: 0; pointer-events: none; z-index: 0; }
+      .s5-dots {
+        position: absolute; inset: 0;
+        background-image: radial-gradient(circle, rgba(57,255,20,0.22) 1.5px, transparent 1.5px);
+        background-size: 48px 48px;
+      }
+      .s5-glow {
+        position: absolute; inset: 0;
+        background: radial-gradient(ellipse 700px 700px at 50% 45%, rgba(57,255,20,0.12) 0%, transparent 70%);
+      }
+      .s5-scanlines {
+        position: absolute; inset: 0;
+        background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.04) 3px, rgba(0,0,0,0.04) 4px);
+      }
+      .s5-corner {
+        position: absolute; width: 56px; height: 56px;
+        border-color: #39FF14; border-style: solid; opacity: 0.45; z-index: 3;
+      }
+      .s5-tl { top: 60px; left: 60px; border-width: 3px 0 0 3px; }
+      .s5-tr { top: 60px; right: 60px; border-width: 3px 3px 0 0; }
+      .s5-bl { bottom: 60px; left: 60px; border-width: 0 0 3px 3px; }
+      .s5-br { bottom: 60px; right: 60px; border-width: 0 3px 3px 0; }
+
+      .s5-content {
+        position: relative; width: 100%; height: 100%;
+        display: flex; flex-direction: column; justify-content: center;
+        padding: 140px 88px; gap: 40px; box-sizing: border-box; z-index: 2;
+      }
+
+      .s5-title-row { display: flex; flex-direction: column; gap: 4px; }
+      .s5-brand-small {
+        font-family: 'Exo 2', sans-serif; font-weight: 700;
+        font-size: 40px; color: #39FF14;
+        text-shadow: 0 0 12px rgba(57,255,20,0.5);
+      }
+      .s5-title {
+        font-family: 'Exo 2', sans-serif; font-weight: 900;
+        font-size: 80px; color: #FFFFFF; line-height: 1.0;
+      }
+
+      .s5-tech-grid {
+        display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+      }
+      .s5-tech {
+        display: flex; align-items: center; gap: 16px;
+        background: rgba(57,255,20,0.07);
+        border: 1.5px solid rgba(57,255,20,0.25);
+        border-radius: 12px; padding: 18px 22px;
+      }
+      .s5-tech-icon { font-size: 36px; }
+      .s5-tech-name {
+        font-family: 'Exo 2', sans-serif; font-weight: 700;
+        font-size: 40px; color: #FFFFFF;
+      }
+
+      .s5-roles { display: flex; flex-direction: column; gap: 14px; }
+      .s5-role { display: flex; align-items: center; }
+      .s5-role-verb {
+        font-family: 'Inter', sans-serif; font-weight: 600;
+        font-size: 46px; color: rgba(255,255,255,0.75);
+      }
+      .s5-r1 .s5-role-verb { color: #FFFFFF; }
+
+      .s5-no-need {
+        display: flex; align-items: center; gap: 18px;
+        background: rgba(255,60,60,0.06);
+        border: 1px solid rgba(255,80,80,0.2);
+        border-radius: 10px; padding: 16px 24px;
+      }
+      .s5-cross { font-size: 36px; color: rgba(255,100,100,0.8); flex-shrink: 0; }
+      .s5-no-text {
+        font-family: 'Inter', monospace; font-weight: 500;
+        font-size: 30px; color: rgba(255,255,255,0.4);
+        text-decoration: line-through;
+        text-decoration-color: rgba(255,100,100,0.6);
+      }
+    </style>
+
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+
+      tl.from(".s5-title-row", { y: 40, opacity: 0, duration: 0.5, ease: "expo.out" }, 0.2);
+      tl.from(".s5-tech", { scale: 0.8, opacity: 0, duration: 0.4, ease: "back.out(2)", stagger: 0.18 }, 0.9);
+      tl.from(".s5-role", { x: -30, opacity: 0, duration: 0.4, ease: "power3.out", stagger: 0.2 }, 4.0);
+      tl.from(".s5-no-need", { y: 25, opacity: 0, duration: 0.45, ease: "power2.out" }, 7.5);
+
+      window.__timelines["scene-05"] = tl;
+    </script>
+  </div>
+</template>

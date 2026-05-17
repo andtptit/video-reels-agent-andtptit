@@ -1,0 +1,85 @@
+<template id="scene-01-template">
+  <div data-composition-id="scene-01" data-width="1080" data-height="1920">
+
+    <div class="s1-bg" data-layout-ignore>
+      <div class="s1-dots"></div>
+      <div class="s1-glow"></div>
+      <div class="s1-scanlines"></div>
+    </div>
+    <div class="s1-corner s1-tl" data-layout-ignore></div>
+    <div class="s1-corner s1-tr" data-layout-ignore></div>
+    <div class="s1-corner s1-bl" data-layout-ignore></div>
+    <div class="s1-corner s1-br" data-layout-ignore></div>
+
+    <div class="s1-content">
+      <p class="s1-line1">Sáng nay bạn<br>nghĩ ra một ý tưởng.</p>
+      <p class="s1-line2">Lại một lần nữa.</p>
+      <p class="s1-line3">Và lại không làm gì.</p>
+    </div>
+
+    <style>
+      #scene-01 {
+        position: relative;
+        width: 1080px;
+        height: 1920px;
+        background: #060810;
+        overflow: hidden;
+      }
+      .s1-bg { position: absolute; inset: 0; pointer-events: none; z-index: 0; }
+      .s1-dots {
+        position: absolute; inset: 0;
+        background-image: radial-gradient(circle, rgba(57,255,20,0.22) 1.5px, transparent 1.5px);
+        background-size: 48px 48px;
+      }
+      .s1-glow {
+        position: absolute; inset: 0;
+        background: radial-gradient(ellipse 700px 700px at 50% 55%, rgba(57,255,20,0.12) 0%, transparent 70%);
+      }
+      .s1-scanlines {
+        position: absolute; inset: 0;
+        background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.04) 3px, rgba(0,0,0,0.04) 4px);
+      }
+      .s1-corner {
+        position: absolute; width: 56px; height: 56px;
+        border-color: #39FF14; border-style: solid; opacity: 0.45; z-index: 3;
+      }
+      .s1-tl { top: 60px; left: 60px; border-width: 3px 0 0 3px; }
+      .s1-tr { top: 60px; right: 60px; border-width: 3px 3px 0 0; }
+      .s1-bl { bottom: 60px; left: 60px; border-width: 0 0 3px 3px; }
+      .s1-br { bottom: 60px; right: 60px; border-width: 0 3px 3px 0; }
+
+      .s1-content {
+        position: relative; width: 100%; height: 100%;
+        display: flex; flex-direction: column; justify-content: center;
+        padding: 140px 88px; gap: 52px; box-sizing: border-box; z-index: 2;
+      }
+      .s1-line1 {
+        font-family: 'Playfair Display', serif;
+        font-weight: 400; font-style: italic;
+        font-size: 96px; color: #FFFFFF; line-height: 1.15; margin: 0;
+        text-shadow: 0 0 40px rgba(57,255,20,0.15);
+      }
+      .s1-line2 {
+        font-family: 'Exo 2', sans-serif;
+        font-weight: 700; font-size: 64px; color: #39FF14; margin: 0;
+        text-shadow: 0 0 20px rgba(57,255,20,0.5);
+      }
+      .s1-line3 {
+        font-family: 'Inter', sans-serif;
+        font-weight: 500; font-size: 58px; color: rgba(255,255,255,0.6); margin: 0;
+      }
+    </style>
+
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+
+      tl.from(".s1-line1", { y: 50, opacity: 0, duration: 0.9, ease: "power3.out" }, 0.2);
+      tl.from(".s1-line2", { y: 30, opacity: 0, duration: 0.6, ease: "back.out(2)" }, 1.8);
+      tl.from(".s1-line3", { y: 25, opacity: 0, duration: 0.5, ease: "power2.out" }, 3.2);
+
+      window.__timelines["scene-01"] = tl;
+    </script>
+  </div>
+</template>

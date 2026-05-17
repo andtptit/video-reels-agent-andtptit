@@ -1,0 +1,210 @@
+<template id="scene-09-template">
+  <div data-composition-id="scene-09" data-width="1080" data-height="1920">
+
+    <!-- Background layers -->
+    <div class="s9-bg" data-layout-ignore>
+      <div class="s9-dot-grid"></div>
+      <div class="s9-radial-glow"></div>
+      <div class="s9-scanlines"></div>
+    </div>
+
+    <!-- Corner brackets (animated in) -->
+    <div class="s9-corner s9-corner-tl" data-layout-ignore></div>
+    <div class="s9-corner s9-corner-tr" data-layout-ignore></div>
+    <div class="s9-corner s9-corner-bl" data-layout-ignore></div>
+    <div class="s9-corner s9-corner-br" data-layout-ignore></div>
+
+    <!-- Main content -->
+    <div class="s9-content">
+      <p class="s9-hook-1">Một buổi tối.</p>
+      <p class="s9-hook-2">= Phần mềm<br>có thể bán.</p>
+
+      <h1 class="s9-brand">Claude Code</h1>
+
+      <!-- CTA button -->
+      <div class="s9-cta-wrap">
+        <div class="s9-cta-btn">
+          Bắt đầu ngay hôm nay →
+        </div>
+      </div>
+    </div>
+
+    <style>
+      #scene-09 {
+        position: relative;
+        width: 1080px;
+        height: 1920px;
+        background: #060810;
+        overflow: hidden;
+      }
+
+      /* ── Background ── */
+      .s9-bg {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      .s9-dot-grid {
+        position: absolute;
+        inset: 0;
+        background-image: radial-gradient(circle, rgba(57,255,20,0.28) 1.5px, transparent 1.5px);
+        background-size: 48px 48px;
+      }
+
+      .s9-radial-glow {
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(ellipse 900px 900px at 50% 50%, rgba(57,255,20,0.24) 0%, transparent 60%);
+        opacity: 0;
+      }
+
+      .s9-scanlines {
+        position: absolute;
+        inset: 0;
+        background: repeating-linear-gradient(
+          0deg,
+          transparent,
+          transparent 3px,
+          rgba(0,0,0,0.04) 3px,
+          rgba(0,0,0,0.04) 4px
+        );
+      }
+
+      /* ── Corner brackets ── */
+      .s9-corner {
+        position: absolute;
+        width: 56px;
+        height: 56px;
+        border-color: #39FF14;
+        border-style: solid;
+        opacity: 0;
+        z-index: 3;
+      }
+
+      .s9-corner-tl { top: 60px; left: 60px; border-width: 3px 0 0 3px; }
+      .s9-corner-tr { top: 60px; right: 60px; border-width: 3px 3px 0 0; }
+      .s9-corner-bl { bottom: 60px; left: 60px; border-width: 0 0 3px 3px; }
+      .s9-corner-br { bottom: 60px; right: 60px; border-width: 0 3px 3px 0; }
+
+      /* ── Content ── */
+      .s9-content {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: 140px 88px;
+        gap: 48px;
+        box-sizing: border-box;
+        z-index: 2;
+      }
+
+      .s9-hook-1 {
+        font-family: 'Exo 2', sans-serif;
+        font-weight: 900;
+        font-size: 96px;
+        color: #FFFFFF;
+        margin: 0;
+        line-height: 1.0;
+      }
+
+      .s9-hook-2 {
+        font-family: 'Exo 2', sans-serif;
+        font-weight: 700;
+        font-size: 72px;
+        color: #39FF14;
+        text-shadow: 0 0 20px rgba(57,255,20,0.4);
+        margin: 0;
+        line-height: 1.1;
+      }
+
+      .s9-brand {
+        font-family: 'Exo 2', sans-serif;
+        font-weight: 900;
+        font-size: 120px;
+        color: #39FF14;
+        text-shadow:
+          0 0 40px rgba(57,255,20,0.9),
+          0 0 100px rgba(57,255,20,0.5),
+          0 0 200px rgba(57,255,20,0.25);
+        margin: 0;
+        line-height: 1.0;
+        letter-spacing: -2px;
+      }
+
+      /* CTA button */
+      .s9-cta-wrap {
+        display: flex;
+        justify-content: flex-start;
+      }
+
+      .s9-cta-btn {
+        font-family: 'Exo 2', sans-serif;
+        font-weight: 700;
+        font-size: 42px;
+        color: #FFFFFF;
+        background: rgba(57,255,20,0.1);
+        border: 2.5px solid #39FF14;
+        border-radius: 16px;
+        padding: 24px 48px;
+        box-shadow: 0 0 24px rgba(57,255,20,0.3);
+      }
+    </style>
+
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <script>
+      window.__timelines = window.__timelines || {};
+
+      const tl = gsap.timeline({ paused: true });
+
+      // Glow explodes in
+      tl.to(".s9-radial-glow", { opacity: 1, duration: 0.6, ease: "power2.out" }, 0.1);
+
+      // Corner brackets animate in
+      tl.to(".s9-corner", { opacity: 0.5, duration: 0.4, ease: "power2.out", stagger: 0.08 }, 0.2);
+
+      // Hook 1 slams in
+      tl.from(".s9-hook-1", { scale: 0.85, opacity: 0, duration: 0.5, ease: "back.out(2)" }, 0.3);
+
+      // Hook 2 pops in
+      tl.from(".s9-hook-2", { scale: 0.85, opacity: 0, duration: 0.5, ease: "back.out(2)" }, 0.9);
+
+      // Brand name — massive entrance
+      tl.from(".s9-brand", { scale: 0.6, opacity: 0, duration: 0.7, ease: "expo.out" }, 2.2);
+
+      // Brand pulsing glow
+      const sceneDuration = 9.2;
+      const glowCycle = 1.8;
+      const glowRepeat = Math.ceil(sceneDuration / glowCycle);
+      tl.to(".s9-brand", {
+        textShadow: "0 0 60px rgba(57,255,20,1), 0 0 140px rgba(57,255,20,0.7), 0 0 280px rgba(57,255,20,0.3)",
+        duration: glowCycle / 2,
+        ease: "sine.inOut",
+        repeat: glowRepeat,
+        yoyo: true
+      }, 2.8);
+
+      // CTA button slides up
+      tl.from(".s9-cta-btn", { y: 40, opacity: 0, duration: 0.55, ease: "power3.out" }, 4.5);
+
+      // CTA pulse animation
+      const ctaCycle = 1.2;
+      const ctaRepeat = Math.ceil((sceneDuration - 5.0) / ctaCycle);
+      tl.to(".s9-cta-btn", {
+        boxShadow: "0 0 40px rgba(57,255,20,0.6)",
+        duration: ctaCycle / 2,
+        ease: "sine.inOut",
+        repeat: ctaRepeat,
+        yoyo: true
+      }, 5.0);
+
+      // Final fade to black (last scene only) — target root bg + content wrapper
+      tl.to(".s9-bg, .s9-content, .s9-corner", { opacity: 0, duration: 0.8, ease: "power2.inOut" }, 8.2);
+
+      window.__timelines["scene-09"] = tl;
+    </script>
+  </div>
+</template>

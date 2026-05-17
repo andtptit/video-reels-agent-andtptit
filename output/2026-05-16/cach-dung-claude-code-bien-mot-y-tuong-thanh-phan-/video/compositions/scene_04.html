@@ -1,0 +1,236 @@
+<template id="scene-04-template">
+  <div data-composition-id="scene-04" data-width="1080" data-height="1920">
+
+    <!-- Background layers -->
+    <div class="s4-bg" data-layout-ignore>
+      <div class="s4-dot-grid"></div>
+      <div class="s4-radial-glow"></div>
+      <div class="s4-scanlines"></div>
+    </div>
+
+    <!-- Corner brackets -->
+    <div class="s4-corner s4-corner-tl" data-layout-ignore></div>
+    <div class="s4-corner s4-corner-tr" data-layout-ignore></div>
+    <div class="s4-corner s4-corner-bl" data-layout-ignore></div>
+    <div class="s4-corner s4-corner-br" data-layout-ignore></div>
+
+    <!-- Main content -->
+    <div class="s4-content">
+      <div class="s4-step-badge">BƯỚC 01</div>
+
+      <h1 class="s4-title">Mô tả bằng<br>ngôn ngữ tự nhiên.</h1>
+
+      <!-- Chat input mockup -->
+      <div class="s4-chat-box">
+        <div class="s4-chat-prompt">
+          <span class="s4-cursor">›</span>
+          <span class="s4-chat-text">Tôi muốn một web app cho phép freelancer tạo invoice và gửi cho khách hàng...</span>
+        </div>
+      </div>
+
+      <!-- Response bubble -->
+      <div class="s4-response">
+        <span class="s4-check">✓</span>
+        <span class="s4-response-text">Claude Code hiểu ngay.</span>
+      </div>
+
+      <!-- Micro steps -->
+      <div class="s4-micro-steps">
+        <div class="s4-micro">làm rõ</div>
+        <div class="s4-micro">lên kế hoạch</div>
+        <div class="s4-micro">bắt đầu xây</div>
+      </div>
+    </div>
+
+    <style>
+      #scene-04 {
+        position: relative;
+        width: 1080px;
+        height: 1920px;
+        background: #060810;
+        overflow: hidden;
+      }
+
+      /* ── Background ── */
+      .s4-bg {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      .s4-dot-grid {
+        position: absolute;
+        inset: 0;
+        background-image: radial-gradient(circle, rgba(57,255,20,0.28) 1.5px, transparent 1.5px);
+        background-size: 48px 48px;
+      }
+
+      .s4-radial-glow {
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(ellipse 700px 700px at 50% 52%, rgba(57,255,20,0.14) 0%, transparent 70%);
+      }
+
+      .s4-scanlines {
+        position: absolute;
+        inset: 0;
+        background: repeating-linear-gradient(
+          0deg,
+          transparent,
+          transparent 3px,
+          rgba(0,0,0,0.04) 3px,
+          rgba(0,0,0,0.04) 4px
+        );
+      }
+
+      /* ── Corner brackets ── */
+      .s4-corner {
+        position: absolute;
+        width: 56px;
+        height: 56px;
+        border-color: #39FF14;
+        border-style: solid;
+        opacity: 0.5;
+        z-index: 3;
+      }
+
+      .s4-corner-tl { top: 60px; left: 60px; border-width: 3px 0 0 3px; }
+      .s4-corner-tr { top: 60px; right: 60px; border-width: 3px 3px 0 0; }
+      .s4-corner-bl { bottom: 60px; left: 60px; border-width: 0 0 3px 3px; }
+      .s4-corner-br { bottom: 60px; right: 60px; border-width: 0 3px 3px 0; }
+
+      /* ── Content ── */
+      .s4-content {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: 140px 88px;
+        gap: 44px;
+        box-sizing: border-box;
+        z-index: 2;
+      }
+
+      .s4-step-badge {
+        font-family: 'Exo 2', sans-serif;
+        font-weight: 700;
+        font-size: 28px;
+        color: #39FF14;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+      }
+
+      .s4-title {
+        font-family: 'Exo 2', sans-serif;
+        font-weight: 900;
+        font-size: 76px;
+        color: #FFFFFF;
+        line-height: 1.1;
+        margin: 0;
+      }
+
+      /* Chat input box */
+      .s4-chat-box {
+        background: rgba(57,255,20,0.06);
+        border: 1.5px solid rgba(57,255,20,0.45);
+        border-radius: 16px;
+        padding: 32px 36px;
+        box-shadow: 0 0 30px rgba(57,255,20,0.1);
+      }
+
+      .s4-chat-prompt {
+        display: flex;
+        align-items: flex-start;
+        gap: 16px;
+      }
+
+      .s4-cursor {
+        font-family: 'Inter', monospace;
+        font-weight: 700;
+        font-size: 40px;
+        color: #39FF14;
+        flex-shrink: 0;
+        line-height: 1.3;
+      }
+
+      .s4-chat-text {
+        font-family: 'Inter', sans-serif;
+        font-weight: 500;
+        font-size: 34px;
+        color: rgba(255,255,255,0.8);
+        line-height: 1.5;
+      }
+
+      /* Response bubble */
+      .s4-response {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        background: rgba(57,255,20,0.12);
+        border: 2px solid rgba(57,255,20,0.5);
+        border-radius: 12px;
+        padding: 24px 32px;
+      }
+
+      .s4-check {
+        font-size: 44px;
+        color: #39FF14;
+        text-shadow: 0 0 16px rgba(57,255,20,0.8);
+        flex-shrink: 0;
+      }
+
+      .s4-response-text {
+        font-family: 'Exo 2', sans-serif;
+        font-weight: 700;
+        font-size: 44px;
+        color: #39FF14;
+        text-shadow: 0 0 16px rgba(57,255,20,0.4);
+      }
+
+      /* Micro steps */
+      .s4-micro-steps {
+        display: flex;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+
+      .s4-micro {
+        font-family: 'Inter', sans-serif;
+        font-weight: 600;
+        font-size: 30px;
+        color: rgba(255,255,255,0.6);
+        background: rgba(255,255,255,0.07);
+        border: 1px solid rgba(255,255,255,0.15);
+        padding: 10px 22px;
+        border-radius: 8px;
+      }
+    </style>
+
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <script>
+      window.__timelines = window.__timelines || {};
+
+      const tl = gsap.timeline({ paused: true });
+
+      // Step badge drops in
+      tl.from(".s4-step-badge", { y: -30, opacity: 0, duration: 0.45, ease: "power3.out" }, 0.2);
+
+      // Title slides up
+      tl.from(".s4-title", { y: 50, opacity: 0, duration: 0.65, ease: "expo.out" }, 0.6);
+
+      // Chat box slides in from bottom
+      tl.from(".s4-chat-box", { y: 60, opacity: 0, duration: 0.55, ease: "back.out(1.5)" }, 2.2);
+
+      // Response bubble pops in
+      tl.from(".s4-response", { scale: 0.85, opacity: 0, duration: 0.5, ease: "back.out(2)" }, 5.5);
+
+      // Micro steps stagger in
+      tl.from(".s4-micro", { y: 25, opacity: 0, duration: 0.4, ease: "power2.out", stagger: 0.15 }, 7.2);
+
+      window.__timelines["scene-04"] = tl;
+    </script>
+  </div>
+</template>

@@ -1,0 +1,1819 @@
+{
+  "title": "Claude Code: Từ Ý Tưởng Thành Phần Mềm Bán Được",
+  "format": "9:16",
+  "music": {
+    "mood": "snappy",
+    "volume": 0.18
+  },
+  "scenes": [
+    {
+      "sceneId": "scene_01",
+      "meaning": "Hook — chạm nỗi đau: có ý tưởng nhưng không biết code, chi phí cao",
+      "estimated_duration": 10,
+      "narration": "Bạn có một ý tưởng. Một ứng dụng, một công cụ, hay một dịch vụ số. Nhưng bạn không biết code. Và thuê lập trình viên thì tốn mấy chục triệu.",
+      "sfx_picks": [
+        {
+          "id": "impact"
+        }
+      ],
+      "_audio": {
+        "voiceover": "assets/audio/scene_01_vo.mp3",
+        "voiceover_start": 0,
+        "vo_duration": 9.52,
+        "scene_duration": 10.02,
+        "word_timestamps": [
+          {
+            "word": "Bạn",
+            "start": 0,
+            "end": 0.232
+          },
+          {
+            "word": "có",
+            "start": 0.337,
+            "end": 0.372
+          },
+          {
+            "word": "một",
+            "start": 0.453,
+            "end": 0.534
+          },
+          {
+            "word": "ý",
+            "start": 0.592,
+            "end": 0.592
+          },
+          {
+            "word": "tưởng",
+            "start": 0.708,
+            "end": 0.871
+          },
+          {
+            "word": "Một",
+            "start": 1.556,
+            "end": 1.718
+          },
+          {
+            "word": "ứng",
+            "start": 1.823,
+            "end": 1.881
+          },
+          {
+            "word": "dụng",
+            "start": 1.962,
+            "end": 2.09
+          },
+          {
+            "word": "một",
+            "start": 2.705,
+            "end": 2.856
+          },
+          {
+            "word": "công",
+            "start": 2.926,
+            "end": 3.042
+          },
+          {
+            "word": "cụ",
+            "start": 3.111,
+            "end": 3.158
+          },
+          {
+            "word": "hay",
+            "start": 3.831,
+            "end": 3.947
+          },
+          {
+            "word": "một",
+            "start": 4.017,
+            "end": 4.133
+          },
+          {
+            "word": "dịch",
+            "start": 4.214,
+            "end": 4.342
+          },
+          {
+            "word": "vụ",
+            "start": 4.412,
+            "end": 4.447
+          },
+          {
+            "word": "số",
+            "start": 4.621,
+            "end": 4.667
+          },
+          {
+            "word": "Nhưng",
+            "start": 5.654,
+            "end": 5.828
+          },
+          {
+            "word": "bạn",
+            "start": 5.886,
+            "end": 5.979
+          },
+          {
+            "word": "không",
+            "start": 6.049,
+            "end": 6.165
+          },
+          {
+            "word": "biết",
+            "start": 6.223,
+            "end": 6.316
+          },
+          {
+            "word": "code",
+            "start": 6.385,
+            "end": 6.606
+          },
+          {
+            "word": "Và",
+            "start": 7.303,
+            "end": 7.396
+          },
+          {
+            "word": "thuê",
+            "start": 7.57,
+            "end": 7.651
+          },
+          {
+            "word": "lập",
+            "start": 7.744,
+            "end": 7.825
+          },
+          {
+            "word": "trình",
+            "start": 7.895,
+            "end": 8.034
+          },
+          {
+            "word": "viên",
+            "start": 8.115,
+            "end": 8.29
+          },
+          {
+            "word": "thì",
+            "start": 8.475,
+            "end": 8.557
+          },
+          {
+            "word": "tốn",
+            "start": 8.673,
+            "end": 8.8
+          },
+          {
+            "word": "mấy",
+            "start": 8.882,
+            "end": 8.963
+          },
+          {
+            "word": "chục",
+            "start": 9.033,
+            "end": 9.137
+          },
+          {
+            "word": "triệu",
+            "start": 9.218,
+            "end": 9.404
+          }
+        ],
+        "timing_anchors": {}
+      }
+    },
+    {
+      "sceneId": "scene_02",
+      "meaning": "Revelation — thế giới mới: không cần code, chỉ cần ý tưởng rõ ràng",
+      "estimated_duration": 12,
+      "narration": "Đó là vấn đề của thế giới cũ. Hôm nay, với Claude Code, bạn không cần biết một dòng code nào. Bạn chỉ cần một ý tưởng rõ ràng và biết cách nói chuyện với AI.",
+      "sfx_picks": [
+        {
+          "id": "whoosh"
+        }
+      ],
+      "_audio": {
+        "voiceover": "assets/audio/scene_02_vo.mp3",
+        "voiceover_start": 10.02,
+        "vo_duration": 9.114,
+        "scene_duration": 9.61,
+        "word_timestamps": [
+          {
+            "word": "Đó",
+            "start": 0,
+            "end": 0.128
+          },
+          {
+            "word": "là",
+            "start": 0.221,
+            "end": 0.244
+          },
+          {
+            "word": "vấn",
+            "start": 0.313,
+            "end": 0.406
+          },
+          {
+            "word": "đề",
+            "start": 0.476,
+            "end": 0.511
+          },
+          {
+            "word": "của",
+            "start": 0.662,
+            "end": 0.731
+          },
+          {
+            "word": "thế",
+            "start": 0.778,
+            "end": 0.859
+          },
+          {
+            "word": "giới",
+            "start": 0.94,
+            "end": 1.045
+          },
+          {
+            "word": "cũ",
+            "start": 1.115,
+            "end": 1.173
+          },
+          {
+            "word": "Hôm",
+            "start": 1.649,
+            "end": 1.788
+          },
+          {
+            "word": "nay",
+            "start": 1.892,
+            "end": 2.043
+          },
+          {
+            "word": "với",
+            "start": 2.426,
+            "end": 2.508
+          },
+          {
+            "word": "Claude",
+            "start": 2.577,
+            "end": 2.798
+          },
+          {
+            "word": "Code",
+            "start": 2.856,
+            "end": 3.088
+          },
+          {
+            "word": "bạn",
+            "start": 3.541,
+            "end": 3.715
+          },
+          {
+            "word": "không",
+            "start": 3.82,
+            "end": 3.971
+          },
+          {
+            "word": "cần",
+            "start": 4.04,
+            "end": 4.122
+          },
+          {
+            "word": "biết",
+            "start": 4.203,
+            "end": 4.307
+          },
+          {
+            "word": "một",
+            "start": 4.365,
+            "end": 4.447
+          },
+          {
+            "word": "dòng",
+            "start": 4.505,
+            "end": 4.621
+          },
+          {
+            "word": "code",
+            "start": 4.679,
+            "end": 4.853
+          },
+          {
+            "word": "nào",
+            "start": 4.934,
+            "end": 5.097
+          },
+          {
+            "word": "Bạn",
+            "start": 5.77,
+            "end": 5.944
+          },
+          {
+            "word": "chỉ",
+            "start": 6.037,
+            "end": 6.107
+          },
+          {
+            "word": "cần",
+            "start": 6.2,
+            "end": 6.304
+          },
+          {
+            "word": "một",
+            "start": 6.385,
+            "end": 6.478
+          },
+          {
+            "word": "ý",
+            "start": 6.56,
+            "end": 6.56
+          },
+          {
+            "word": "tưởng",
+            "start": 6.653,
+            "end": 6.792
+          },
+          {
+            "word": "rõ",
+            "start": 6.885,
+            "end": 6.943
+          },
+          {
+            "word": "ràng",
+            "start": 7.105,
+            "end": 7.326
+          },
+          {
+            "word": "và",
+            "start": 7.523,
+            "end": 7.605
+          },
+          {
+            "word": "biết",
+            "start": 7.697,
+            "end": 7.814
+          },
+          {
+            "word": "cách",
+            "start": 7.895,
+            "end": 8.034
+          },
+          {
+            "word": "nói",
+            "start": 8.173,
+            "end": 8.278
+          },
+          {
+            "word": "chuyện",
+            "start": 8.348,
+            "end": 8.487
+          },
+          {
+            "word": "với",
+            "start": 8.568,
+            "end": 8.661
+          },
+          {
+            "word": "AI",
+            "start": 8.719,
+            "end": 8.998
+          }
+        ],
+        "timing_anchors": {}
+      }
+    },
+    {
+      "sceneId": "scene_03",
+      "meaning": "Credibility — Claude Code là gì, mạnh như thế nào",
+      "estimated_duration": 14,
+      "narration": "Claude Code là AI coding agent của Anthropic. Không phải chỉ một trợ lý chat. Nó đọc file, viết code, chạy lệnh, fix bug, và xây dựng cả một sản phẩm từ đầu — ngay trong terminal của bạn.",
+      "sfx_picks": [
+        {
+          "id": "click"
+        }
+      ],
+      "_audio": {
+        "voiceover": "assets/audio/scene_03_vo.mp3",
+        "voiceover_start": 19.63,
+        "vo_duration": 12.028,
+        "scene_duration": 12.53,
+        "word_timestamps": [
+          {
+            "word": "Claude",
+            "start": 0,
+            "end": 0.325
+          },
+          {
+            "word": "Code",
+            "start": 0.383,
+            "end": 0.65
+          },
+          {
+            "word": "là",
+            "start": 0.975,
+            "end": 1.057
+          },
+          {
+            "word": "AI",
+            "start": 1.405,
+            "end": 1.73
+          },
+          {
+            "word": "coding",
+            "start": 1.846,
+            "end": 2.125
+          },
+          {
+            "word": "agent",
+            "start": 2.206,
+            "end": 2.45
+          },
+          {
+            "word": "của",
+            "start": 2.554,
+            "end": 2.659
+          },
+          {
+            "word": "Anthropic",
+            "start": 2.74,
+            "end": 3.17
+          },
+          {
+            "word": "Không",
+            "start": 3.82,
+            "end": 3.971
+          },
+          {
+            "word": "phải",
+            "start": 4.017,
+            "end": 4.122
+          },
+          {
+            "word": "chỉ",
+            "start": 4.226,
+            "end": 4.331
+          },
+          {
+            "word": "một",
+            "start": 4.435,
+            "end": 4.551
+          },
+          {
+            "word": "trợ",
+            "start": 4.598,
+            "end": 4.667
+          },
+          {
+            "word": "lý",
+            "start": 4.737,
+            "end": 4.783
+          },
+          {
+            "word": "chat",
+            "start": 4.888,
+            "end": 4.992
+          },
+          {
+            "word": "Nó",
+            "start": 5.793,
+            "end": 5.828
+          },
+          {
+            "word": "đọc",
+            "start": 5.898,
+            "end": 6.002
+          },
+          {
+            "word": "file",
+            "start": 6.084,
+            "end": 6.339
+          },
+          {
+            "word": "viết",
+            "start": 6.606,
+            "end": 6.78
+          },
+          {
+            "word": "code",
+            "start": 6.85,
+            "end": 7.059
+          },
+          {
+            "word": "chạy",
+            "start": 7.465,
+            "end": 7.593
+          },
+          {
+            "word": "lệnh",
+            "start": 7.697,
+            "end": 7.814
+          },
+          {
+            "word": "fix",
+            "start": 7.918,
+            "end": 8.046
+          },
+          {
+            "word": "bug",
+            "start": 8.185,
+            "end": 8.29
+          },
+          {
+            "word": "và",
+            "start": 8.8,
+            "end": 8.87
+          },
+          {
+            "word": "xây",
+            "start": 8.998,
+            "end": 9.067
+          },
+          {
+            "word": "dựng",
+            "start": 9.137,
+            "end": 9.242
+          },
+          {
+            "word": "cả",
+            "start": 9.311,
+            "end": 9.358
+          },
+          {
+            "word": "một",
+            "start": 9.485,
+            "end": 9.555
+          },
+          {
+            "word": "sản",
+            "start": 9.601,
+            "end": 9.683
+          },
+          {
+            "word": "phẩm",
+            "start": 9.752,
+            "end": 9.868
+          },
+          {
+            "word": "từ",
+            "start": 9.961,
+            "end": 10.008
+          },
+          {
+            "word": "đầu",
+            "start": 10.112,
+            "end": 10.252
+          },
+          {
+            "word": "—",
+            "start": 10.507,
+            "end": 10.507
+          },
+          {
+            "word": "ngay",
+            "start": 10.762,
+            "end": 10.913
+          },
+          {
+            "word": "trong",
+            "start": 11.006,
+            "end": 11.169
+          },
+          {
+            "word": "terminal",
+            "start": 11.262,
+            "end": 11.622
+          },
+          {
+            "word": "của",
+            "start": 11.68,
+            "end": 11.749
+          },
+          {
+            "word": "bạn",
+            "start": 11.807,
+            "end": 11.935
+          }
+        ],
+        "timing_anchors": {}
+      }
+    },
+    {
+      "sceneId": "scene_04",
+      "meaning": "Step 1 — Describe your idea in plain language",
+      "estimated_duration": 14,
+      "narration": "Bước một: Mô tả sản phẩm bạn muốn xây dựng bằng ngôn ngữ tự nhiên. Ví dụ — tôi muốn một web app cho phép freelancer tạo invoice và gửi cho khách hàng. Claude Code hiểu ngay, hỏi thêm để làm rõ, rồi bắt tay vào xây.",
+      "sfx_picks": [
+        {
+          "id": "click"
+        }
+      ],
+      "_audio": {
+        "voiceover": "assets/audio/scene_04_vo.mp3",
+        "voiceover_start": 32.16,
+        "vo_duration": 13.618,
+        "scene_duration": 14.12,
+        "word_timestamps": [
+          {
+            "word": "Bước",
+            "start": 0,
+            "end": 0.174
+          },
+          {
+            "word": "một",
+            "start": 0.255,
+            "end": 0.383
+          },
+          {
+            "word": "Mô",
+            "start": 1.022,
+            "end": 1.091
+          },
+          {
+            "word": "tả",
+            "start": 1.231,
+            "end": 1.265
+          },
+          {
+            "word": "sản",
+            "start": 1.416,
+            "end": 1.509
+          },
+          {
+            "word": "phẩm",
+            "start": 1.567,
+            "end": 1.695
+          },
+          {
+            "word": "bạn",
+            "start": 1.811,
+            "end": 1.95
+          },
+          {
+            "word": "muốn",
+            "start": 2.032,
+            "end": 2.148
+          },
+          {
+            "word": "xây",
+            "start": 2.229,
+            "end": 2.299
+          },
+          {
+            "word": "dựng",
+            "start": 2.368,
+            "end": 2.461
+          },
+          {
+            "word": "bằng",
+            "start": 2.543,
+            "end": 2.659
+          },
+          {
+            "word": "ngôn",
+            "start": 2.705,
+            "end": 2.821
+          },
+          {
+            "word": "ngữ",
+            "start": 2.879,
+            "end": 2.937
+          },
+          {
+            "word": "tự",
+            "start": 3.1,
+            "end": 3.123
+          },
+          {
+            "word": "nhiên",
+            "start": 3.216,
+            "end": 3.39
+          },
+          {
+            "word": "Ví",
+            "start": 3.831,
+            "end": 3.889
+          },
+          {
+            "word": "dụ",
+            "start": 3.994,
+            "end": 4.052
+          },
+          {
+            "word": "—",
+            "start": 4.389,
+            "end": 4.389
+          },
+          {
+            "word": "tôi",
+            "start": 4.899,
+            "end": 5.027
+          },
+          {
+            "word": "muốn",
+            "start": 5.108,
+            "end": 5.236
+          },
+          {
+            "word": "một",
+            "start": 5.317,
+            "end": 5.422
+          },
+          {
+            "word": "web",
+            "start": 5.503,
+            "end": 5.596
+          },
+          {
+            "word": "app",
+            "start": 5.735,
+            "end": 5.886
+          },
+          {
+            "word": "cho",
+            "start": 6.037,
+            "end": 6.177
+          },
+          {
+            "word": "phép",
+            "start": 6.246,
+            "end": 6.362
+          },
+          {
+            "word": "freelancer",
+            "start": 6.432,
+            "end": 6.989
+          },
+          {
+            "word": "tạo",
+            "start": 7.14,
+            "end": 7.407
+          },
+          {
+            "word": "invoice",
+            "start": 7.488,
+            "end": 7.872
+          },
+          {
+            "word": "và",
+            "start": 8.011,
+            "end": 8.092
+          },
+          {
+            "word": "gửi",
+            "start": 8.185,
+            "end": 8.324
+          },
+          {
+            "word": "cho",
+            "start": 8.394,
+            "end": 8.464
+          },
+          {
+            "word": "khách",
+            "start": 8.533,
+            "end": 8.649
+          },
+          {
+            "word": "hàng",
+            "start": 8.719,
+            "end": 8.858
+          },
+          {
+            "word": "Claude",
+            "start": 9.787,
+            "end": 10.089
+          },
+          {
+            "word": "Code",
+            "start": 10.17,
+            "end": 10.449
+          },
+          {
+            "word": "hiểu",
+            "start": 10.518,
+            "end": 10.727
+          },
+          {
+            "word": "ngay",
+            "start": 10.809,
+            "end": 10.971
+          },
+          {
+            "word": "hỏi",
+            "start": 11.517,
+            "end": 11.691
+          },
+          {
+            "word": "thêm",
+            "start": 11.761,
+            "end": 11.9
+          },
+          {
+            "word": "để",
+            "start": 11.993,
+            "end": 12.016
+          },
+          {
+            "word": "làm",
+            "start": 12.086,
+            "end": 12.179
+          },
+          {
+            "word": "rõ",
+            "start": 12.272,
+            "end": 12.318
+          },
+          {
+            "word": "rồi",
+            "start": 12.666,
+            "end": 12.84
+          },
+          {
+            "word": "bắt",
+            "start": 12.922,
+            "end": 13.026
+          },
+          {
+            "word": "tay",
+            "start": 13.073,
+            "end": 13.154
+          },
+          {
+            "word": "vào",
+            "start": 13.224,
+            "end": 13.305
+          },
+          {
+            "word": "xây",
+            "start": 13.374,
+            "end": 13.502
+          }
+        ],
+        "timing_anchors": {}
+      }
+    },
+    {
+      "sceneId": "scene_05",
+      "meaning": "Step 2 — Claude Code builds: directories, frontend, backend, DB",
+      "estimated_duration": 14,
+      "narration": "Bước hai: Claude Code làm việc. Nó tạo cấu trúc thư mục, viết frontend, viết backend, cài dependencies, kết nối database. Bạn ngồi điều hướng. Bạn hỏi. Bạn quyết định. Claude Code thực thi.",
+      "sfx_picks": [
+        {
+          "id": "whoosh-soft"
+        }
+      ],
+      "_audio": {
+        "voiceover": "assets/audio/scene_05_vo.mp3",
+        "voiceover_start": 46.279999999999994,
+        "vo_duration": 16.451,
+        "scene_duration": 16.95,
+        "word_timestamps": [
+          {
+            "word": "Bước",
+            "start": 0,
+            "end": 0.197
+          },
+          {
+            "word": "hai",
+            "start": 0.279,
+            "end": 0.43
+          },
+          {
+            "word": "Claude",
+            "start": 1.312,
+            "end": 1.614
+          },
+          {
+            "word": "Code",
+            "start": 1.718,
+            "end": 2.02
+          },
+          {
+            "word": "làm",
+            "start": 2.136,
+            "end": 2.252
+          },
+          {
+            "word": "việc",
+            "start": 2.334,
+            "end": 2.485
+          },
+          {
+            "word": "Nó",
+            "start": 3.506,
+            "end": 3.564
+          },
+          {
+            "word": "tạo",
+            "start": 3.692,
+            "end": 3.808
+          },
+          {
+            "word": "cấu",
+            "start": 3.901,
+            "end": 4.005
+          },
+          {
+            "word": "trúc",
+            "start": 4.087,
+            "end": 4.214
+          },
+          {
+            "word": "thư",
+            "start": 4.331,
+            "end": 4.423
+          },
+          {
+            "word": "mục",
+            "start": 4.528,
+            "end": 4.632
+          },
+          {
+            "word": "viết",
+            "start": 5.143,
+            "end": 5.352
+          },
+          {
+            "word": "frontend",
+            "start": 5.468,
+            "end": 5.863
+          },
+          {
+            "word": "viết",
+            "start": 6.258,
+            "end": 6.432
+          },
+          {
+            "word": "backend",
+            "start": 6.502,
+            "end": 6.827
+          },
+          {
+            "word": "cài",
+            "start": 7.361,
+            "end": 7.605
+          },
+          {
+            "word": "dependencies",
+            "start": 7.814,
+            "end": 8.545
+          },
+          {
+            "word": "kết",
+            "start": 9.056,
+            "end": 9.218
+          },
+          {
+            "word": "nối",
+            "start": 9.288,
+            "end": 9.404
+          },
+          {
+            "word": "database",
+            "start": 9.497,
+            "end": 9.915
+          },
+          {
+            "word": "Bạn",
+            "start": 10.902,
+            "end": 11.099
+          },
+          {
+            "word": "ngồi",
+            "start": 11.146,
+            "end": 11.331
+          },
+          {
+            "word": "điều",
+            "start": 11.401,
+            "end": 11.517
+          },
+          {
+            "word": "hướng",
+            "start": 11.598,
+            "end": 11.749
+          },
+          {
+            "word": "Bạn",
+            "start": 12.492,
+            "end": 12.666
+          },
+          {
+            "word": "hỏi",
+            "start": 12.748,
+            "end": 12.899
+          },
+          {
+            "word": "Bạn",
+            "start": 13.642,
+            "end": 13.827
+          },
+          {
+            "word": "quyết",
+            "start": 13.92,
+            "end": 14.06
+          },
+          {
+            "word": "định",
+            "start": 14.118,
+            "end": 14.234
+          },
+          {
+            "word": "Claude",
+            "start": 15.128,
+            "end": 15.395
+          },
+          {
+            "word": "Code",
+            "start": 15.488,
+            "end": 15.778
+          },
+          {
+            "word": "thực",
+            "start": 15.894,
+            "end": 16.033
+          },
+          {
+            "word": "thi",
+            "start": 16.138,
+            "end": 16.242
+          }
+        ],
+        "timing_anchors": {}
+      }
+    },
+    {
+      "sceneId": "scene_06",
+      "meaning": "Triumph — MVP trong vài giờ, code thật, không phải mockup",
+      "estimated_duration": 13,
+      "narration": "Trong vài giờ, bạn có một MVP thực sự. Không phải mockup. Không phải prototype giả. Code chạy được, UI đẹp, logic đúng — sản phẩm thật, sẵn sàng để deploy.",
+      "sfx_picks": [
+        {
+          "id": "ding"
+        }
+      ],
+      "_audio": {
+        "voiceover": "assets/audio/scene_06_vo.mp3",
+        "voiceover_start": 63.22999999999999,
+        "vo_duration": 14.164,
+        "scene_duration": 14.66,
+        "word_timestamps": [
+          {
+            "word": "Trong",
+            "start": 0,
+            "end": 0.197
+          },
+          {
+            "word": "vài",
+            "start": 0.255,
+            "end": 0.325
+          },
+          {
+            "word": "giờ",
+            "start": 0.395,
+            "end": 0.453
+          },
+          {
+            "word": "bạn",
+            "start": 1.115,
+            "end": 1.277
+          },
+          {
+            "word": "có",
+            "start": 1.37,
+            "end": 1.405
+          },
+          {
+            "word": "một",
+            "start": 1.498,
+            "end": 1.591
+          },
+          {
+            "word": "MVP",
+            "start": 1.649,
+            "end": 1.788
+          },
+          {
+            "word": "thực",
+            "start": 2.136,
+            "end": 2.252
+          },
+          {
+            "word": "sự",
+            "start": 2.357,
+            "end": 2.403
+          },
+          {
+            "word": "Không",
+            "start": 3.17,
+            "end": 3.367
+          },
+          {
+            "word": "phải",
+            "start": 3.413,
+            "end": 3.553
+          },
+          {
+            "word": "mockup",
+            "start": 3.646,
+            "end": 3.913
+          },
+          {
+            "word": "Không",
+            "start": 4.644,
+            "end": 4.807
+          },
+          {
+            "word": "phải",
+            "start": 4.865,
+            "end": 4.981
+          },
+          {
+            "word": "prototype",
+            "start": 5.074,
+            "end": 5.573
+          },
+          {
+            "word": "giả",
+            "start": 5.631,
+            "end": 5.677
+          },
+          {
+            "word": "Code",
+            "start": 6.943,
+            "end": 7.187
+          },
+          {
+            "word": "chạy",
+            "start": 7.361,
+            "end": 7.523
+          },
+          {
+            "word": "được",
+            "start": 7.605,
+            "end": 7.755
+          },
+          {
+            "word": "UI",
+            "start": 8.371,
+            "end": 8.522
+          },
+          {
+            "word": "đẹp",
+            "start": 8.707,
+            "end": 8.858
+          },
+          {
+            "word": "logic",
+            "start": 9.509,
+            "end": 9.81
+          },
+          {
+            "word": "đúng",
+            "start": 9.915,
+            "end": 10.077
+          },
+          {
+            "word": "—",
+            "start": 10.321,
+            "end": 10.321
+          },
+          {
+            "word": "sản",
+            "start": 11.018,
+            "end": 11.18
+          },
+          {
+            "word": "phẩm",
+            "start": 11.238,
+            "end": 11.343
+          },
+          {
+            "word": "thật",
+            "start": 11.447,
+            "end": 11.552
+          },
+          {
+            "word": "sẵn",
+            "start": 12.62,
+            "end": 12.817
+          },
+          {
+            "word": "sàng",
+            "start": 12.91,
+            "end": 13.177
+          },
+          {
+            "word": "để",
+            "start": 13.468,
+            "end": 13.549
+          },
+          {
+            "word": "deploy",
+            "start": 13.688,
+            "end": 14.048
+          }
+        ],
+        "timing_anchors": {}
+      }
+    },
+    {
+      "sceneId": "scene_07",
+      "meaning": "Step 3 — Launch: Vercel, Gumroad, landing page",
+      "estimated_duration": 14,
+      "narration": "Bước ba: Launch và bán. Đẩy lên Vercel trong hai phút. List sản phẩm trên Gumroad hoặc LemonSqueezy. Đặt giá. Viết landing page. Claude Code làm tất cả những bước đó cùng bạn.",
+      "sfx_picks": [
+        {
+          "id": "chime"
+        }
+      ],
+      "_audio": {
+        "voiceover": "assets/audio/scene_07_vo.mp3",
+        "voiceover_start": 77.88999999999999,
+        "vo_duration": 14.582,
+        "scene_duration": 15.08,
+        "word_timestamps": [
+          {
+            "word": "Bước",
+            "start": 0,
+            "end": 0.186
+          },
+          {
+            "word": "ba",
+            "start": 0.29,
+            "end": 0.337
+          },
+          {
+            "word": "Launch",
+            "start": 1.196,
+            "end": 1.567
+          },
+          {
+            "word": "và",
+            "start": 1.834,
+            "end": 1.904
+          },
+          {
+            "word": "bán",
+            "start": 2.009,
+            "end": 2.171
+          },
+          {
+            "word": "Đẩy",
+            "start": 3.228,
+            "end": 3.379
+          },
+          {
+            "word": "lên",
+            "start": 3.46,
+            "end": 3.611
+          },
+          {
+            "word": "Vercel",
+            "start": 3.808,
+            "end": 4.133
+          },
+          {
+            "word": "trong",
+            "start": 4.261,
+            "end": 4.389
+          },
+          {
+            "word": "hai",
+            "start": 4.447,
+            "end": 4.505
+          },
+          {
+            "word": "phút",
+            "start": 4.563,
+            "end": 4.702
+          },
+          {
+            "word": "List",
+            "start": 5.631,
+            "end": 5.851
+          },
+          {
+            "word": "sản",
+            "start": 5.956,
+            "end": 6.084
+          },
+          {
+            "word": "phẩm",
+            "start": 6.153,
+            "end": 6.269
+          },
+          {
+            "word": "trên",
+            "start": 6.374,
+            "end": 6.536
+          },
+          {
+            "word": "Gumroad",
+            "start": 6.687,
+            "end": 7.059
+          },
+          {
+            "word": "hoặc",
+            "start": 7.279,
+            "end": 7.454
+          },
+          {
+            "word": "LemonSqueezy",
+            "start": 7.663,
+            "end": 8.278
+          },
+          {
+            "word": "Đặt",
+            "start": 9.172,
+            "end": 9.334
+          },
+          {
+            "word": "giá",
+            "start": 9.416,
+            "end": 9.497
+          },
+          {
+            "word": "Viết",
+            "start": 10.24,
+            "end": 10.449
+          },
+          {
+            "word": "landing",
+            "start": 10.553,
+            "end": 10.797
+          },
+          {
+            "word": "page",
+            "start": 10.867,
+            "end": 11.088
+          },
+          {
+            "word": "Claude",
+            "start": 11.923,
+            "end": 12.202
+          },
+          {
+            "word": "Code",
+            "start": 12.283,
+            "end": 12.574
+          },
+          {
+            "word": "làm",
+            "start": 12.899,
+            "end": 13.061
+          },
+          {
+            "word": "tất",
+            "start": 13.166,
+            "end": 13.259
+          },
+          {
+            "word": "cả",
+            "start": 13.317,
+            "end": 13.363
+          },
+          {
+            "word": "những",
+            "start": 13.502,
+            "end": 13.618
+          },
+          {
+            "word": "bước",
+            "start": 13.677,
+            "end": 13.781
+          },
+          {
+            "word": "đó",
+            "start": 13.862,
+            "end": 13.897
+          },
+          {
+            "word": "cùng",
+            "start": 14.071,
+            "end": 14.234
+          },
+          {
+            "word": "bạn",
+            "start": 14.303,
+            "end": 14.466
+          }
+        ],
+        "timing_anchors": {}
+      }
+    },
+    {
+      "sceneId": "scene_08",
+      "meaning": "Income — doanh thu thụ động, con số cụ thể truyền cảm hứng",
+      "estimated_duration": 13,
+      "narration": "Khách hàng đầu tiên đến. Rồi người thứ hai. Thu nhập thụ động bắt đầu chảy. Một sản phẩm nhỏ, mười đô mỗi tháng, nhân với một ngàn người dùng — là mười ngàn đô thu nhập định kỳ.",
+      "sfx_picks": [
+        {
+          "id": "count-up-end"
+        }
+      ],
+      "_audio": {
+        "voiceover": "assets/audio/scene_08_vo.mp3",
+        "voiceover_start": 92.96999999999998,
+        "vo_duration": 11.54,
+        "scene_duration": 12.04,
+        "word_timestamps": [
+          {
+            "word": "Khách",
+            "start": 0,
+            "end": 0.209
+          },
+          {
+            "word": "hàng",
+            "start": 0.267,
+            "end": 0.36
+          },
+          {
+            "word": "đầu",
+            "start": 0.43,
+            "end": 0.488
+          },
+          {
+            "word": "tiên",
+            "start": 0.557,
+            "end": 0.65
+          },
+          {
+            "word": "đến",
+            "start": 0.72,
+            "end": 0.848
+          },
+          {
+            "word": "Rồi",
+            "start": 1.66,
+            "end": 1.962
+          },
+          {
+            "word": "người",
+            "start": 2.078,
+            "end": 2.252
+          },
+          {
+            "word": "thứ",
+            "start": 2.322,
+            "end": 2.403
+          },
+          {
+            "word": "hai",
+            "start": 2.508,
+            "end": 2.694
+          },
+          {
+            "word": "Thu",
+            "start": 3.471,
+            "end": 3.576
+          },
+          {
+            "word": "nhập",
+            "start": 3.669,
+            "end": 3.773
+          },
+          {
+            "word": "thụ",
+            "start": 3.855,
+            "end": 3.913
+          },
+          {
+            "word": "động",
+            "start": 4.017,
+            "end": 4.133
+          },
+          {
+            "word": "bắt",
+            "start": 4.284,
+            "end": 4.412
+          },
+          {
+            "word": "đầu",
+            "start": 4.47,
+            "end": 4.551
+          },
+          {
+            "word": "chảy",
+            "start": 4.644,
+            "end": 4.772
+          },
+          {
+            "word": "Một",
+            "start": 5.573,
+            "end": 5.712
+          },
+          {
+            "word": "sản",
+            "start": 5.759,
+            "end": 5.851
+          },
+          {
+            "word": "phẩm",
+            "start": 5.909,
+            "end": 6.014
+          },
+          {
+            "word": "nhỏ",
+            "start": 6.084,
+            "end": 6.2
+          },
+          {
+            "word": "mười",
+            "start": 6.676,
+            "end": 6.85
+          },
+          {
+            "word": "đô",
+            "start": 6.931,
+            "end": 6.966
+          },
+          {
+            "word": "mỗi",
+            "start": 7.094,
+            "end": 7.187
+          },
+          {
+            "word": "tháng",
+            "start": 7.268,
+            "end": 7.477
+          },
+          {
+            "word": "nhân",
+            "start": 7.941,
+            "end": 8.115
+          },
+          {
+            "word": "với",
+            "start": 8.243,
+            "end": 8.301
+          },
+          {
+            "word": "một",
+            "start": 8.359,
+            "end": 8.452
+          },
+          {
+            "word": "ngàn",
+            "start": 8.522,
+            "end": 8.626
+          },
+          {
+            "word": "người",
+            "start": 8.684,
+            "end": 8.8
+          },
+          {
+            "word": "dùng",
+            "start": 8.847,
+            "end": 8.998
+          },
+          {
+            "word": "—",
+            "start": 9.149,
+            "end": 9.149
+          },
+          {
+            "word": "là",
+            "start": 9.752,
+            "end": 9.845
+          },
+          {
+            "word": "mười",
+            "start": 9.985,
+            "end": 10.124
+          },
+          {
+            "word": "ngàn",
+            "start": 10.205,
+            "end": 10.333
+          },
+          {
+            "word": "đô",
+            "start": 10.403,
+            "end": 10.449
+          },
+          {
+            "word": "thu",
+            "start": 10.739,
+            "end": 10.82
+          },
+          {
+            "word": "nhập",
+            "start": 10.925,
+            "end": 11.029
+          },
+          {
+            "word": "định",
+            "start": 11.111,
+            "end": 11.227
+          },
+          {
+            "word": "kỳ",
+            "start": 11.285,
+            "end": 11.331
+          }
+        ],
+        "timing_anchors": {}
+      }
+    },
+    {
+      "sceneId": "scene_09",
+      "meaning": "CTA — kêu gọi hành động ngay, không chần chừ",
+      "estimated_duration": 10,
+      "narration": "Ý tưởng của bạn chỉ cần một buổi tối với Claude Code để trở thành phần mềm có thể bán. Ý tưởng bạn đang nghĩ lúc này — tại sao không thử ngay hôm nay?",
+      "sfx_picks": [
+        {
+          "id": "drum-hit"
+        }
+      ],
+      "_audio": {
+        "voiceover": "assets/audio/scene_09_vo.mp3",
+        "voiceover_start": 105.00999999999999,
+        "vo_duration": 8.696,
+        "scene_duration": 9.2,
+        "word_timestamps": [
+          {
+            "word": "Ý",
+            "start": 0,
+            "end": 0
+          },
+          {
+            "word": "tưởng",
+            "start": 0.186,
+            "end": 0.29
+          },
+          {
+            "word": "của",
+            "start": 0.337,
+            "end": 0.395
+          },
+          {
+            "word": "bạn",
+            "start": 0.441,
+            "end": 0.592
+          },
+          {
+            "word": "chỉ",
+            "start": 0.697,
+            "end": 0.801
+          },
+          {
+            "word": "cần",
+            "start": 0.906,
+            "end": 0.987
+          },
+          {
+            "word": "một",
+            "start": 1.057,
+            "end": 1.149
+          },
+          {
+            "word": "buổi",
+            "start": 1.196,
+            "end": 1.312
+          },
+          {
+            "word": "tối",
+            "start": 1.393,
+            "end": 1.602
+          },
+          {
+            "word": "với",
+            "start": 1.834,
+            "end": 2.009
+          },
+          {
+            "word": "Claude",
+            "start": 2.101,
+            "end": 2.345
+          },
+          {
+            "word": "Code",
+            "start": 2.426,
+            "end": 2.728
+          },
+          {
+            "word": "để",
+            "start": 2.937,
+            "end": 3.019
+          },
+          {
+            "word": "trở",
+            "start": 3.123,
+            "end": 3.204
+          },
+          {
+            "word": "thành",
+            "start": 3.297,
+            "end": 3.413
+          },
+          {
+            "word": "phần",
+            "start": 3.471,
+            "end": 3.564
+          },
+          {
+            "word": "mềm",
+            "start": 3.646,
+            "end": 3.796
+          },
+          {
+            "word": "có",
+            "start": 3.889,
+            "end": 3.924
+          },
+          {
+            "word": "thể",
+            "start": 4.017,
+            "end": 4.087
+          },
+          {
+            "word": "bán",
+            "start": 4.168,
+            "end": 4.331
+          },
+          {
+            "word": "Ý",
+            "start": 5.085,
+            "end": 5.085
+          },
+          {
+            "word": "tưởng",
+            "start": 5.248,
+            "end": 5.352
+          },
+          {
+            "word": "bạn",
+            "start": 5.41,
+            "end": 5.515
+          },
+          {
+            "word": "đang",
+            "start": 5.573,
+            "end": 5.7
+          },
+          {
+            "word": "nghĩ",
+            "start": 5.747,
+            "end": 5.84
+          },
+          {
+            "word": "lúc",
+            "start": 5.909,
+            "end": 6.002
+          },
+          {
+            "word": "này",
+            "start": 6.084,
+            "end": 6.223
+          },
+          {
+            "word": "—",
+            "start": 6.49,
+            "end": 6.49
+          },
+          {
+            "word": "tại",
+            "start": 7.07,
+            "end": 7.187
+          },
+          {
+            "word": "sao",
+            "start": 7.279,
+            "end": 7.512
+          },
+          {
+            "word": "không",
+            "start": 7.755,
+            "end": 7.953
+          },
+          {
+            "word": "thử",
+            "start": 8.011,
+            "end": 8.069
+          },
+          {
+            "word": "ngay",
+            "start": 8.173,
+            "end": 8.255
+          },
+          {
+            "word": "hôm",
+            "start": 8.313,
+            "end": 8.406
+          },
+          {
+            "word": "nay",
+            "start": 8.475,
+            "end": 8.603
+          }
+        ],
+        "timing_anchors": {}
+      }
+    }
+  ],
+  "_audio": {
+    "music_track": "assets/music/fluid-ambient.mp3",
+    "music_volume": 0.18
+  }
+}

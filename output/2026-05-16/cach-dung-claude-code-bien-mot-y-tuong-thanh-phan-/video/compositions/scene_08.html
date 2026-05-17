@@ -1,0 +1,363 @@
+<template id="scene-08-template">
+  <div data-composition-id="scene-08" data-width="1080" data-height="1920">
+
+    <!-- Background layers -->
+    <div class="s8-bg" data-layout-ignore>
+      <div class="s8-dot-grid"></div>
+      <div class="s8-radial-glow"></div>
+      <div class="s8-scanlines"></div>
+    </div>
+
+    <!-- Dollar particles -->
+    <div class="s8-particles" data-layout-ignore>
+      <div class="s8-p s8-p1">$</div>
+      <div class="s8-p s8-p2">$</div>
+      <div class="s8-p s8-p3">$</div>
+      <div class="s8-p s8-p4">$</div>
+      <div class="s8-p s8-p5">$</div>
+      <div class="s8-p s8-p6">$</div>
+    </div>
+
+    <!-- Corner brackets -->
+    <div class="s8-corner s8-corner-tl" data-layout-ignore></div>
+    <div class="s8-corner s8-corner-tr" data-layout-ignore></div>
+    <div class="s8-corner s8-corner-bl" data-layout-ignore></div>
+    <div class="s8-corner s8-corner-br" data-layout-ignore></div>
+
+    <!-- Main content -->
+    <div class="s8-content">
+      <div class="s8-label">THU NHẬP ĐỊNH KỲ</div>
+
+      <!-- Counter display -->
+      <div class="s8-counter-wrap">
+        <span class="s8-dollar-prefix">$</span>
+        <span class="s8-counter" id="s8-counter-el">10,000</span>
+      </div>
+
+      <div class="s8-per-month">/tháng</div>
+
+      <!-- Equation -->
+      <div class="s8-equation">
+        <div class="s8-eq-row">
+          <span class="s8-eq-val">$10</span>
+          <span class="s8-eq-op">×</span>
+          <span class="s8-eq-val">1,000</span>
+          <span class="s8-eq-op">=</span>
+          <span class="s8-eq-result">$10K</span>
+        </div>
+        <div class="s8-eq-labels">
+          <span class="s8-eq-label">giá/tháng</span>
+          <span class="s8-eq-label-spacer"></span>
+          <span class="s8-eq-label">users</span>
+          <span class="s8-eq-label-spacer"></span>
+          <span class="s8-eq-label">MRR</span>
+        </div>
+      </div>
+
+      <!-- First customer line -->
+      <div class="s8-first-customers">
+        <div class="s8-customer-row s8-c1">
+          <span class="s8-c-dot"></span><span class="s8-c-text">Khách hàng đầu tiên đến.</span>
+        </div>
+        <div class="s8-customer-row s8-c2">
+          <span class="s8-c-dot"></span><span class="s8-c-text">Rồi người thứ hai. Thứ ba...</span>
+        </div>
+      </div>
+
+      <p class="s8-passive">Thu nhập thụ động bắt đầu chảy.</p>
+    </div>
+
+    <style>
+      #scene-08 {
+        position: relative;
+        width: 1080px;
+        height: 1920px;
+        background: #060810;
+        overflow: hidden;
+      }
+
+      /* ── Background ── */
+      .s8-bg {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      .s8-dot-grid {
+        position: absolute;
+        inset: 0;
+        background-image: radial-gradient(circle, rgba(57,255,20,0.28) 1.5px, transparent 1.5px);
+        background-size: 48px 48px;
+      }
+
+      .s8-radial-glow {
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(ellipse 900px 900px at 50% 40%, rgba(57,255,20,0.2) 0%, transparent 60%);
+      }
+
+      .s8-scanlines {
+        position: absolute;
+        inset: 0;
+        background: repeating-linear-gradient(
+          0deg,
+          transparent,
+          transparent 3px,
+          rgba(0,0,0,0.04) 3px,
+          rgba(0,0,0,0.04) 4px
+        );
+      }
+
+      /* ── Dollar particles ── */
+      .s8-particles {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        z-index: 1;
+      }
+
+      .s8-p {
+        position: absolute;
+        font-family: 'Exo 2', sans-serif;
+        font-weight: 700;
+        font-size: 28px;
+        color: rgba(57,255,20,0.35);
+        opacity: 0;
+      }
+
+      .s8-p1 { left: 8%;  bottom: 20%; }
+      .s8-p2 { left: 22%; bottom: 30%; }
+      .s8-p3 { left: 40%; bottom: 15%; }
+      .s8-p4 { left: 60%; bottom: 25%; }
+      .s8-p5 { left: 75%; bottom: 18%; }
+      .s8-p6 { left: 88%; bottom: 35%; }
+
+      /* ── Corner brackets ── */
+      .s8-corner {
+        position: absolute;
+        width: 56px;
+        height: 56px;
+        border-color: #39FF14;
+        border-style: solid;
+        opacity: 0.5;
+        z-index: 3;
+      }
+
+      .s8-corner-tl { top: 60px; left: 60px; border-width: 3px 0 0 3px; }
+      .s8-corner-tr { top: 60px; right: 60px; border-width: 3px 3px 0 0; }
+      .s8-corner-bl { bottom: 60px; left: 60px; border-width: 0 0 3px 3px; }
+      .s8-corner-br { bottom: 60px; right: 60px; border-width: 0 3px 3px 0; }
+
+      /* ── Content ── */
+      .s8-content {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: 140px 88px;
+        gap: 36px;
+        box-sizing: border-box;
+        z-index: 2;
+      }
+
+      .s8-label {
+        font-family: 'Inter', sans-serif;
+        font-weight: 700;
+        font-size: 28px;
+        color: rgba(57,255,20,0.8);
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+      }
+
+      /* Counter */
+      .s8-counter-wrap {
+        display: flex;
+        align-items: baseline;
+        gap: 4px;
+        line-height: 1.0;
+      }
+
+      .s8-dollar-prefix {
+        font-family: 'Exo 2', sans-serif;
+        font-weight: 900;
+        font-size: 80px;
+        color: #39FF14;
+        text-shadow: 0 0 30px rgba(57,255,20,0.6);
+      }
+
+      .s8-counter {
+        font-family: 'Exo 2', sans-serif;
+        font-weight: 900;
+        font-size: 160px;
+        color: #39FF14;
+        text-shadow:
+          0 0 40px rgba(57,255,20,0.8),
+          0 0 100px rgba(57,255,20,0.4),
+          0 0 200px rgba(57,255,20,0.15);
+        font-variant-numeric: tabular-nums;
+        letter-spacing: -4px;
+        line-height: 1.0;
+      }
+
+      .s8-per-month {
+        font-family: 'Inter', sans-serif;
+        font-weight: 600;
+        font-size: 40px;
+        color: rgba(255,255,255,0.55);
+        margin-top: -20px;
+      }
+
+      /* Equation */
+      .s8-equation {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        background: rgba(57,255,20,0.06);
+        border: 1px solid rgba(57,255,20,0.25);
+        border-radius: 16px;
+        padding: 24px 32px;
+      }
+
+      .s8-eq-row {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+      }
+
+      .s8-eq-val {
+        font-family: 'Exo 2', sans-serif;
+        font-weight: 700;
+        font-size: 44px;
+        color: #FFFFFF;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .s8-eq-op {
+        font-family: 'Inter', sans-serif;
+        font-weight: 500;
+        font-size: 36px;
+        color: rgba(255,255,255,0.4);
+      }
+
+      .s8-eq-result {
+        font-family: 'Exo 2', sans-serif;
+        font-weight: 900;
+        font-size: 56px;
+        color: #39FF14;
+        text-shadow: 0 0 16px rgba(57,255,20,0.6);
+      }
+
+      .s8-eq-labels {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+      }
+
+      .s8-eq-label {
+        font-family: 'Inter', sans-serif;
+        font-weight: 500;
+        font-size: 24px;
+        color: rgba(255,255,255,0.35);
+      }
+
+      .s8-eq-label-spacer {
+        flex: 1;
+      }
+
+      /* First customers */
+      .s8-first-customers {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      .s8-customer-row {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+      }
+
+      .s8-c-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #39FF14;
+        box-shadow: 0 0 8px rgba(57,255,20,0.8);
+        flex-shrink: 0;
+      }
+
+      .s8-c-text {
+        font-family: 'Inter', sans-serif;
+        font-weight: 500;
+        font-size: 36px;
+        color: rgba(255,255,255,0.65);
+      }
+
+      .s8-passive {
+        font-family: 'Exo 2', sans-serif;
+        font-weight: 700;
+        font-size: 44px;
+        color: #FFFFFF;
+        margin: 0;
+        line-height: 1.2;
+      }
+    </style>
+
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <script>
+      window.__timelines = window.__timelines || {};
+
+      const tl = gsap.timeline({ paused: true });
+
+      // Label slides in
+      tl.from(".s8-label", { y: -20, opacity: 0, duration: 0.4, ease: "power2.out" }, 0.3);
+
+      // Counter animates from 0 to 10000 via gsap counter
+      const counterEl = document.getElementById("s8-counter-el");
+      const counterObj = { val: 0 };
+      tl.from(".s8-counter-wrap", { opacity: 0, scale: 0.7, duration: 0.6, ease: "expo.out" }, 0.5);
+      tl.to(counterObj, {
+        val: 10000,
+        duration: 7.0,
+        ease: "power2.out",
+        onUpdate: function() {
+          if (counterEl) {
+            counterEl.textContent = Math.round(counterObj.val).toLocaleString("en-US");
+          }
+        }
+      }, 0.8);
+
+      // Per month fades in with counter
+      tl.from(".s8-per-month", { opacity: 0, duration: 0.4, ease: "power2.out" }, 1.0);
+
+      // Equation slides in
+      tl.from(".s8-equation", { y: 40, opacity: 0, duration: 0.55, ease: "back.out(1.5)" }, 3.5);
+
+      // First customers appear
+      tl.from(".s8-c1", { x: -30, opacity: 0, duration: 0.45, ease: "power3.out" }, 5.0);
+      tl.from(".s8-c2", { x: -30, opacity: 0, duration: 0.45, ease: "power3.out" }, 5.5);
+
+      // Passive income line
+      tl.from(".s8-passive", { y: 25, opacity: 0, duration: 0.5, ease: "power2.out" }, 6.5);
+
+      // Dollar particles float up
+      const pStarts = [1.5, 2.2, 2.8, 3.4, 4.0, 4.6];
+      const pSels = [".s8-p1", ".s8-p2", ".s8-p3", ".s8-p4", ".s8-p5", ".s8-p6"];
+      const sceneEnd = 12.04;
+      pSels.forEach((sel, i) => {
+        const cycleDuration = 3.5;
+        const repeatCount = Math.ceil((sceneEnd - pStarts[i]) / cycleDuration);
+        tl.fromTo(sel,
+          { y: 0, opacity: 0 },
+          { y: -320, opacity: 0.5, duration: cycleDuration, ease: "power1.out", repeat: repeatCount },
+          pStarts[i]
+        );
+      });
+
+      window.__timelines["scene-08"] = tl;
+    </script>
+  </div>
+</template>

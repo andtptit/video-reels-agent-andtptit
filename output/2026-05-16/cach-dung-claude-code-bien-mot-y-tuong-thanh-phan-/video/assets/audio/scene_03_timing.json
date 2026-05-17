@@ -1,0 +1,197 @@
+[
+  {
+    "word": "Claude",
+    "start": 0,
+    "end": 0.325
+  },
+  {
+    "word": "Code",
+    "start": 0.383,
+    "end": 0.65
+  },
+  {
+    "word": "là",
+    "start": 0.975,
+    "end": 1.057
+  },
+  {
+    "word": "AI",
+    "start": 1.405,
+    "end": 1.73
+  },
+  {
+    "word": "coding",
+    "start": 1.846,
+    "end": 2.125
+  },
+  {
+    "word": "agent",
+    "start": 2.206,
+    "end": 2.45
+  },
+  {
+    "word": "của",
+    "start": 2.554,
+    "end": 2.659
+  },
+  {
+    "word": "Anthropic",
+    "start": 2.74,
+    "end": 3.17
+  },
+  {
+    "word": "Không",
+    "start": 3.82,
+    "end": 3.971
+  },
+  {
+    "word": "phải",
+    "start": 4.017,
+    "end": 4.122
+  },
+  {
+    "word": "chỉ",
+    "start": 4.226,
+    "end": 4.331
+  },
+  {
+    "word": "một",
+    "start": 4.435,
+    "end": 4.551
+  },
+  {
+    "word": "trợ",
+    "start": 4.598,
+    "end": 4.667
+  },
+  {
+    "word": "lý",
+    "start": 4.737,
+    "end": 4.783
+  },
+  {
+    "word": "chat",
+    "start": 4.888,
+    "end": 4.992
+  },
+  {
+    "word": "Nó",
+    "start": 5.793,
+    "end": 5.828
+  },
+  {
+    "word": "đọc",
+    "start": 5.898,
+    "end": 6.002
+  },
+  {
+    "word": "file",
+    "start": 6.084,
+    "end": 6.339
+  },
+  {
+    "word": "viết",
+    "start": 6.606,
+    "end": 6.78
+  },
+  {
+    "word": "code",
+    "start": 6.85,
+    "end": 7.059
+  },
+  {
+    "word": "chạy",
+    "start": 7.465,
+    "end": 7.593
+  },
+  {
+    "word": "lệnh",
+    "start": 7.697,
+    "end": 7.814
+  },
+  {
+    "word": "fix",
+    "start": 7.918,
+    "end": 8.046
+  },
+  {
+    "word": "bug",
+    "start": 8.185,
+    "end": 8.29
+  },
+  {
+    "word": "và",
+    "start": 8.8,
+    "end": 8.87
+  },
+  {
+    "word": "xây",
+    "start": 8.998,
+    "end": 9.067
+  },
+  {
+    "word": "dựng",
+    "start": 9.137,
+    "end": 9.242
+  },
+  {
+    "word": "cả",
+    "start": 9.311,
+    "end": 9.358
+  },
+  {
+    "word": "một",
+    "start": 9.485,
+    "end": 9.555
+  },
+  {
+    "word": "sản",
+    "start": 9.601,
+    "end": 9.683
+  },
+  {
+    "word": "phẩm",
+    "start": 9.752,
+    "end": 9.868
+  },
+  {
+    "word": "từ",
+    "start": 9.961,
+    "end": 10.008
+  },
+  {
+    "word": "đầu",
+    "start": 10.112,
+    "end": 10.252
+  },
+  {
+    "word": "—",
+    "start": 10.507,
+    "end": 10.507
+  },
+  {
+    "word": "ngay",
+    "start": 10.762,
+    "end": 10.913
+  },
+  {
+    "word": "trong",
+    "start": 11.006,
+    "end": 11.169
+  },
+  {
+    "word": "terminal",
+    "start": 11.262,
+    "end": 11.622
+  },
+  {
+    "word": "của",
+    "start": 11.68,
+    "end": 11.749
+  },
+  {
+    "word": "bạn",
+    "start": 11.807,
+    "end": 11.935
+  }
+]

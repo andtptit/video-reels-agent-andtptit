@@ -1,0 +1,97 @@
+[
+  {
+    "word": "Vì",
+    "start": 0,
+    "end": 0.128
+  },
+  {
+    "word": "xây",
+    "start": 0.279,
+    "end": 0.348
+  },
+  {
+    "word": "phần",
+    "start": 0.418,
+    "end": 0.511
+  },
+  {
+    "word": "mềm",
+    "start": 0.592,
+    "end": 0.708
+  },
+  {
+    "word": "tốn",
+    "start": 0.813,
+    "end": 0.929
+  },
+  {
+    "word": "tiền",
+    "start": 0.998,
+    "end": 1.161
+  },
+  {
+    "word": "Tốn",
+    "start": 1.904,
+    "end": 2.067
+  },
+  {
+    "word": "tháng",
+    "start": 2.159,
+    "end": 2.299
+  },
+  {
+    "word": "trời",
+    "start": 2.357,
+    "end": 2.531
+  },
+  {
+    "word": "Mà",
+    "start": 3.123,
+    "end": 3.193
+  },
+  {
+    "word": "bạn",
+    "start": 3.286,
+    "end": 3.379
+  },
+  {
+    "word": "không",
+    "start": 3.448,
+    "end": 3.576
+  },
+  {
+    "word": "biết",
+    "start": 3.634,
+    "end": 3.75
+  },
+  {
+    "word": "code",
+    "start": 3.843,
+    "end": 4.075
+  },
+  {
+    "word": "Thuê",
+    "start": 4.772,
+    "end": 4.923
+  },
+  {
+    "word": "người",
+    "start": 5.004,
+    "end": 5.19
+  },
+  {
+    "word": "lại",
+    "start": 5.259,
+    "end": 5.341
+  },
+  {
+    "word": "rủi",
+    "start": 5.399,
+    "end": 5.492
+  },
+  {
+    "word": "ro",
+    "start": 5.619,
+    "end": 5.677
+  }
+]

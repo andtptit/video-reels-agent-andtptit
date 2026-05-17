@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body {
+        width: 1920px; height: 1080px;
+        overflow: hidden;
+        background: #060810;
+        font-family: 'Exo 2', 'Inter', sans-serif;
+      }
+
+      /* ── Persistent atmosphere ── */
+      .bg-dots {
+        position: absolute; inset: 0;
+        background-image: radial-gradient(circle, rgba(57,255,20,0.28) 1.5px, transparent 1.5px);
+        background-size: 48px 48px;
+      }
+      .bg-glow {
+        position: absolute; inset: 0;
+        background: radial-gradient(ellipse 1100px 800px at 50% 48%, rgba(57,255,20,0.09) 0%, transparent 68%);
+      }
+      .bg-scanlines {
+        position: absolute; inset: 0;
+        background: repeating-linear-gradient(0deg, transparent 0px, transparent 3px, rgba(0,0,0,0.04) 3px, rgba(0,0,0,0.04) 4px);
+      }
+      .corner { position: absolute; width: 56px; height: 56px; }
+      .corner-tl { top: 40px; left: 40px; border-top: 3px solid rgba(57,255,20,0.45); border-left: 3px solid rgba(57,255,20,0.45); }
+      .corner-tr { top: 40px; right: 40px; border-top: 3px solid rgba(57,255,20,0.45); border-right: 3px solid rgba(57,255,20,0.45); }
+      .corner-bl { bottom: 40px; left: 40px; border-bottom: 3px solid rgba(57,255,20,0.45); border-left: 3px solid rgba(57,255,20,0.45); }
+      .corner-br { bottom: 40px; right: 40px; border-bottom: 3px solid rgba(57,255,20,0.45); border-right: 3px solid rgba(57,255,20,0.45); }
+
+      /* ── Scene containers ── */
+      #scene-01, #scene-02, #scene-03, #scene-04, #scene-05 {
+        position: absolute; inset: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="main"
+      data-start="0"
+      data-duration="39"
+      data-width="1920"
+      data-height="1080"
+    >
+      <!-- ── Atmosphere: tracks 0-6 (persist full 39s) ── -->
+      <div id="bg-dots"      class="clip bg-dots"      data-start="0" data-duration="39" data-track-index="0"></div>
+      <div id="bg-glow"      class="clip bg-glow"      data-start="0" data-duration="39" data-track-index="1"></div>
+      <div id="bg-scanlines" class="clip bg-scanlines" data-start="0" data-duration="39" data-track-index="2"></div>
+      <div id="corner-tl"    class="clip corner corner-tl" data-start="0" data-duration="39" data-track-index="3"></div>
+      <div id="corner-tr"    class="clip corner corner-tr" data-start="0" data-duration="39" data-track-index="4"></div>
+      <div id="corner-bl"    class="clip corner corner-bl" data-start="0" data-duration="39" data-track-index="5"></div>
+      <div id="corner-br"    class="clip corner corner-br" data-start="0" data-duration="39" data-track-index="6"></div>
+
+      <!-- ── Scenes: tracks 10-11 (alternating to allow 0.5s crossfade overlap) ── -->
+      <!-- scene-01: 0.0 → 6.5  track 10 -->
+      <div id="scene-01" class="clip"
+        data-composition-id="scene-01"
+        data-composition-src="compositions/scene_01.html"
+        data-start="0" data-duration="6.5"
+        data-track-index="10"
+        data-width="1920" data-height="1080">
+      </div>
+
+      <!-- scene-02: 6.0 → 15.5  track 11 -->
+      <div id="scene-02" class="clip"
+        data-composition-id="scene-02"
+        data-composition-src="compositions/scene_02.html"
+        data-start="6.0" data-duration="9.5"
+        data-track-index="11"
+        data-width="1920" data-height="1080">
+      </div>
+
+      <!-- scene-03: 15.0 → 24.5  track 10 -->
+      <div id="scene-03" class="clip"
+        data-composition-id="scene-03"
+        data-composition-src="compositions/scene_03.html"
+        data-start="15.0" data-duration="9.5"
+        data-track-index="10"
+        data-width="1920" data-height="1080">
+      </div>
+
+      <!-- scene-04: 24.0 → 33.5  track 11 -->
+      <div id="scene-04" class="clip"
+        data-composition-id="scene-04"
+        data-composition-src="compositions/scene_04.html"
+        data-start="24.0" data-duration="9.5"
+        data-track-index="11"
+        data-width="1920" data-height="1080">
+      </div>
+
+      <!-- scene-05: 33.0 → 39.0  track 10 -->
+      <div id="scene-05" class="clip"
+        data-composition-id="scene-05"
+        data-composition-src="compositions/scene_05.html"
+        data-start="33.0" data-duration="6.0"
+        data-track-index="10"
+        data-width="1920" data-height="1080">
+      </div>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+
+      // ── Atmosphere entrance ──
+      tl.from('#bg-dots',      { opacity: 0, duration: 1.2, ease: 'power2.out' }, 0);
+      tl.from('#bg-glow',      { opacity: 0, duration: 1.6, ease: 'power2.out' }, 0.1);
+      tl.from('#bg-scanlines', { opacity: 0, duration: 1.0, ease: 'linear'     }, 0.2);
+      tl.from('#corner-tl', { opacity: 0, scale: 0, transformOrigin: 'top left',     duration: 0.5, ease: 'back.out(1.7)' }, 0.1);
+      tl.from('#corner-tr', { opacity: 0, scale: 0, transformOrigin: 'top right',    duration: 0.5, ease: 'back.out(1.7)' }, 0.15);
+      tl.from('#corner-bl', { opacity: 0, scale: 0, transformOrigin: 'bottom left',  duration: 0.5, ease: 'back.out(1.7)' }, 0.2);
+      tl.from('#corner-br', { opacity: 0, scale: 0, transformOrigin: 'bottom right', duration: 0.5, ease: 'back.out(1.7)' }, 0.25);
+
+      // ── Crossfade transitions (outgoing scene fades out, incoming already fading in) ──
+      tl.to('#scene-01', { opacity: 0, duration: 0.5, ease: 'power2.inOut' }, 5.5);
+      tl.to('#scene-02', { opacity: 0, duration: 0.5, ease: 'power2.inOut' }, 15.0);
+      tl.to('#scene-03', { opacity: 0, duration: 0.5, ease: 'power2.inOut' }, 24.0);
+      tl.to('#scene-04', { opacity: 0, duration: 0.5, ease: 'power2.inOut' }, 33.0);
+
+      window.__timelines['main'] = tl;
+    </script>
+  </body>
+</html>

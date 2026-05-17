@@ -1,0 +1,177 @@
+[
+  {
+    "word": "Bạn",
+    "start": 0,
+    "end": 0.232
+  },
+  {
+    "word": "chỉ",
+    "start": 0.325,
+    "end": 0.383
+  },
+  {
+    "word": "cần",
+    "start": 0.464,
+    "end": 0.569
+  },
+  {
+    "word": "gõ",
+    "start": 0.65,
+    "end": 0.708
+  },
+  {
+    "word": "mình",
+    "start": 1.37,
+    "end": 1.509
+  },
+  {
+    "word": "muốn",
+    "start": 1.556,
+    "end": 1.66
+  },
+  {
+    "word": "xây",
+    "start": 1.776,
+    "end": 1.869
+  },
+  {
+    "word": "cái",
+    "start": 1.939,
+    "end": 1.985
+  },
+  {
+    "word": "này",
+    "start": 2.032,
+    "end": 2.159
+  },
+  {
+    "word": "Bằng",
+    "start": 2.926,
+    "end": 3.111
+  },
+  {
+    "word": "tiếng",
+    "start": 3.17,
+    "end": 3.297
+  },
+  {
+    "word": "Việt",
+    "start": 3.355,
+    "end": 3.471
+  },
+  {
+    "word": "bình",
+    "start": 3.553,
+    "end": 3.669
+  },
+  {
+    "word": "thường",
+    "start": 3.727,
+    "end": 3.947
+  },
+  {
+    "word": "Claude",
+    "start": 5.201,
+    "end": 5.526
+  },
+  {
+    "word": "Code",
+    "start": 5.619,
+    "end": 5.875
+  },
+  {
+    "word": "lập",
+    "start": 6.072,
+    "end": 6.211
+  },
+  {
+    "word": "tức",
+    "start": 6.281,
+    "end": 6.374
+  },
+  {
+    "word": "hiểu",
+    "start": 6.467,
+    "end": 6.594
+  },
+  {
+    "word": "lên",
+    "start": 7.163,
+    "end": 7.291
+  },
+  {
+    "word": "kế",
+    "start": 7.384,
+    "end": 7.419
+  },
+  {
+    "word": "hoạch",
+    "start": 7.535,
+    "end": 7.651
+  },
+  {
+    "word": "và",
+    "start": 8.359,
+    "end": 8.429
+  },
+  {
+    "word": "bắt",
+    "start": 8.522,
+    "end": 8.626
+  },
+  {
+    "word": "tay",
+    "start": 8.684,
+    "end": 8.766
+  },
+  {
+    "word": "viết",
+    "start": 8.824,
+    "end": 8.94
+  },
+  {
+    "word": "code",
+    "start": 9.009,
+    "end": 9.253
+  },
+  {
+    "word": "—",
+    "start": 9.311,
+    "end": 9.311
+  },
+  {
+    "word": "trong",
+    "start": 10.147,
+    "end": 10.321
+  },
+  {
+    "word": "khi",
+    "start": 10.391,
+    "end": 10.495
+  },
+  {
+    "word": "bạn",
+    "start": 10.786,
+    "end": 10.948
+  },
+  {
+    "word": "nhấm",
+    "start": 11.041,
+    "end": 11.157
+  },
+  {
+    "word": "nháp",
+    "start": 11.227,
+    "end": 11.331
+  },
+  {
+    "word": "cà",
+    "start": 11.401,
+    "end": 11.436
+  },
+  {
+    "word": "phê",
+    "start": 11.54,
+    "end": 11.645
+  }
+]

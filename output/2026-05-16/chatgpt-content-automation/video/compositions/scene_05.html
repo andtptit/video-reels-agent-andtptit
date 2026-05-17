@@ -1,0 +1,92 @@
+<template id="scene-05-template">
+  <div id="scene-05" data-composition-id="scene-05" data-width="1920" data-height="1080">
+    <style>
+      #scene-05 {
+        position: absolute; inset: 0; overflow: hidden;
+        font-family: 'Exo 2', 'Inter', sans-serif;
+      }
+      /* Glow halo */
+      .s5-halo {
+        position: absolute;
+        left: 660px; top: 190px;
+        width: 600px; height: 600px; border-radius: 50%;
+        background: radial-gradient(circle, rgba(57,255,20,0.12) 0%, rgba(57,255,20,0.04) 50%, transparent 70%);
+        filter: blur(2px);
+      }
+      /* Text layers */
+      .s5-tagline {
+        position: absolute; top: 370px; left: 0; width: 1920px;
+        text-align: center;
+        font-family: 'Inter', sans-serif;
+        font-size: 18px; font-weight: 600;
+        color: rgba(57,255,20,0.6); letter-spacing: 7px; text-transform: uppercase;
+      }
+      .s5-cta {
+        position: absolute; top: 418px; left: 0; width: 1920px;
+        text-align: center;
+        font-size: 96px; font-weight: 900; color: #fff; line-height: 1.05;
+        letter-spacing: 1px;
+        text-shadow: 0 0 40px rgba(255,255,255,0.12);
+      }
+      /* CTA badge */
+      .s5-badge {
+        position: absolute; top: 680px; left: 0; width: 1920px;
+        display: flex; justify-content: center;
+      }
+      .s5-badge-inner {
+        display: inline-flex; align-items: center; gap: 16px;
+        padding: 18px 40px;
+        border-radius: 50px;
+        background: rgba(8,12,24,0.92);
+        border: 2px solid rgba(57,255,20,0.6);
+        box-shadow: 0 0 28px rgba(57,255,20,0.2), 0 0 56px rgba(57,255,20,0.08);
+        font-size: 24px; font-weight: 700; color: rgba(255,255,255,0.9);
+        letter-spacing: 1.5px;
+      }
+      .s5-badge-icon { font-size: 22px; color: #39FF14; text-shadow: 0 0 10px rgba(57,255,20,0.8); }
+      .s5-badge-sep  { color: rgba(57,255,20,0.5); }
+    </style>
+
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+
+    <div id="s5-halo"    class="clip s5-halo"    data-start="0.1" data-duration="5.9" data-track-index="1"></div>
+    <span id="s5-tagline" class="clip s5-tagline" data-start="0.4" data-duration="5.6" data-track-index="2">Bắt đầu ngay hôm nay</span>
+    <div  id="s5-cta"    class="clip s5-cta"    data-start="0.9" data-duration="5.1" data-track-index="3">
+      THỬ CHATGPT<br>CHO CONTENT
+    </div>
+    <div  id="s5-badge"  class="clip s5-badge"  data-start="2.0" data-duration="4.0" data-track-index="4">
+      <div class="s5-badge-inner">
+        <span class="s5-badge-icon">⚡</span>
+        Miễn phí
+        <span class="s5-badge-sep">·</span>
+        5 phút setup
+        <span class="s5-badge-icon">⚡</span>
+      </div>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      const DURATION = 6;
+      const tl = gsap.timeline({ paused: true });
+
+      // fluid — power2.inOut, gentle flow
+      tl.from('#s5-halo',    { opacity: 0, scale: 0.5, transformOrigin: 'center', duration: 1.2, ease: 'power2.out' }, 0.1);
+      tl.from('#s5-tagline', { opacity: 0, y: 16, duration: 0.65, ease: 'power2.inOut' }, 0.4);
+      tl.from('#s5-cta',     { opacity: 0, y: 28, duration: 0.75, ease: 'power2.inOut' }, 0.9);
+      tl.from('#s5-badge',   { opacity: 0, y: 20, duration: 0.6,  ease: 'power2.inOut' }, 2.0);
+
+      // halo breathe
+      const haloReps = Math.ceil(DURATION / 2.5);
+      tl.to('#s5-halo', { scale: 1.12, opacity: 0.7, transformOrigin: 'center', duration: 1.25, ease: 'sine.inOut', repeat: haloReps, yoyo: true }, 1.5);
+
+      // badge pulse
+      const badgeReps = Math.ceil((DURATION - 2.5) / 1.8);
+      tl.to('#s5-badge', { scale: 1.03, transformOrigin: 'center', duration: 0.9, ease: 'sine.inOut', repeat: badgeReps, yoyo: true }, 2.5);
+
+      // final scene: gentle fade to black
+      tl.to('#scene-05', { opacity: 0, duration: 0.8, ease: 'power2.in' }, 5.2);
+
+      window.__timelines['scene-05'] = tl;
+    </script>
+  </div>
+</template>

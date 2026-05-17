@@ -1,0 +1,147 @@
+{
+  "title": "Claude Code: Từ Ý Tưởng Thành Phần Mềm Bán Được",
+  "format": "9:16",
+  "dimensions": { "width": 1080, "height": 1920 },
+  "total_duration": 114.21,
+  "design_ref": "DESIGN.md",
+  "scenes": [
+    {
+      "sceneId": "scene_01",
+      "meaning": "Hook — chạm nỗi đau",
+      "vo_duration": 9.52,
+      "scene_duration": 10.02,
+      "mood": "cinematic",
+      "visual_brief": "Màn hình đen. Center: chữ 'Bạn có một ý tưởng.' xuất hiện chậm với glow xanh nhạt. Bên dưới stagger 3 tags nhỏ: [ứng dụng] [công cụ] [dịch vụ số]. Sau đó break: 'Nhưng bạn không biết code.' xuất hiện với màu trắng, contrast mạnh. Cuối: 'Thuê dev = mấy chục triệu.' text màu rgba(255,255,255,0.55), strike-through animation. Radial glow ở center, dot grid background, 4 corner brackets.",
+      "elements": [
+        { "type": "headline", "text": "Bạn có một ý tưởng.", "style": "Exo 2 700, 72px, white, glow" },
+        { "type": "tags", "items": ["ứng dụng", "công cụ", "dịch vụ số"], "style": "neon green badge, stagger 0.3s" },
+        { "type": "contrast_text", "text": "Nhưng bạn không biết code.", "style": "Exo 2 900, 64px, white" },
+        { "type": "strikethrough", "text": "Thuê dev = mấy chục triệu", "style": "Inter 500, 48px, secondary, strike" }
+      ],
+      "sfx_picks": [{ "id": "impact", "at": 0 }]
+    },
+    {
+      "sceneId": "scene_02",
+      "meaning": "Revelation — thế giới mới",
+      "vo_duration": 9.114,
+      "scene_duration": 9.61,
+      "mood": "snappy",
+      "visual_brief": "Cảnh cũ fade out. Center: badge nhỏ 'THẾ GIỚI CŨ' mờ dần. Sau đó neon green sweep từ trái sang phải: 'Claude Code' in Exo 2 900 cực lớn, với glow xanh rực. Dưới đó 2 dòng xuất hiện với stagger back.out(2): 'Không cần code.' và 'Chỉ cần ý tưởng rõ ràng.' Particles nhỏ nổi lên từ dưới.",
+      "elements": [
+        { "type": "fadeout_badge", "text": "THẾ GIỚI CŨ", "style": "secondary color, fade out" },
+        { "type": "brand_headline", "text": "Claude Code", "style": "Exo 2 900, 96px, #39FF14, massive glow" },
+        { "type": "benefit_1", "text": "Không cần code.", "style": "Exo 2 700, 60px, white" },
+        { "type": "benefit_2", "text": "Chỉ cần ý tưởng rõ ràng.", "style": "Inter 500, 42px, secondary" }
+      ],
+      "sfx_picks": [{ "id": "whoosh", "at": 0.3 }]
+    },
+    {
+      "sceneId": "scene_03",
+      "meaning": "Credibility — Claude Code mạnh như thế nào",
+      "vo_duration": 12.028,
+      "scene_duration": 12.53,
+      "mood": "technical",
+      "visual_brief": "Terminal-style layout. Top: label 'AI CODING AGENT' nhỏ neon green. Center: tên 'Claude Code' lớn. Bên dưới: 4 capability cards xuất hiện lần lượt từ trái sang phải như terminal output: [đọc file] [viết code] [chạy lệnh] [fix bug]. Cuối: dòng lớn 'Xây dựng cả sản phẩm từ đầu.' với underline neon green sweep. Bottom: 'Terminal của bạn.' dim text.",
+      "elements": [
+        { "type": "label", "text": "AI CODING AGENT · Anthropic", "style": "Inter 600, neon green, uppercase, tracking-widest" },
+        { "type": "brand_name", "text": "Claude Code", "style": "Exo 2 900, 80px, white" },
+        { "type": "capability_grid", "items": ["đọc file", "viết code", "chạy lệnh", "fix bug"], "style": "terminal cards, neon green text, stagger left→right" },
+        { "type": "closing_line", "text": "Xây dựng cả sản phẩm từ đầu.", "style": "Exo 2 700, 56px, white, neon underline sweep" }
+      ],
+      "sfx_picks": [{ "id": "click", "at": 2.5 }]
+    },
+    {
+      "sceneId": "scene_04",
+      "meaning": "Step 1 — Mô tả bằng ngôn ngữ tự nhiên",
+      "vo_duration": 13.618,
+      "scene_duration": 14.12,
+      "mood": "snappy",
+      "visual_brief": "Top: step badge 'BƯỚC 01' neon green. Center trên: 'Mô tả bằng ngôn ngữ tự nhiên.' Bên dưới: mock chat input box (rounded, border neon green glow) với text typing animation: 'Tôi muốn một web app cho phép freelancer tạo invoice...' Sau đó: response bubble xuất hiện với glow: ✓ 'Claude Code hiểu ngay.' Rồi 3 micro-steps xuất hiện: [làm rõ] [lên kế hoạch] [bắt đầu xây].",
+      "elements": [
+        { "type": "step_badge", "text": "BƯỚC 01", "style": "Exo 2 700, neon green, uppercase" },
+        { "type": "step_title", "text": "Mô tả bằng ngôn ngữ tự nhiên.", "style": "Exo 2 700, 64px, white" },
+        { "type": "chat_input", "text": "Tôi muốn một web app cho phép freelancer tạo invoice...", "style": "terminal input box, typing animation" },
+        { "type": "response", "text": "✓ Claude Code hiểu ngay.", "style": "neon green, fade in from bottom" },
+        { "type": "micro_steps", "items": ["làm rõ", "lên kế hoạch", "bắt đầu xây"], "style": "small tags, stagger 0.15s" }
+      ],
+      "sfx_picks": [{ "id": "click", "at": 4.5 }]
+    },
+    {
+      "sceneId": "scene_05",
+      "meaning": "Step 2 — Claude Code xây dựng",
+      "vo_duration": 16.451,
+      "scene_duration": 16.95,
+      "mood": "technical",
+      "visual_brief": "Top: step badge 'BƯỚC 02'. Center: animated file tree xuất hiện dần — folders và files bật sáng lần lượt (src/, components/, api/, db/). Bên phải: 4 building blocks stack lên nhau với stagger: [Frontend] → [Backend] → [Database] → [Deploy-ready]. Dưới cùng: progress bar neon green fill từ 0% đến 100% khi voice kết thúc. Text nhỏ bottom: 'Bạn điều hướng. Claude Code thực thi.'",
+      "elements": [
+        { "type": "step_badge", "text": "BƯỚC 02", "style": "Exo 2 700, neon green" },
+        { "type": "file_tree", "items": ["src/", "components/", "api/", "database/", "package.json"], "style": "terminal monospace, items appear sequentially" },
+        { "type": "tech_stack", "items": ["Frontend", "Backend", "Database", "Deploy-ready"], "style": "stacked cards, each pops in back.out(2)" },
+        { "type": "progress_bar", "text": "Building...", "style": "neon green fill, 0→100% over scene" },
+        { "type": "tagline", "text": "Bạn điều hướng. Claude Code thực thi.", "style": "Inter 500, secondary, bottom" }
+      ],
+      "sfx_picks": [{ "id": "whoosh-soft", "at": 1.5 }]
+    },
+    {
+      "sceneId": "scene_06",
+      "meaning": "Triumph — MVP thực sự trong vài giờ",
+      "vo_duration": 14.164,
+      "scene_duration": 14.66,
+      "mood": "explosive",
+      "visual_brief": "Center: chữ 'MVP' cực lớn Exo 2 900 xuất hiện với scale pop + neon green glow vụ nổ. Bên dưới: 3 checkmark rows xuất hiện stagger nhanh: ✓ Code chạy được | ✓ UI đẹp | ✓ Logic đúng. Sau đó: frame browser mockup đơn giản xuất hiện với green border, nội dung placeholder. Bottom: 'Sản phẩm thật. Sẵn sàng deploy.' — Exo 2 700 white.",
+      "elements": [
+        { "type": "big_word", "text": "MVP", "style": "Exo 2 900, 160px, neon green, scale pop + explosion glow" },
+        { "type": "checklist", "items": ["Code chạy được", "UI đẹp", "Logic đúng"], "style": "✓ prefix neon green, stagger 0.2s" },
+        { "type": "browser_frame", "style": "simple rounded rect, neon border, minimal UI mockup" },
+        { "type": "closing_line", "text": "Sản phẩm thật. Sẵn sàng deploy.", "style": "Exo 2 700, 54px, white" }
+      ],
+      "sfx_picks": [{ "id": "ding", "at": 0 }]
+    },
+    {
+      "sceneId": "scene_07",
+      "meaning": "Step 3 — Launch và bán",
+      "vo_duration": 14.582,
+      "scene_duration": 15.08,
+      "mood": "snappy",
+      "visual_brief": "Top: step badge 'BƯỚC 03'. Center: 'Launch & Bán.' lớn với neon green. Bên dưới: 3 platform cards xuất hiện slide-in từ phải: [Vercel ↑] [Gumroad $] [LemonSqueezy $]. Sau đó: rocket icon nhỏ animation bay lên. Cuối: 'Claude Code làm cùng bạn.' với neon glow pulse.",
+      "elements": [
+        { "type": "step_badge", "text": "BƯỚC 03", "style": "Exo 2 700, neon green" },
+        { "type": "step_title", "text": "Launch & Bán.", "style": "Exo 2 900, 80px, white" },
+        { "type": "platform_cards", "items": ["Vercel", "Gumroad", "LemonSqueezy"], "style": "cards slide in from right, stagger 0.25s" },
+        { "type": "rocket", "style": "small ASCII/unicode rocket, float up animation" },
+        { "type": "tagline", "text": "Claude Code làm cùng bạn.", "style": "Inter 600, neon green, pulse glow" }
+      ],
+      "sfx_picks": [{ "id": "chime", "at": 2.5 }]
+    },
+    {
+      "sceneId": "scene_08",
+      "meaning": "Income — thu nhập thụ động",
+      "vo_duration": 11.54,
+      "scene_duration": 12.04,
+      "mood": "explosive",
+      "visual_brief": "Số đếm lên: bắt đầu từ $0, đếm lên $10,000 với animation counter to lớn Exo 2 900 neon green, số to nhất màn hình. Bên dưới: equation xuất hiện: '$10/tháng × 1,000 users = $10,000/tháng'. Phía trên: label 'THU NHẬP ĐỊNH KỲ'. Particles dollar sign nhỏ nổi lên background. Toàn scene có green glow rực rỡ nhất trong video.",
+      "elements": [
+        { "type": "counter", "from": 0, "to": 10000, "prefix": "$", "style": "Exo 2 900, 120px, neon green, count-up animation" },
+        { "type": "label", "text": "THU NHẬP ĐỊNH KỲ", "style": "Inter 700, neon green, uppercase, tracking-widest" },
+        { "type": "equation", "text": "$10/tháng × 1,000 users = $10,000/tháng", "style": "Inter 500, 36px, white" },
+        { "type": "particles", "style": "$ symbols, small, float up, low opacity" }
+      ],
+      "sfx_picks": [{ "id": "count-up-end", "at": 6 }]
+    },
+    {
+      "sceneId": "scene_09",
+      "meaning": "CTA — bắt đầu ngay hôm nay",
+      "vo_duration": 8.696,
+      "scene_duration": 9.2,
+      "mood": "snappy",
+      "visual_brief": "Center: 'Một buổi tối.' xuất hiện to với back.out(2). Rồi fade replace: '= Phần mềm có thể bán.' Sau đó: tên 'Claude Code' in neon green rực rỡ, glow max. Bottom CTA: nút lớn với neon green border + text 'Bắt đầu ngay hôm nay →', pulse animation. Corner brackets animate in. Particle burst cuối cùng.",
+      "elements": [
+        { "type": "hook_1", "text": "Một buổi tối.", "style": "Exo 2 900, 80px, white" },
+        { "type": "hook_2", "text": "= Phần mềm có thể bán.", "style": "Exo 2 700, 64px, neon green" },
+        { "type": "brand", "text": "Claude Code", "style": "Exo 2 900, 96px, #39FF14, max glow" },
+        { "type": "cta_button", "text": "Bắt đầu ngay hôm nay →", "style": "neon green border, white text, pulse animation" }
+      ],
+      "sfx_picks": [{ "id": "drum-hit", "at": 0 }]
+    }
+  ]
+}

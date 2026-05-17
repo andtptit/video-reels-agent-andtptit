@@ -1,0 +1,172 @@
+[
+  {
+    "word": "Bước",
+    "start": 0,
+    "end": 0.197
+  },
+  {
+    "word": "hai",
+    "start": 0.279,
+    "end": 0.43
+  },
+  {
+    "word": "Claude",
+    "start": 1.312,
+    "end": 1.614
+  },
+  {
+    "word": "Code",
+    "start": 1.718,
+    "end": 2.02
+  },
+  {
+    "word": "làm",
+    "start": 2.136,
+    "end": 2.252
+  },
+  {
+    "word": "việc",
+    "start": 2.334,
+    "end": 2.485
+  },
+  {
+    "word": "Nó",
+    "start": 3.506,
+    "end": 3.564
+  },
+  {
+    "word": "tạo",
+    "start": 3.692,
+    "end": 3.808
+  },
+  {
+    "word": "cấu",
+    "start": 3.901,
+    "end": 4.005
+  },
+  {
+    "word": "trúc",
+    "start": 4.087,
+    "end": 4.214
+  },
+  {
+    "word": "thư",
+    "start": 4.331,
+    "end": 4.423
+  },
+  {
+    "word": "mục",
+    "start": 4.528,
+    "end": 4.632
+  },
+  {
+    "word": "viết",
+    "start": 5.143,
+    "end": 5.352
+  },
+  {
+    "word": "frontend",
+    "start": 5.468,
+    "end": 5.863
+  },
+  {
+    "word": "viết",
+    "start": 6.258,
+    "end": 6.432
+  },
+  {
+    "word": "backend",
+    "start": 6.502,
+    "end": 6.827
+  },
+  {
+    "word": "cài",
+    "start": 7.361,
+    "end": 7.605
+  },
+  {
+    "word": "dependencies",
+    "start": 7.814,
+    "end": 8.545
+  },
+  {
+    "word": "kết",
+    "start": 9.056,
+    "end": 9.218
+  },
+  {
+    "word": "nối",
+    "start": 9.288,
+    "end": 9.404
+  },
+  {
+    "word": "database",
+    "start": 9.497,
+    "end": 9.915
+  },
+  {
+    "word": "Bạn",
+    "start": 10.902,
+    "end": 11.099
+  },
+  {
+    "word": "ngồi",
+    "start": 11.146,
+    "end": 11.331
+  },
+  {
+    "word": "điều",
+    "start": 11.401,
+    "end": 11.517
+  },
+  {
+    "word": "hướng",
+    "start": 11.598,
+    "end": 11.749
+  },
+  {
+    "word": "Bạn",
+    "start": 12.492,
+    "end": 12.666
+  },
+  {
+    "word": "hỏi",
+    "start": 12.748,
+    "end": 12.899
+  },
+  {
+    "word": "Bạn",
+    "start": 13.642,
+    "end": 13.827
+  },
+  {
+    "word": "quyết",
+    "start": 13.92,
+    "end": 14.06
+  },
+  {
+    "word": "định",
+    "start": 14.118,
+    "end": 14.234
+  },
+  {
+    "word": "Claude",
+    "start": 15.128,
+    "end": 15.395
+  },
+  {
+    "word": "Code",
+    "start": 15.488,
+    "end": 15.778
+  },
+  {
+    "word": "thực",
+    "start": 15.894,
+    "end": 16.033
+  },
+  {
+    "word": "thi",
+    "start": 16.138,
+    "end": 16.242
+  }
+]

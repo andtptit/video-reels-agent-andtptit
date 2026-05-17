@@ -1,0 +1,102 @@
+<template id="scene-04-template">
+  <div id="scene-04" data-composition-id="scene-04" data-width="1920" data-height="1080">
+    <style>
+      #scene-04 {
+        position: absolute; inset: 0; overflow: hidden;
+        font-family: 'Exo 2', 'Inter', sans-serif;
+      }
+      .s4-label {
+        position: absolute; top: 250px; left: 0; width: 1920px;
+        text-align: center;
+        font-family: 'Inter', sans-serif;
+        font-size: 18px; font-weight: 600;
+        color: rgba(57,255,20,0.65); letter-spacing: 7px; text-transform: uppercase;
+      }
+      /* Stat blocks */
+      .s4-stat { position: absolute; top: 360px; }
+      .s4-stat-1 { left: 220px; }
+      .s4-stat-2 { left: 1060px; }
+      .s4-stat-num {
+        font-size: 160px; font-weight: 900; color: #39FF14; line-height: 0.88;
+        text-shadow: 0 0 40px #39FF14, 0 0 80px rgba(57,255,20,0.45), 0 0 120px rgba(57,255,20,0.2);
+        letter-spacing: -6px;
+      }
+      .s4-stat-title {
+        margin-top: 16px;
+        font-size: 36px; font-weight: 800; color: #fff; letter-spacing: 2px; text-transform: uppercase;
+      }
+      .s4-stat-desc {
+        margin-top: 8px;
+        font-size: 20px; font-weight: 500; color: rgba(255,255,255,0.5); letter-spacing: 1px;
+        font-family: 'Inter', sans-serif;
+      }
+      /* Divider */
+      .s4-divider {
+        position: absolute; top: 688px; left: 220px;
+        width: 1480px; height: 1px;
+        background: linear-gradient(to right, transparent, rgba(57,255,20,0.45) 20%, rgba(57,255,20,0.45) 80%, transparent);
+      }
+      /* Badge */
+      .s4-badge {
+        position: absolute; top: 730px; left: 0; width: 1920px;
+        display: flex; justify-content: center;
+      }
+      .s4-badge-inner {
+        display: inline-flex; align-items: center; gap: 12px;
+        padding: 14px 32px;
+        border-radius: 50px;
+        background: rgba(8,12,24,0.9);
+        border: 1.5px solid rgba(57,255,20,0.5);
+        box-shadow: 0 0 20px rgba(57,255,20,0.12);
+        font-size: 22px; font-weight: 700; color: rgba(255,255,255,0.85);
+        letter-spacing: 1.5px;
+      }
+      .s4-badge-dot { width: 8px; height: 8px; border-radius: 50%; background: #39FF14; box-shadow: 0 0 8px #39FF14; }
+    </style>
+
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+
+    <span id="s4-label"   class="clip s4-label"   data-start="0.3" data-duration="9.2" data-track-index="1">KẾT QUẢ THỰC TẾ</span>
+    <div  id="s4-stat-1"  class="clip s4-stat s4-stat-1" data-start="0.7" data-duration="8.8" data-track-index="2">
+      <div class="s4-stat-num">10×</div>
+      <div class="s4-stat-title">Nhanh hơn</div>
+      <div class="s4-stat-desc">so với viết tay thông thường</div>
+    </div>
+    <div  id="s4-stat-2"  class="clip s4-stat s4-stat-2" data-start="1.5" data-duration="8.0" data-track-index="3">
+      <div class="s4-stat-num">Tức thì</div>
+      <div class="s4-stat-title">0 phút chờ</div>
+      <div class="s4-stat-desc">kết quả ngay lập tức</div>
+    </div>
+    <div  id="s4-divider" class="clip s4-divider" data-start="1.2" data-duration="8.3" data-track-index="4"></div>
+    <div  id="s4-badge"   class="clip s4-badge"   data-start="2.5" data-duration="7.0" data-track-index="5">
+      <div class="s4-badge-inner">
+        <div class="s4-badge-dot"></div>
+        2 loại content &nbsp;·&nbsp; 1 lần prompt
+        <div class="s4-badge-dot"></div>
+      </div>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      const DURATION = 9.5;
+      const tl = gsap.timeline({ paused: true });
+
+      // cinematic — slow fade + slight y drift
+      tl.from('#s4-label',   { opacity: 0, y: 20,  duration: 0.7,  ease: 'power2.out' }, 0.3);
+      tl.from('#s4-stat-1',  { opacity: 0, y: 40,  duration: 0.9,  ease: 'power3.out' }, 0.7);
+      tl.from('#s4-divider', { scaleX: 0, transformOrigin: 'center', duration: 0.8, ease: 'power2.inOut' }, 1.2);
+      tl.from('#s4-stat-2',  { opacity: 0, y: 40,  duration: 0.9,  ease: 'power3.out' }, 1.5);
+      tl.from('#s4-badge',   { opacity: 0, y: 20,  duration: 0.65, ease: 'power2.out' }, 2.5);
+
+      // "10×" emphasis pulse at impact moment (sfx at 0.5s)
+      tl.to('#s4-stat-1', { scale: 1.04, transformOrigin: 'left top', duration: 0.15, ease: 'power2.out'         }, 1.8);
+      tl.to('#s4-stat-1', { scale: 1.00, transformOrigin: 'left top', duration: 0.4,  ease: 'elastic.out(1,0.5)' }, 1.95);
+
+      // ambient badge pulse
+      const badgePulse = Math.ceil((DURATION - 3.2) / 2.2);
+      tl.to('#s4-badge', { scale: 1.02, transformOrigin: 'center', duration: 1.1, ease: 'sine.inOut', repeat: badgePulse, yoyo: true }, 3.2);
+
+      window.__timelines['scene-04'] = tl;
+    </script>
+  </div>
+</template>

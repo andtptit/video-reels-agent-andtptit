@@ -1,0 +1,125 @@
+{
+  "visual_identity": "DESIGN.md",
+  "arc": "Arc A — Problem → Solution",
+  "master_content": "master_content.md",
+  "format": "9:16",
+  "width": 1080,
+  "height": 1920,
+  "totalDuration": 42,
+  "plans": [
+    {
+      "sceneId": "scene_01",
+      "duration": 7,
+      "pattern": "title-card",
+      "transition": { "type": "flash-white", "duration": 0.3 },
+      "mood": "explosive",
+      "asset": { "kind": "none" },
+      "sfx_picks": [
+        { "id": "drum-hit", "at": 0.0, "volume": 0.6 },
+        { "id": "whoosh",   "at": 0.5, "volume": 0.35 }
+      ],
+      "narration": "Bạn đang tốn 3 tiếng mỗi ngày để viết content?",
+      "layout": "Full-screen centered (1080x1920). Label nhỏ top. Số '3 GIỜ/NGÀY' khổng lồ chiếm trung tâm. Subtext phía dưới. Divider line kết thúc.",
+      "elements": [
+        { "id": "label",    "text": "BẠN ĐANG LÃNG PHÍ",    "role": "eyebrow label nhỏ — neon green, letter-spacing rộng" },
+        { "id": "headline", "text": "3 GIỜ/NGÀY",            "role": "hero number — 130px, neon green, glow mạnh, dominates canvas" },
+        { "id": "sub",      "text": "để viết content?",       "role": "secondary text — trắng, 48px, drift in từ dưới" },
+        { "id": "divider",  "role": "horizontal line neon green sweep" }
+      ],
+      "creative_brief": "Hero frame: '3 GIỜ/NGÀY' dominates center canvas — viewer nhìn vào trong 0.5 giây phải biết ngay video nói về gì. Label 'BẠN ĐANG LÃNG PHÍ' anchors phía trên, nhỏ như tag cáo buộc. Kinetic energy: explosive — số slam từ scale 0, bounce mạnh. Focal moment tại 0.5s (whoosh): số đã settle, sub-text drift in từ dưới. Divider sweep resolve toàn bộ entrance. Viewer phải cảm: 'Đúng rồi, mình đang làm vậy'. Connection: hook bằng pain cụ thể, truyền câu hỏi 'có giải pháp không?' sang scene sau. Khi từ '3' được nói, headline đã visible."
+    },
+    {
+      "sceneId": "scene_02",
+      "duration": 8,
+      "pattern": "data-chart",
+      "transition": { "type": "crossfade", "duration": 0.4 },
+      "mood": "cinematic",
+      "asset": { "kind": "none" },
+      "sfx_picks": [
+        { "id": "impact", "at": 0.5, "volume": 0.5 },
+        { "id": "impact", "at": 2.5, "volume": 0.4 }
+      ],
+      "narration": "Thuê người viết tốn hàng triệu mỗi tháng. Tự viết thì kiệt sức. Doanh nghiệp nhỏ không lối thoát.",
+      "layout": "Portrait (1080x1920). 2 pain stat xếp dọc, cách nhau. Label nhỏ trên cùng. Divider giữa 2 stat. Bottom badge tổng kết.",
+      "elements": [
+        { "id": "section-label", "text": "THỰC TẾ HIỆN TẠI",       "role": "eyebrow label — neon green mờ" },
+        { "id": "stat-1",        "text": "TRIỆU ĐỒNG",              "role": "stat lớn trên — neon green 110px, label 'Thuê người/tháng'" },
+        { "id": "stat-2",        "text": "KIỆT SỨC",                "role": "stat lớn dưới — trắng 90px, label 'Nếu tự viết'" },
+        { "id": "divider",       "role": "horizontal accent line giữa 2 stat" },
+        { "id": "pain-badge",    "text": "Doanh nghiệp nhỏ không lối thoát", "role": "badge pill phía dưới — dark surface, red-tinted border" }
+      ],
+      "creative_brief": "Hero frame: 2 stat stack dọc, đối nghịch nhau về màu — neon green 'TRIỆU ĐỒNG' trên, trắng 'KIỆT SỨC' dưới. Cinematic build: stat-1 drift in từ trái, stat-2 drift in từ phải (delay 0.3s) — viewer thấy hai lựa chọn đều tệ. Focal moment tại 0.5s (impact): stat-1 pulse. Focal moment tại 2.5s (impact): stat-2 pulse, pain-badge fade in. Không có exit animation — số liệu phải thấm. Viewer phải cảm: 'Đây chính xác là bế tắc của mình'. Connection: prove pain từ hook, setup câu hỏi 'vậy giải pháp là gì?'."
+    },
+    {
+      "sceneId": "scene_03",
+      "duration": 10,
+      "pattern": "flowchart",
+      "transition": { "type": "crossfade", "duration": 0.4 },
+      "mood": "technical",
+      "asset": { "kind": "none" },
+      "sfx_picks": [
+        { "id": "ding", "at": 2.5, "volume": 0.45 },
+        { "id": "ding", "at": 4.5, "volume": 0.4 },
+        { "id": "ding", "at": 6.5, "volume": 0.4 }
+      ],
+      "narration": "Claude AI có thể viết Facebook, Instagram, script video cho bạn. Chỉ cần cấu hình đúng một lần.",
+      "layout": "Portrait (1080x1920). Node Claude AI ở giữa-trên. 3 output card xuất hiện DỌCV bên dưới, xếp thành cột đơn. SVG lines draw-on từ node xuống từng card.",
+      "elements": [
+        { "id": "node",         "text": "Claude AI",          "role": "center node — neon green circle 160px, glow ring, pulsing, anchors top-center" },
+        { "id": "line-1",                                      "role": "SVG connector draw-on từ node → card-fb" },
+        { "id": "line-2",                                      "role": "SVG connector draw-on từ node → card-ig" },
+        { "id": "line-3",                                      "role": "SVG connector draw-on từ node → card-video" },
+        { "id": "card-fb",      "icon": "f",  "text": "BÀI ĐĂNG FACEBOOK", "role": "output card — dark surface, green border, full-width 880px" },
+        { "id": "card-ig",      "icon": "📷", "text": "CAPTION INSTAGRAM",  "role": "output card — dark surface, green border, full-width 880px" },
+        { "id": "card-video",   "icon": "▶",  "text": "SCRIPT VIDEO",       "role": "output card — dark surface, green border, full-width 880px" }
+      ],
+      "creative_brief": "Hero frame: node Claude AI anchors top-center (540, 320), 3 cards cascade dọc bên dưới — viewer đọc từ trên xuống như một funnel. Technical build: node bloom → line-1 draw-on → card-fb cascade → delay 0.5s → line-2 → card-ig → delay 0.5s → line-3 → card-video. Focal moment tại 2.5s (ding): card-fb fully visible. 4.5s (ding): card-ig. 6.5s (ding): card-video — mỗi ding là một giá trị được unlock. Viewer phải cảm: 'Claude làm được nhiều thế này?'. Connection: reveal solution sau pain, truyền câu hỏi 'làm thế nào?' sang scene sau. Khi từ 'Facebook' được nói, card-fb xuất hiện."
+    },
+    {
+      "sceneId": "scene_04",
+      "duration": 9,
+      "pattern": "step-by-step",
+      "transition": { "type": "crossfade", "duration": 0.4 },
+      "mood": "snappy",
+      "asset": { "kind": "none" },
+      "sfx_picks": [
+        { "id": "click", "at": 1.0, "volume": 0.4 },
+        { "id": "click", "at": 3.0, "volume": 0.4 },
+        { "id": "click", "at": 5.0, "volume": 0.4 }
+      ],
+      "narration": "Bước một: tạo persona. Bước hai: setup workflow. Bước ba: chạy tự động.",
+      "layout": "Portrait (1080x1920). Section title top. 3 step card xếp DỌCV (không phải ngang), cách nhau đều. Arrow ↓ giữa các bước.",
+      "elements": [
+        { "id": "title",   "text": "3 BƯỚC ĐỂ BẮT ĐẦU",    "role": "section title — nhỏ, letter-spacing, centered" },
+        { "id": "step-1",  "number": "01", "icon": "🎭", "text": "Tạo Persona",      "role": "step card — full width, dark surface, số neon green" },
+        { "id": "arrow-1", "role": "arrow ↓ dọc giữa step 1 và 2 — neon green" },
+        { "id": "step-2",  "number": "02", "icon": "⚙️", "text": "Setup Workflow",   "role": "step card — full width, active state sáng hơn" },
+        { "id": "arrow-2", "role": "arrow ↓ dọc giữa step 2 và 3 — neon green" },
+        { "id": "step-3",  "number": "03", "icon": "🚀", "text": "Chạy Tự Động",    "role": "step card — full width, green border đầy đủ" }
+      ],
+      "creative_brief": "Hero frame: 3 step card stack dọc đều nhau, chiếm 2/3 canvas theo chiều dọc — viewer scan từ trên xuống tự nhiên. Snappy cascade: mỗi card snap in theo nhịp click (1.0s, 3.0s, 5.0s), arrow ↓ sweep xuất hiện ngay sau card. Step-2 có shimmer nhẹ gợi cảm giác đang processing. Focal moment: khi step-3 appear, toàn bộ flow complete — viewer thấy 3 bước là đủ, không phức tạp. Viewer phải cảm: 'Chỉ 3 bước thôi? Mình làm được'. Connection: giải thích 'làm thế nào' từ scene trước, truyền 'kết quả là gì' sang scene sau."
+    },
+    {
+      "sceneId": "scene_05",
+      "duration": 8,
+      "pattern": "cta",
+      "transition": null,
+      "mood": "fluid",
+      "asset": { "kind": "none" },
+      "sfx_picks": [
+        { "id": "chime",  "at": 0.3, "volume": 0.5 },
+        { "id": "whoosh-soft", "at": 2.0, "volume": 0.3 }
+      ],
+      "narration": "Tiết kiệm 15 giờ mỗi tuần. Chi phí bằng không. Hướng dẫn chi tiết trong bio.",
+      "layout": "Portrait (1080x1920). Glow halo background center. 2 proof stats nhỏ phía trên. CTA text lớn giữa. Badge action bên dưới.",
+      "elements": [
+        { "id": "halo",       "role": "circular glow halo, neon green radial, bloom từ center" },
+        { "id": "proof-1",    "text": "15 GIỜ/TUẦN",        "role": "proof stat nhỏ — neon green, drift in" },
+        { "id": "proof-2",    "text": "0 ĐỒNG CHI PHÍ",     "role": "proof stat nhỏ — trắng, drift in stagger" },
+        { "id": "cta-main",   "text": "XEM HƯỚNG DẪN\nCHI TIẾT",  "role": "CTA headline — trắng 80px, bold, dominates" },
+        { "id": "cta-badge",  "text": "Link trong bio ↓",   "role": "badge pill — neon green border, pulse liên tục" }
+      ],
+      "creative_brief": "Hero frame: CTA text dominates center-bottom, proof stats anchors phía trên như credibility layer. Fluid flow: halo bloom → proof stats drift in nhẹ → CTA snap → badge float in. Focal moment tại 2.0s: badge fully visible và pulse nhẹ — thu hút click. Viewer phải cảm: tích cực + urgency nhẹ 'mình cần làm ngay'. Fade to black ở 7.2s — closure hoàn chỉnh. Connection: resolve narrative với proof + clear action."
+    }
+  ]
+}

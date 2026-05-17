@@ -1,0 +1,64 @@
+<template id="scene-05-template">
+  <div id="scene-05" data-composition-id="scene-05" data-width="1080" data-height="1920">
+    <style>
+      #scene-05  { position: absolute; inset: 0; overflow: hidden; font-family: 'Exo 2', 'Inter', sans-serif; }
+      .s5-halo   { position: absolute; left: 240px; top: 560px; width: 600px; height: 600px; border-radius: 50%; background: radial-gradient(circle, rgba(57,255,20,0.14) 0%, rgba(57,255,20,0.04) 50%, transparent 70%); filter: blur(2px); }
+      .s5-proof  { position: absolute; left: 0; width: 1080px; text-align: center; }
+      .s5-proof-1 { top: 660px; }
+      .s5-proof-2 { top: 790px; }
+      .s5-proof-num   { font-size: 80px; font-weight: 900; color: #39FF14; line-height: 1; text-shadow: 0 0 30px #39FF14; letter-spacing: -2px; display: block; }
+      .s5-proof-label { font-size: 22px; font-weight: 600; color: rgba(255,255,255,0.6); letter-spacing: 3px; text-transform: uppercase; margin-top: 4px; display: block; }
+      .s5-p2-num   { font-size: 72px; font-weight: 900; color: #fff; line-height: 1; display: block; }
+      .s5-cta    { position: absolute; top: 960px; left: 0; width: 1080px; text-align: center; font-size: 80px; font-weight: 900; color: #fff; line-height: 1.1; text-shadow: 0 0 30px rgba(255,255,255,0.12); }
+      .s5-badge  { position: absolute; top: 1200px; left: 0; width: 1080px; display: flex; justify-content: center; }
+      .s5-badge-inner { display: inline-flex; align-items: center; gap: 14px; padding: 20px 44px; border-radius: 50px; background: rgba(8,12,24,0.92); border: 2px solid rgba(57,255,20,0.65); box-shadow: 0 0 30px rgba(57,255,20,0.22); font-size: 26px; font-weight: 800; color: rgba(255,255,255,0.95); letter-spacing: 1.5px; }
+      .s5-icon   { color: #39FF14; text-shadow: 0 0 10px rgba(57,255,20,0.8); font-size: 24px; }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+
+    <audio id="s5-sfx-chime"  class="clip" data-start="0.3" data-duration="1.5" data-track-index="40"  data-volume="0.5" src="../assets/sfx/chime.mp3"></audio>
+    <audio id="s5-sfx-whoosh" class="clip" data-start="2.0" data-duration="1.0" data-track-index="41"  data-volume="0.3" src="../assets/sfx/whoosh-soft.mp3"></audio>
+
+    <div  id="s5-halo"    class="clip s5-halo"    data-start="0.1" data-duration="7.2" data-track-index="1"></div>
+    <div  id="s5-proof-1" class="clip s5-proof s5-proof-1" data-start="0.5" data-duration="6.8" data-track-index="2">
+      <span class="s5-proof-num">15 GIỜ</span>
+      <span class="s5-proof-label">Tiết kiệm mỗi tuần</span>
+    </div>
+    <div  id="s5-proof-2" class="clip s5-proof s5-proof-2" data-start="1.0" data-duration="6.3" data-track-index="3">
+      <span class="s5-p2-num">0 ĐỒNG</span>
+      <span class="s5-proof-label" style="color:rgba(57,255,20,0.65)">Chi phí phần mềm</span>
+    </div>
+    <div  id="s5-cta"     class="clip s5-cta"     data-start="2.0" data-duration="5.3" data-track-index="4">XEM HƯỚNG DẪN<br>CHI TIẾT</div>
+    <div  id="s5-badge"   class="clip s5-badge"   data-start="3.2" data-duration="4.1" data-track-index="5">
+      <div class="s5-badge-inner">
+        <span class="s5-icon">↓</span> Link trong bio <span class="s5-icon">↓</span>
+      </div>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      const DURATION = 7.3;
+      const tl = gsap.timeline({ paused: true });
+
+      // fluid — power2.inOut, gentle
+      tl.from('#s5-halo',    { opacity: 0, scale: 0.5, transformOrigin: 'center', duration: 1.2, ease: 'power2.out'   }, 0.1);
+      tl.from('#s5-proof-1', { opacity: 0, y: 20,  duration: 0.65, ease: 'power2.inOut' }, 0.5);
+      tl.from('#s5-proof-2', { opacity: 0, y: 20,  duration: 0.65, ease: 'power2.inOut' }, 1.0);
+      tl.from('#s5-cta',     { opacity: 0, y: 28,  duration: 0.7,  ease: 'power2.inOut' }, 2.0);
+      tl.from('#s5-badge',   { opacity: 0, y: 20,  duration: 0.6,  ease: 'power2.inOut' }, 3.2);
+
+      // halo breathe
+      const haloReps = Math.ceil(DURATION / 2.5);
+      tl.to('#s5-halo',  { scale: 1.12, opacity: 0.7, transformOrigin: 'center', duration: 1.25, ease: 'sine.inOut', repeat: haloReps, yoyo: true }, 1.5);
+
+      // badge pulse
+      const badgeReps = Math.ceil((DURATION - 3.5) / 1.8);
+      tl.to('#s5-badge', { scale: 1.04, transformOrigin: 'center', duration: 0.9, ease: 'sine.inOut', repeat: badgeReps, yoyo: true }, 3.5);
+
+      // fade to black — final scene
+      tl.to('#scene-05', { opacity: 0, duration: 0.8, ease: 'power2.in' }, 6.5);
+
+      window.__timelines['scene-05'] = tl;
+    </script>
+  </div>
+</template>

@@ -1,0 +1,146 @@
+<template id="scene-06-template">
+  <div data-composition-id="scene-06" data-width="1080" data-height="1920">
+
+    <div class="s6-bg" data-layout-ignore>
+      <div class="s6-dots"></div>
+      <div class="s6-glow"></div>
+      <div class="s6-scanlines"></div>
+    </div>
+    <div class="s6-corner s6-tl" data-layout-ignore></div>
+    <div class="s6-corner s6-tr" data-layout-ignore></div>
+    <div class="s6-corner s6-bl" data-layout-ignore></div>
+    <div class="s6-corner s6-br" data-layout-ignore></div>
+
+    <div class="s6-content">
+      <div class="s6-timejump">
+        <span class="s6-clock">⏱</span>
+        <span class="s6-timejump-text">VÀI GIỜ SAU</span>
+      </div>
+
+      <div class="s6-result-card">
+        <div class="s6-browser-bar">
+          <div class="s6-dot s6-dr"></div>
+          <div class="s6-dot s6-dy"></div>
+          <div class="s6-dot s6-dg"></div>
+          <div class="s6-url">app.yourproduct.com</div>
+        </div>
+        <div class="s6-browser-body">
+          <div class="s6-mock-row s6-mr1"></div>
+          <div class="s6-mock-row s6-mr2"></div>
+          <div class="s6-mock-btn">Bắt đầu ngay →</div>
+        </div>
+      </div>
+
+      <div class="s6-checks">
+        <div class="s6-ck s6-ck1"><span class="s6-tick">✓</span><span class="s6-ck-text">Ứng dụng chạy thật</span></div>
+        <div class="s6-ck s6-ck2"><span class="s6-tick">✓</span><span class="s6-ck-text">Giao diện đẹp</span></div>
+        <div class="s6-ck s6-ck3"><span class="s6-tick">✓</span><span class="s6-ck-text">Sẵn sàng cho người dùng</span></div>
+      </div>
+
+      <p class="s6-coda">Không phải demo. Không phải mockup.</p>
+    </div>
+
+    <style>
+      #scene-06 {
+        position: relative; width: 1080px; height: 1920px;
+        background: #060810; overflow: hidden;
+      }
+      .s6-bg { position: absolute; inset: 0; pointer-events: none; z-index: 0; }
+      .s6-dots {
+        position: absolute; inset: 0;
+        background-image: radial-gradient(circle, rgba(57,255,20,0.22) 1.5px, transparent 1.5px);
+        background-size: 48px 48px;
+      }
+      .s6-glow {
+        position: absolute; inset: 0;
+        background: radial-gradient(ellipse 800px 800px at 50% 45%, rgba(57,255,20,0.16) 0%, transparent 65%);
+      }
+      .s6-scanlines {
+        position: absolute; inset: 0;
+        background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.04) 3px, rgba(0,0,0,0.04) 4px);
+      }
+      .s6-corner {
+        position: absolute; width: 56px; height: 56px;
+        border-color: #39FF14; border-style: solid; opacity: 0.45; z-index: 3;
+      }
+      .s6-tl { top: 60px; left: 60px; border-width: 3px 0 0 3px; }
+      .s6-tr { top: 60px; right: 60px; border-width: 3px 3px 0 0; }
+      .s6-bl { bottom: 60px; left: 60px; border-width: 0 0 3px 3px; }
+      .s6-br { bottom: 60px; right: 60px; border-width: 0 3px 3px 0; }
+
+      .s6-content {
+        position: relative; width: 100%; height: 100%;
+        display: flex; flex-direction: column; justify-content: center;
+        padding: 140px 88px; gap: 40px; box-sizing: border-box; z-index: 2;
+      }
+
+      .s6-timejump {
+        display: flex; align-items: center; gap: 18px;
+      }
+      .s6-clock { font-size: 48px; }
+      .s6-timejump-text {
+        font-family: 'Exo 2', sans-serif; font-weight: 900;
+        font-size: 56px; color: #39FF14; letter-spacing: 0.08em;
+        text-shadow: 0 0 20px rgba(57,255,20,0.5);
+      }
+
+      .s6-result-card {
+        background: rgba(255,255,255,0.04);
+        border: 1.5px solid rgba(57,255,20,0.35);
+        border-radius: 16px; overflow: hidden;
+      }
+      .s6-browser-bar {
+        display: flex; align-items: center; gap: 10px;
+        padding: 14px 20px;
+        background: rgba(57,255,20,0.05);
+        border-bottom: 1px solid rgba(57,255,20,0.15);
+      }
+      .s6-dot { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; }
+      .s6-dr { background: rgba(255,80,80,0.7); }
+      .s6-dy { background: rgba(255,200,50,0.7); }
+      .s6-dg { background: rgba(57,255,20,0.7); }
+      .s6-url {
+        font-family: 'Inter', monospace; font-size: 24px;
+        color: rgba(255,255,255,0.35);
+        background: rgba(255,255,255,0.05); padding: 5px 14px;
+        border-radius: 5px; flex: 1;
+      }
+      .s6-browser-body { padding: 24px; display: flex; flex-direction: column; gap: 14px; }
+      .s6-mock-row { height: 12px; background: rgba(57,255,20,0.18); border-radius: 4px; }
+      .s6-mr1 { width: 72%; }
+      .s6-mr2 { width: 55%; }
+      .s6-mock-btn {
+        margin-top: 8px; align-self: flex-start;
+        background: #39FF14; color: #060810;
+        font-family: 'Exo 2', sans-serif; font-weight: 700;
+        font-size: 28px; padding: 12px 28px; border-radius: 8px;
+      }
+
+      .s6-checks { display: flex; flex-direction: column; gap: 16px; }
+      .s6-ck { display: flex; align-items: center; gap: 18px; }
+      .s6-tick { font-size: 46px; color: #39FF14; text-shadow: 0 0 12px rgba(57,255,20,0.8); flex-shrink: 0; }
+      .s6-ck-text {
+        font-family: 'Exo 2', sans-serif; font-weight: 700;
+        font-size: 46px; color: #FFFFFF;
+      }
+
+      .s6-coda {
+        font-family: 'Inter', sans-serif; font-weight: 500;
+        font-size: 36px; color: rgba(255,255,255,0.45); margin: 0;
+      }
+    </style>
+
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+
+      tl.from(".s6-timejump", { y: -30, opacity: 0, duration: 0.5, ease: "expo.out" }, 0.2);
+      tl.from(".s6-result-card", { y: 50, opacity: 0, duration: 0.6, ease: "back.out(1.5)" }, 0.8);
+      tl.from(".s6-ck", { x: -40, opacity: 0, duration: 0.4, ease: "power3.out", stagger: 0.22 }, 3.5);
+      tl.from(".s6-coda", { opacity: 0, duration: 0.4, ease: "power2.out" }, 6.5);
+
+      window.__timelines["scene-06"] = tl;
+    </script>
+  </div>
+</template>

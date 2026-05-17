@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1920px; height: 1080px; overflow: hidden; background: #060810; font-family: 'Exo 2', 'Inter', sans-serif; }
+      .bg-dots      { position: absolute; inset: 0; background-image: radial-gradient(circle, rgba(57,255,20,0.28) 1.5px, transparent 1.5px); background-size: 48px 48px; }
+      .bg-glow      { position: absolute; inset: 0; background: radial-gradient(ellipse 1100px 800px at 50% 48%, rgba(57,255,20,0.09) 0%, transparent 68%); }
+      .bg-scanlines { position: absolute; inset: 0; background: repeating-linear-gradient(0deg, transparent 0px, transparent 3px, rgba(0,0,0,0.04) 3px, rgba(0,0,0,0.04) 4px); }
+      .corner { position: absolute; width: 56px; height: 56px; }
+      .corner-tl { top: 40px; left: 40px;   border-top:    3px solid rgba(57,255,20,0.45); border-left:   3px solid rgba(57,255,20,0.45); }
+      .corner-tr { top: 40px; right: 40px;  border-top:    3px solid rgba(57,255,20,0.45); border-right:  3px solid rgba(57,255,20,0.45); }
+      .corner-bl { bottom: 40px; left: 40px;  border-bottom: 3px solid rgba(57,255,20,0.45); border-left:   3px solid rgba(57,255,20,0.45); }
+      .corner-br { bottom: 40px; right: 40px; border-bottom: 3px solid rgba(57,255,20,0.45); border-right:  3px solid rgba(57,255,20,0.45); }
+      #scene-01, #scene-02, #scene-03 { position: absolute; inset: 0; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="21" data-width="1920" data-height="1080">
+
+      <!-- ── Atmosphere: tracks 0–6 ── -->
+      <div id="bg-dots"      class="clip bg-dots"      data-start="0" data-duration="21" data-track-index="0"></div>
+      <div id="bg-glow"      class="clip bg-glow"      data-start="0" data-duration="21" data-track-index="1"></div>
+      <div id="bg-scanlines" class="clip bg-scanlines" data-start="0" data-duration="21" data-track-index="2"></div>
+      <div id="corner-tl"    class="clip corner corner-tl" data-start="0" data-duration="21" data-track-index="3"></div>
+      <div id="corner-tr"    class="clip corner corner-tr" data-start="0" data-duration="21" data-track-index="4"></div>
+      <div id="corner-bl"    class="clip corner corner-bl" data-start="0" data-duration="21" data-track-index="5"></div>
+      <div id="corner-br"    class="clip corner corner-br" data-start="0" data-duration="21" data-track-index="6"></div>
+
+      <!-- ── Background music: track 20 ── -->
+      <audio id="bg-music" class="clip"
+        data-start="0" data-duration="21" data-track-index="20" data-volume="0.18"
+        src="assets/music/upbeat-tech.mp3">
+      </audio>
+
+      <!-- ── Voiceover per scene: track 21 (reuse, no overlap) ── -->
+      <audio id="vo-01" class="clip"
+        data-start="0" data-duration="6" data-track-index="21" data-volume="1.0"
+        src="assets/audio/scene_01_vo.mp3">
+      </audio>
+      <audio id="vo-02" class="clip"
+        data-start="6.3" data-duration="9" data-track-index="21" data-volume="1.0"
+        src="assets/audio/scene_02_vo.mp3">
+      </audio>
+      <audio id="vo-03" class="clip"
+        data-start="15.8" data-duration="6" data-track-index="21" data-volume="1.0"
+        src="assets/audio/scene_03_vo.mp3">
+      </audio>
+
+      <!-- ── Scenes: tracks 10–11 (alternating for 0.3s crossfade overlap) ── -->
+      <div id="scene-01" class="clip"
+        data-composition-id="scene-01" data-composition-src="compositions/scene_01.html"
+        data-start="0" data-duration="6.6" data-track-index="10"
+        data-width="1920" data-height="1080">
+      </div>
+      <div id="scene-02" class="clip"
+        data-composition-id="scene-02" data-composition-src="compositions/scene_02.html"
+        data-start="6.3" data-duration="9.5" data-track-index="11"
+        data-width="1920" data-height="1080">
+      </div>
+      <div id="scene-03" class="clip"
+        data-composition-id="scene-03" data-composition-src="compositions/scene_03.html"
+        data-start="15.5" data-duration="5.5" data-track-index="10"
+        data-width="1920" data-height="1080">
+      </div>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+
+      tl.from('#bg-dots',      { opacity: 0, duration: 1.2, ease: 'power2.out' }, 0);
+      tl.from('#bg-glow',      { opacity: 0, duration: 1.6, ease: 'power2.out' }, 0.1);
+      tl.from('#bg-scanlines', { opacity: 0, duration: 1.0, ease: 'linear'     }, 0.2);
+      tl.from('#corner-tl', { opacity: 0, scale: 0, transformOrigin: 'top left',     duration: 0.5, ease: 'back.out(1.7)' }, 0.1);
+      tl.from('#corner-tr', { opacity: 0, scale: 0, transformOrigin: 'top right',    duration: 0.5, ease: 'back.out(1.7)' }, 0.15);
+      tl.from('#corner-bl', { opacity: 0, scale: 0, transformOrigin: 'bottom left',  duration: 0.5, ease: 'back.out(1.7)' }, 0.2);
+      tl.from('#corner-br', { opacity: 0, scale: 0, transformOrigin: 'bottom right', duration: 0.5, ease: 'back.out(1.7)' }, 0.25);
+
+      // crossfade transitions
+      tl.to('#scene-01',  { opacity: 0, duration: 0.3, ease: 'power2.inOut' }, 6.0);
+      tl.set('#scene-01', { opacity: 0 }, 6.3);
+      tl.to('#scene-02', { opacity: 0, duration: 0.3, ease: 'power2.inOut' }, 15.2);
+
+      window.__timelines['main'] = tl;
+    </script>
+  </body>
+</html>

@@ -1,0 +1,285 @@
+<template id="scene-06-template">
+  <div data-composition-id="scene-06" data-width="1080" data-height="1920">
+
+    <!-- Background layers -->
+    <div class="s6-bg" data-layout-ignore>
+      <div class="s6-dot-grid"></div>
+      <div class="s6-explosion-glow"></div>
+      <div class="s6-scanlines"></div>
+    </div>
+
+    <!-- Corner brackets -->
+    <div class="s6-corner s6-corner-tl" data-layout-ignore></div>
+    <div class="s6-corner s6-corner-tr" data-layout-ignore></div>
+    <div class="s6-corner s6-corner-bl" data-layout-ignore></div>
+    <div class="s6-corner s6-corner-br" data-layout-ignore></div>
+
+    <!-- Main content -->
+    <div class="s6-content">
+      <!-- Big MVP word -->
+      <div class="s6-mvp-wrap">
+        <h1 class="s6-mvp">MVP</h1>
+        <div class="s6-mvp-glow-ring" data-layout-ignore></div>
+      </div>
+
+      <!-- Checklist -->
+      <div class="s6-checklist">
+        <div class="s6-check-row s6-cr1">
+          <span class="s6-ck">✓</span><span class="s6-ck-text">Code chạy được</span>
+        </div>
+        <div class="s6-check-row s6-cr2">
+          <span class="s6-ck">✓</span><span class="s6-ck-text">UI đẹp</span>
+        </div>
+        <div class="s6-check-row s6-cr3">
+          <span class="s6-ck">✓</span><span class="s6-ck-text">Logic đúng</span>
+        </div>
+      </div>
+
+      <!-- Browser frame mockup -->
+      <div class="s6-browser">
+        <div class="s6-browser-bar">
+          <div class="s6-dot-r"></div>
+          <div class="s6-dot-y"></div>
+          <div class="s6-dot-g"></div>
+          <div class="s6-url-bar">app.yourproduct.com</div>
+        </div>
+        <div class="s6-browser-body">
+          <div class="s6-browser-line s6-bl1"></div>
+          <div class="s6-browser-line s6-bl2"></div>
+          <div class="s6-browser-line s6-bl3"></div>
+        </div>
+      </div>
+
+      <p class="s6-closing">Sản phẩm thật. Sẵn sàng deploy.</p>
+    </div>
+
+    <style>
+      #scene-06 {
+        position: relative;
+        width: 1080px;
+        height: 1920px;
+        background: #060810;
+        overflow: hidden;
+      }
+
+      /* ── Background ── */
+      .s6-bg {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      .s6-dot-grid {
+        position: absolute;
+        inset: 0;
+        background-image: radial-gradient(circle, rgba(57,255,20,0.28) 1.5px, transparent 1.5px);
+        background-size: 48px 48px;
+      }
+
+      .s6-explosion-glow {
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(ellipse 900px 900px at 50% 38%, rgba(57,255,20,0.2) 0%, transparent 60%);
+        opacity: 0;
+      }
+
+      .s6-scanlines {
+        position: absolute;
+        inset: 0;
+        background: repeating-linear-gradient(
+          0deg,
+          transparent,
+          transparent 3px,
+          rgba(0,0,0,0.04) 3px,
+          rgba(0,0,0,0.04) 4px
+        );
+      }
+
+      /* ── Corner brackets ── */
+      .s6-corner {
+        position: absolute;
+        width: 56px;
+        height: 56px;
+        border-color: #39FF14;
+        border-style: solid;
+        opacity: 0.5;
+        z-index: 3;
+      }
+
+      .s6-corner-tl { top: 60px; left: 60px; border-width: 3px 0 0 3px; }
+      .s6-corner-tr { top: 60px; right: 60px; border-width: 3px 3px 0 0; }
+      .s6-corner-bl { bottom: 60px; left: 60px; border-width: 0 0 3px 3px; }
+      .s6-corner-br { bottom: 60px; right: 60px; border-width: 0 3px 3px 0; }
+
+      /* ── Content ── */
+      .s6-content {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: flex-start;
+        padding: 140px 88px;
+        gap: 44px;
+        box-sizing: border-box;
+        z-index: 2;
+      }
+
+      /* MVP big word */
+      .s6-mvp-wrap {
+        position: relative;
+        display: inline-block;
+      }
+
+      .s6-mvp {
+        font-family: 'Exo 2', sans-serif;
+        font-weight: 900;
+        font-size: 200px;
+        color: #39FF14;
+        text-shadow:
+          0 0 40px rgba(57,255,20,0.9),
+          0 0 100px rgba(57,255,20,0.5),
+          0 0 200px rgba(57,255,20,0.2);
+        line-height: 1.0;
+        margin: 0;
+        letter-spacing: -4px;
+      }
+
+      .s6-mvp-glow-ring {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 340px;
+        height: 240px;
+        transform: translate(-50%, -50%);
+        border: 2px solid rgba(57,255,20,0.3);
+        border-radius: 50%;
+        box-shadow: 0 0 40px rgba(57,255,20,0.2);
+        opacity: 0;
+      }
+
+      /* Checklist */
+      .s6-checklist {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        width: 100%;
+      }
+
+      .s6-check-row {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+      }
+
+      .s6-ck {
+        font-size: 50px;
+        color: #39FF14;
+        text-shadow: 0 0 16px rgba(57,255,20,0.8);
+        flex-shrink: 0;
+      }
+
+      .s6-ck-text {
+        font-family: 'Exo 2', sans-serif;
+        font-weight: 700;
+        font-size: 52px;
+        color: #FFFFFF;
+      }
+
+      /* Browser frame */
+      .s6-browser {
+        width: 100%;
+        background: rgba(255,255,255,0.04);
+        border: 1.5px solid rgba(57,255,20,0.4);
+        border-radius: 16px;
+        overflow: hidden;
+      }
+
+      .s6-browser-bar {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 16px 20px;
+        background: rgba(57,255,20,0.06);
+        border-bottom: 1px solid rgba(57,255,20,0.2);
+      }
+
+      .s6-dot-r, .s6-dot-y, .s6-dot-g {
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        flex-shrink: 0;
+      }
+
+      .s6-dot-r { background: rgba(255,80,80,0.7); }
+      .s6-dot-y { background: rgba(255,200,50,0.7); }
+      .s6-dot-g { background: rgba(57,255,20,0.7); }
+
+      .s6-url-bar {
+        font-family: 'Inter', monospace;
+        font-size: 24px;
+        color: rgba(255,255,255,0.4);
+        background: rgba(255,255,255,0.05);
+        padding: 6px 16px;
+        border-radius: 6px;
+        flex: 1;
+      }
+
+      .s6-browser-body {
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .s6-browser-line {
+        height: 10px;
+        background: rgba(57,255,20,0.2);
+        border-radius: 4px;
+      }
+
+      .s6-bl1 { width: 75%; }
+      .s6-bl2 { width: 55%; }
+      .s6-bl3 { width: 65%; }
+
+      .s6-closing {
+        font-family: 'Exo 2', sans-serif;
+        font-weight: 700;
+        font-size: 56px;
+        color: #FFFFFF;
+        margin: 0;
+        line-height: 1.2;
+      }
+    </style>
+
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <script>
+      window.__timelines = window.__timelines || {};
+
+      const tl = gsap.timeline({ paused: true });
+
+      // Explosion glow fires immediately
+      tl.to(".s6-explosion-glow", { opacity: 1, duration: 0.4, ease: "power2.out" }, 0);
+
+      // MVP word pops in with scale explosion
+      tl.from(".s6-mvp", { scale: 0.3, opacity: 0, duration: 0.6, ease: "expo.out" }, 0.1);
+
+      // Glow ring expands
+      tl.to(".s6-mvp-glow-ring", { opacity: 1, scale: 1.4, duration: 0.8, ease: "power2.out" }, 0.2);
+      tl.to(".s6-mvp-glow-ring", { opacity: 0, duration: 0.5, ease: "power2.in" }, 1.0);
+
+      // Checklist rows stagger in fast
+      tl.from(".s6-check-row", { x: -50, opacity: 0, duration: 0.4, ease: "back.out(2)", stagger: 0.2 }, 1.8);
+
+      // Browser frame slides up
+      tl.from(".s6-browser", { y: 50, opacity: 0, duration: 0.55, ease: "power3.out" }, 5.0);
+
+      // Closing line fades in
+      tl.from(".s6-closing", { y: 30, opacity: 0, duration: 0.5, ease: "power2.out" }, 7.5);
+
+      window.__timelines["scene-06"] = tl;
+    </script>
+  </div>
+</template>
