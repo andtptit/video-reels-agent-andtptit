@@ -1,0 +1,231 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Scene 01</title>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Exo+2:wght@900&family=Inter:wght@700&family=Playfair+Display:ital,wght@1,700&display=swap');
+
+    body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background-color: #060810;
+      color: #FFFFFF;
+      font-family: 'Inter', sans-serif;
+    }
+
+    #scene-01 {
+      width: 1080px;
+      height: 1920px;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-sizing: border-box;
+      overflow: hidden;
+    }
+
+    /* Atmosphere Elements */
+    .s1-dot-grid {
+      position: absolute;
+      inset: 0;
+      background-image: radial-gradient(rgba(255, 255, 255, 0.28) 1.5px, transparent 1.5px);
+      background-size: 48px 48px;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    .s1-radial-glow {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 1200px;
+      height: 1200px;
+      background: radial-gradient(circle, rgba(57, 255, 20, 0.25) 0%, rgba(6, 8, 16, 0) 70%);
+      pointer-events: none;
+      z-index: 9;
+    }
+
+    .s1-scanlines {
+      position: absolute;
+      inset: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        rgba(0, 0, 0, 0.1) 0px,
+        rgba(0, 0, 0, 0.1) 1px,
+        transparent 1px,
+        transparent 4px
+      );
+      opacity: 0.04;
+      pointer-events: none;
+      z-index: 11;
+    }
+
+    .s1-bracket {
+      position: absolute;
+      width: 56px;
+      height: 56px;
+      border: 3px solid rgba(255, 255, 255, 0.5);
+      box-sizing: border-box;
+      pointer-events: none;
+      z-index: 12;
+    }
+    .s1-bracket--tl { top: 60px; left: 60px; border-right: none; border-bottom: none; }
+    .s1-bracket--tr { top: 60px; right: 60px; border-left: none; border-bottom: none; }
+    .s1-bracket--bl { bottom: 60px; left: 60px; border-right: none; border-top: none; }
+    .s1-bracket--br { bottom: 60px; right: 60px; border-left: none; border-top: none; }
+
+    /* Content Container */
+    .s1-content {
+      position: relative;
+      z-index: 20;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 32px;
+    }
+
+    /* Hero Number */
+    .s1-number {
+      font-family: 'Exo 2', sans-serif;
+      font-weight: 900;
+      font-size: 650px;
+      line-height: 0.85;
+      color: #39FF14;
+      text-shadow: 
+        0 0 25px rgba(57, 255, 20, 0.9),
+        0 0 70px rgba(57, 255, 20, 0.5);
+      letter-spacing: -24px;
+      margin: 0;
+    }
+
+    /* Unit Label */
+    .s1-unit {
+      position: absolute;
+      left: 860px;
+      top: 620px;
+      width: 140px;
+      height: 260px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      writing-mode: vertical-rl;
+      text-orientation: mixed;
+      font-family: 'Inter', sans-serif;
+      font-weight: 700;
+      font-size: 68px;
+      color: #FFFFFF;
+      letter-spacing: 6px;
+      z-index: 20;
+    }
+
+    /* Context Caption */
+    .s1-caption {
+      font-family: 'Playfair Display', serif;
+      font-style: italic;
+      font-weight: 700;
+      font-size: 64px;
+      color: rgba(255, 255, 255, 0.55);
+      text-align: center;
+      margin: 0;
+      max-width: 800px;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="scene-01" data-composition-id="scene-01" data-width="1080" data-height="1920" data-duration="5.26">
+    
+    <!-- Background Layers (Unique IDs & Unique Tracks) -->
+    <div id="bg-grid" class="s1-dot-grid clip" data-start="0" data-duration="5.26" data-track-index="0"></div>
+    <div id="bg-glow" class="s1-radial-glow clip" data-start="0" data-duration="5.26" data-track-index="1"></div>
+    <div id="bg-scanlines" class="s1-scanlines clip" data-start="0" data-duration="5.26" data-track-index="2"></div>
+    <div id="bracket-tl" class="s1-bracket s1-bracket--tl clip" data-start="0" data-duration="5.26" data-track-index="3"></div>
+    <div id="bracket-tr" class="s1-bracket s1-bracket--tr clip" data-start="0" data-duration="5.26" data-track-index="4"></div>
+    <div id="bracket-bl" class="s1-bracket s1-bracket--bl clip" data-start="0" data-duration="5.26" data-track-index="5"></div>
+    <div id="bracket-br" class="s1-bracket s1-bracket--br clip" data-start="0" data-duration="5.26" data-track-index="6"></div>
+
+    <!-- Main Visual Content Track (Index 10+) -->
+    <div class="s1-content">
+      <h1 class="s1-number clip" id="s1-number" data-start="0" data-duration="5.26" data-track-index="10">3</h1>
+      <p class="s1-caption clip" id="s1-caption" data-start="0" data-duration="5.26" data-track-index="11">để viết content?</p>
+    </div>
+
+    <!-- Side Unit Track -->
+    <div class="s1-unit clip" id="s1-unit" data-start="0" data-duration="5.26" data-track-index="12">GIỜ/NGÀY</div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+
+      const elNumber = document.getElementById("s1-number");
+      const elUnit = document.getElementById("s1-unit");
+      const elCaption = document.getElementById("s1-caption");
+
+      // --- Hero Number Sequence (Strictly Disjoint Tweens) ---
+      
+      // 1. Initial State Setup
+      tl.set(elNumber, { scale: 0, opacity: 0 }, 0);
+
+      // 2. Explosive Entrance (0s -> 0.4s)
+      tl.to(elNumber, { 
+        scale: 1, 
+        opacity: 1, 
+        duration: 0.4, 
+        ease: "back.out(3)" 
+      }, 0);
+
+      // 3. Impact Pulse Up (0.5s -> 0.6s)
+      tl.to(elNumber, { 
+        scale: 1.12, 
+        duration: 0.1, 
+        ease: "power2.out" 
+      }, 0.5);
+
+      // 4. Elastic Recovery (0.6s -> 1.1s)
+      tl.to(elNumber, { 
+        scale: 1, 
+        duration: 0.5, 
+        ease: "elastic.out(1, 0.4)" 
+      }, 0.6);
+
+      // --- Other Scene Entrances ---
+
+      // 5. Unit Label Sweep (0.7s)
+      tl.from(elUnit, { 
+        x: 200, 
+        opacity: 0, 
+        duration: 0.7, 
+        ease: "power3.out" 
+      }, 0.7);
+
+      // 6. Context Caption Drift (0.9s)
+      tl.from(elCaption, { 
+        y: 80, 
+        opacity: 0, 
+        duration: 0.8, 
+        ease: "power2.inOut" 
+      }, 0.9);
+
+      // --- Ambient Animations ---
+      const cycleDuration = 3.5;
+      const totalRepeat = Math.ceil(5.26 / cycleDuration) - 1;
+      
+      tl.to(".s1-radial-glow", {
+        scale: 1.18,
+        opacity: 0.7,
+        duration: cycleDuration / 2,
+        ease: "sine.inOut",
+        yoyo: true,
+        repeat: totalRepeat
+      }, 0);
+
+      window.__timelines["scene-01"] = tl;
+    </script>
+  </div>
+
+</body>
+</html>

@@ -1,0 +1,58 @@
+import { useState } from "react";
+import { ProjectForm } from "./components/ProjectForm.jsx";
+import { ProjectPicker } from "./components/ProjectPicker.jsx";
+import { Pipeline } from "./components/Pipeline.jsx";
+import "./App.css";
+
+const STORAGE_KEY = "video-reels-agent:lastProject";
+
+function loadStored() {
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "null");
+  } catch {
+    return null;
+  }
+}
+
+export default function App() {
+  const [project, setProject] = useState(loadStored);
+
+  function handleCreated(id, idea, platform) {
+    const next = { id, idea, platform };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    setProject(next);
+  }
+
+  function handleSelect(id, ideaGuess) {
+    // Existing projects weren't necessarily created through this session, so the
+    // exact idea/platform text isn't known — ideaGuess (from the folder slug) only
+    // matters if the user re-runs step 1 on a project that never got past creation.
+    handleCreated(id, ideaGuess, null);
+  }
+
+  function handleReset() {
+    localStorage.removeItem(STORAGE_KEY);
+    setProject(null);
+  }
+
+  return (
+    <div className="app">
+      <header>
+        <h1>Video Reels Agent</h1>
+        {project && (
+          <button type="button" className="linklike" onClick={handleReset}>
+            + Project mới
+          </button>
+        )}
+      </header>
+      {!project ? (
+        <>
+          <ProjectForm onCreated={handleCreated} />
+          <ProjectPicker onSelect={handleSelect} />
+        </>
+      ) : (
+        <Pipeline id={project.id} idea={project.idea} platform={project.platform} />
+      )}
+    </div>
+  );
+}

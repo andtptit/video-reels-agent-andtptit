@@ -27,6 +27,7 @@ const result = await runSceneWriter({
   projectDir,
   scene,
   design,
+  format: videoPlan.format,
   onEvent: (evt) => {
     if (evt.type === "assistant" && evt.message.tool_calls) {
       for (const call of evt.message.tool_calls) console.log(`  [turn ${evt.turn}] tool_call → ${call.function.name}`);
@@ -41,4 +42,9 @@ const result = await runSceneWriter({
 });
 
 console.log(`\n=== ${result.ok ? "PASS" : "FAILED"} sau ${result.attempts} attempt(s) — ${result.outPath} ===`);
+if (result.usage) console.log(`  token: ${result.usage.totalTokens} (prompt ${result.usage.promptTokens} + completion ${result.usage.completionTokens})`);
 if (!result.ok) console.log(JSON.stringify(result.newFindings, null, 2));
+if (result.staticWarnings?.length) {
+  console.log(`  warn  ${result.staticWarnings.length} static warning(s) (pseudo-element animation):`);
+  console.log(JSON.stringify(result.staticWarnings, null, 2));
+}

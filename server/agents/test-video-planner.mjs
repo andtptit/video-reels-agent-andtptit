@@ -27,3 +27,6 @@ const result = await runVideoPlanner({
 
 console.log(`\n=== Xong sau ${result.turns} turn ===`);
 console.log(result.finalMessage);
+if (result.durationCheck && !result.durationCheck.ok) {
+  console.log(`  warn  total_duration lệch tổng scene: ${JSON.stringify(result.durationCheck)}`);
+}

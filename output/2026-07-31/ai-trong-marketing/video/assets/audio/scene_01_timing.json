@@ -1,0 +1,87 @@
+[
+  {
+    "word": "Bạn",
+    "start": 0.1375,
+    "end": 0.325
+  },
+  {
+    "word": "đang",
+    "start": 0.325,
+    "end": 0.5375
+  },
+  {
+    "word": "tốn",
+    "start": 0.5375,
+    "end": 0.75
+  },
+  {
+    "word": "3",
+    "start": 0.75,
+    "end": 0.9375
+  },
+  {
+    "word": "tiếng",
+    "start": 0.9375,
+    "end": 1.15
+  },
+  {
+    "word": "mỗi",
+    "start": 1.15,
+    "end": 1.325
+  },
+  {
+    "word": "ngày",
+    "start": 1.325,
+    "end": 1.5875
+  },
+  {
+    "word": "chỉ",
+    "start": 1.5875,
+    "end": 1.75
+  },
+  {
+    "word": "để",
+    "start": 1.75,
+    "end": 1.925
+  },
+  {
+    "word": "viết",
+    "start": 1.925,
+    "end": 2.15
+  },
+  {
+    "word": "content",
+    "start": 2.15,
+    "end": 2.575
+  },
+  {
+    "word": "cho",
+    "start": 2.575,
+    "end": 2.7375
+  },
+  {
+    "word": "fanpage",
+    "start": 2.7375,
+    "end": 3.3125
+  },
+  {
+    "word": "email",
+    "start": 3.5375,
+    "end": 3.975
+  },
+  {
+    "word": "và",
+    "start": 3.975,
+    "end": 4.1875
+  },
+  {
+    "word": "quảng",
+    "start": 4.1875,
+    "end": 4.4125
+  },
+  {
+    "word": "cáo",
+    "start": 4.4125,
+    "end": 4.7625
+  }
+]

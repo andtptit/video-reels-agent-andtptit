@@ -12,9 +12,38 @@
  */
 import { execFile } from "child_process";
 import { promisify } from "util";
-import { existsSync } from "fs";
+import { existsSync, readdirSync, rmSync } from "fs";
+import { join } from "path";
 
 const execFileAsync = promisify(execFile);
+
+const SKIP_DIRS = new Set(["node_modules", ".git", ".hyperframes"]);
+
+/**
+ * macOS AppleDouble sidecar files ("._filename") get created next to every write
+ * on filesystems without native xattr support (seen live on an external volume in
+ * this workspace — see plan.md). `hyperframes lint` scans them as if they were real
+ * composition HTML files, producing bogus findings like `root_missing_composition_id`
+ * for a file that isn't actually a composition. Sweep them out of the project dir
+ * before every lint/validate call so results always reflect the real files.
+ */
+function cleanAppleDouble(dir) {
+  let entries;
+  try {
+    entries = readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return;
+  }
+  for (const entry of entries) {
+    if (entry.name.startsWith("._")) {
+      rmSync(join(dir, entry.name), { force: true });
+      continue;
+    }
+    if (entry.isDirectory() && !SKIP_DIRS.has(entry.name)) {
+      cleanAppleDouble(join(dir, entry.name));
+    }
+  }
+}
 
 const HYPERFRAMES_VERSION = process.env.HYPERFRAMES_VERSION || "0.6.12";
 const BIN = `hyperframes@${HYPERFRAMES_VERSION}`;
@@ -61,11 +90,13 @@ async function runJsonCommand(args, cwd) {
 
 /** @returns {Promise<{ok: boolean, errorCount: number, warningCount: number, findings: object[]}>} */
 export function lint(projectDir) {
+  cleanAppleDouble(projectDir);
   return runJsonCommand(["lint", "--json"], projectDir);
 }
 
 /** @returns {Promise<{ok: boolean, errors: object[], warnings: object[]}>} */
 export function validate(projectDir, { contrast = false } = {}) {
+  cleanAppleDouble(projectDir);
   const args = ["validate", "--json"];
   if (!contrast) args.push("--no-contrast");
   return runJsonCommand(args, projectDir);

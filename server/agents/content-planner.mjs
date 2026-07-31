@@ -8,10 +8,11 @@
  * automated path answers those 3 questions up front via the caller's params
  * instead, and instructs the model not to ask anything back.
  */
-import { readFileSync } from "fs";
+import { readFileSync, existsSync } from "fs";
 import { join } from "path";
-import { runAgent } from "./run-agent.mjs";
+import { runAgent, DEFAULT_MODEL } from "./run-agent.mjs";
 import { createFsTools } from "../tools/fs-tools.mjs";
+import { checkDurationSum } from "../tools/validators.mjs";
 
 const SKILL_PATH = join(import.meta.dirname, "..", "..", ".agents", "skills", "content-planner", "SKILL.md");
 
@@ -21,7 +22,7 @@ export async function runContentPlanner({
   audience,
   platform = "9:16",
   targetDuration = "30–60s",
-  model = "qwen-plus",
+  model = DEFAULT_MODEL,
   onEvent,
 }) {
   const skill = readFileSync(SKILL_PATH, "utf-8");
@@ -44,5 +45,19 @@ có tiền tố thư mục project): \`master_content.md\` và \`scenes.json\`. 
     `Tổng thời lượng mong muốn: ${targetDuration}`,
   ].join("\n");
 
-  return runAgent({ systemPrompt, userPrompt, tools, model, onEvent });
+  const result = await runAgent({ systemPrompt, userPrompt, tools, model, onEvent });
+
+  const outFile = join(projectDir, "scenes.json");
+  if (existsSync(outFile)) {
+    const scenes = JSON.parse(readFileSync(outFile, "utf-8"));
+    const durationCheck = checkDurationSum({
+      total: scenes.total_estimated_duration ?? 0,
+      scenes: scenes.scenes ?? [],
+      key: "estimated_duration",
+    });
+    if (!durationCheck.ok) onEvent?.({ type: "duration-check", ...durationCheck });
+    return { ...result, durationCheck };
+  }
+
+  return result;
 }

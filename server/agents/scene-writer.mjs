@@ -15,9 +15,11 @@
  */
 import { readFileSync } from "fs";
 import { join } from "path";
-import { runAgent } from "./run-agent.mjs";
+import { runAgent, CHEAP_MODEL } from "./run-agent.mjs";
 import { createFsTools } from "../tools/fs-tools.mjs";
 import { lint } from "../tools/hyperframes-cli.mjs";
+import { checkPseudoElementAnimations, checkCanvasDimensions } from "../tools/validators.mjs";
+import { dimensionsForFormat } from "../lib/canvas.mjs";
 
 const SKILL_PATH = join(import.meta.dirname, "..", "..", ".agents", "skills", "hyperframes", "SKILL.md");
 
@@ -39,7 +41,11 @@ export async function runSceneWriter({
   projectDir,
   scene, // one entry from video-plan.json.scenes
   design, // DESIGN.md content (caller reads it once and shares across scenes)
-  model = "qwen-plus",
+  format, // video-plan.json's top-level `format` ("9:16" | "16:9") — caller passes
+  // this through so every scene in the project targets the same canvas; defaults to
+  // "9:16" only if the caller genuinely has no format (dimensionsForFormat's own
+  // fallback), not because scenes should ever silently disagree with each other.
+  model = CHEAP_MODEL,
   maxTurns = 6,
   maxFixAttempts = 3,
   onEvent,
@@ -49,9 +55,11 @@ export async function runSceneWriter({
 
   const n = sceneNumber(scene.sceneId);
   const padded = String(n).padStart(2, "0");
-  const selector = `#scene-${padded}`;
+  const compositionId = `scene-${padded}`;
+  const selector = `#${compositionId}`;
   const classPrefix = `.s${n}-`;
   const outPath = `compositions/scene_${padded}.html`;
+  const { width, height } = dimensionsForFormat(format);
 
   const systemPrompt = `${skill}
 
@@ -60,11 +68,25 @@ export async function runSceneWriter({
 Bạn đang viết MỘT sub-composition cho một scene, KHÔNG phải root composition. Đây là
 override bắt buộc riêng của project này (cao hơn hướng dẫn chung ở trên):
 
-- CSS selector cho sub-composition: \`${selector}\` — KHÔNG dùng \`[data-composition-id="..."]\`
+- Element gốc (wrapper) của sub-composition PHẢI có ĐÚNG CẢ HAI:
+  \`id="${compositionId}"\` VÀ \`data-composition-id="${compositionId}"\` (dùng dấu gạch
+  ngang "-", ví dụ \`${compositionId}\`) — LƯU Ý: đây KHÁC với \`sceneId\` trong dữ liệu
+  scene bên dưới (\`"${scene.sceneId}"\`, dùng dấu gạch dưới "_") — \`sceneId\` chỉ là tên
+  field input, KHÔNG được dùng làm giá trị \`id\`/\`data-composition-id\`.
+- \`window.__timelines\` phải đăng ký ĐÚNG cùng giá trị đó:
+  \`window.__timelines["${compositionId}"] = tl\` — key này phải khớp CHÍNH XÁC với
+  \`id\`/\`data-composition-id\` ở trên, nếu không hyperframes lint sẽ báo lỗi
+  \`timeline_id_mismatch\`.
+- CSS selector để style: \`${selector}\`
 - Class prefix cho mọi class trong scene này: \`${classPrefix}\` (ví dụ \`${classPrefix}title\`)
 - \`repeat: Math.ceil(...)\` — KHÔNG BAO GIỜ dùng \`repeat: -1\`
 - Mọi element có timing phải có \`class="clip"\`
 - \`data-duration\` của composition = đúng \`scene.duration\` đã cho, không tự đổi
+- Kích thước canvas của TOÀN BỘ project là \`data-width="${width}" data-height="${height}"\`
+  — element gốc của sub-composition PHẢI dùng ĐÚNG 2 số này (khớp \`format\` của
+  project), KHÔNG tự đoán hay dùng số khác. Toàn bộ layout/font-size/vị trí bên trong
+  phải được thiết kế vừa khung ${width}×${height}, không chỉ đặt đúng attribute rồi bỏ
+  mặc nội dung tràn/lệch.
 
 Bạn đang chạy tự động (non-interactive). Dùng tool \`write_file\` để lưu đúng 1 file
 vào project root (path tương đối, không tiền tố project): \`${outPath}\`. Sau khi ghi
@@ -75,23 +97,51 @@ xong, trả lời bằng 1 câu tóm tắt — không tool call nào nữa.`;
   const baseline = await lint(projectDir);
   let lastNewFindings = [];
   let agentResult;
+  // Carries the conversation across fix attempts (see run-agent.mjs's priorMessages
+  // doc) so retries send only the new lint findings, not the full skill + scene data
+  // again — confirmed live that re-sending was pure waste (~7.8k tokens/attempt) since
+  // the model already has all of it in context from attempt 0.
+  let priorMessages = null;
+  const usage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
+  const addUsage = (u) => {
+    if (!u) return;
+    usage.promptTokens += u.promptTokens ?? 0;
+    usage.completionTokens += u.completionTokens ?? 0;
+    usage.totalTokens += u.totalTokens ?? 0;
+  };
 
   for (let attempt = 0; attempt <= maxFixAttempts; attempt++) {
     const userPrompt =
       attempt === 0
         ? basePrompt
-        : `${basePrompt}\n\n---\n\nLần viết trước (attempt ${attempt}) có lỗi lint MỚI (không tính lỗi có sẵn của project):\n${JSON.stringify(lastNewFindings, null, 2)}\n\nSửa lại đúng file ${outPath} để hết các lỗi này. Không giải thích — sửa trực tiếp.`;
+        : `Lần viết trước (attempt ${attempt}) có lỗi MỚI cần sửa (lint và/hoặc kích thước canvas sai — không tính lỗi có sẵn của project):\n${JSON.stringify(lastNewFindings, null, 2)}\n\nSửa lại đúng file ${outPath} để hết các lỗi này. Không giải thích — sửa trực tiếp.`;
 
-    agentResult = await runAgent({ systemPrompt, userPrompt, tools, model, maxTurns, onEvent });
+    try {
+      agentResult = await runAgent({ systemPrompt, userPrompt, tools, model, maxTurns, onEvent, priorMessages });
+    } catch (err) {
+      addUsage(err.usage);
+      err.usage = { ...usage };
+      throw err;
+    }
+    priorMessages = agentResult.messages;
+    addUsage(agentResult.usage);
 
     const current = await lint(projectDir);
-    lastNewFindings = diffNewFindings(baseline, current);
+    const html = readFileSync(join(projectDir, outPath), "utf-8");
+    // Dimension mismatches are folded into the same retry gate as lint findings —
+    // hyperframes lint checks each file in isolation so it can never catch a scene
+    // disagreeing with the project's own canvas size (see validators.mjs). Treating
+    // it as a hard-fail here, not just a warning, is what actually guarantees the fix
+    // instead of hoping the model follows the prompt instruction.
+    lastNewFindings = [...diffNewFindings(baseline, current), ...checkCanvasDimensions(html, width, height)];
     onEvent?.({ type: "lint", attempt, newFindingCount: lastNewFindings.length });
 
     if (lastNewFindings.length === 0) {
-      return { ok: true, attempts: attempt + 1, outPath, agentResult };
+      const staticWarnings = checkPseudoElementAnimations(html);
+      if (staticWarnings.length) onEvent?.({ type: "static-check", outPath, staticWarnings });
+      return { ok: true, attempts: attempt + 1, outPath, agentResult, staticWarnings, usage };
     }
   }
 
-  return { ok: false, attempts: maxFixAttempts + 1, outPath, newFindings: lastNewFindings, agentResult };
+  return { ok: false, attempts: maxFixAttempts + 1, outPath, newFindings: lastNewFindings, agentResult, usage };
 }

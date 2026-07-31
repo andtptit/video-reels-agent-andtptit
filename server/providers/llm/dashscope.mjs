@@ -1,7 +1,11 @@
 /**
  * DashScope (Qwen) chat completions via the OpenAI-compatible endpoint — confirmed
- * working in this repo with `qwen-turbo` (plain chat, 200) and `qwen-plus`
- * (tool_calls, 200) against the international endpoint.
+ * working in this repo against the international endpoint with:
+ *   - `qwen-plus`: plain chat + tool_calls (200)
+ *   - `qwen-turbo`: plain chat (200) AND tool_calls (200, confirmed later — returns
+ *     correctly structured tool_calls with valid JSON arguments) — now the default
+ *     for scene-writer.mjs/root-composer.mjs (see run-agent.mjs's CHEAP_MODEL) since
+ *     those run once per scene and don't need qwen-plus's extra reasoning quality.
  */
 export const id = "dashscope";
 

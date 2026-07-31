@@ -10,3 +10,15 @@ node_modules/
 
 # HyperFrames cache
 .hyperframes/
+.thumbnails/
+
+# macOS Finder metadata
+.DS_Store
+
+# Phase 2 runtime job progress — ephemeral, regenerated per pipeline run
+job-status.json
+
+# macOS AppleDouble sidecar files — this workspace runs on an external volume
+# without native xattr support, so every file write leaves a "._filename" twin.
+# hyperframes lint has been observed scanning these as bogus composition files.
+._*

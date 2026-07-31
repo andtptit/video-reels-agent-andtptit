@@ -1,0 +1,113 @@
+{
+  "design": "DESIGN.md",
+  "format": "9:16",
+  "total_duration": 45,
+  "scenes": [
+    {
+      "sceneId": "scene_01",
+      "duration": 5.26,
+      "content_shape": "big-number",
+      "mood": "explosive",
+      "transition": { "type": "flash-white", "duration": 0.3 },
+      "sfx_picks": [
+        { "id": "drum-hit", "at": 0.0, "volume": 0.6 }
+      ],
+      "elements": [
+        { "id": "number",  "text": "3",           "role": "hero number — neon green 130px, dominates" },
+        { "id": "unit",    "text": "GIỜ/NGÀY",    "role": "unit label — smaller, white" },
+        { "id": "caption", "text": "để viết content?", "role": "context — muted, drift in" }
+      ],
+      "visual_brief": "CONTENT SHAPE: big-number — một con số gây shock, cần viewer dừng lại và thấm vào.\nHERO FRAME: \"3\" chiếm 55% canvas chiều dọc, neon green, glow rực. Bên phải: \"GIỜ/NGÀY\" in thẳng đứng nhỏ hơn. Bên dưới: \"để viết content?\" — trắng, mờ nhẹ. Background radial glow tập trung vào số.\nENTRANCE: \"3\" impact slam từ scale 0 tại 0.1s — không drift, không fade — là cú đấm thẳng. \"GIỜ/NGÀY\" sweep từ phải vào 0.3s sau. Label phía dưới drift up 0.5s sau.\nFOCAL MOMENT: Tại 0.5s (impact SFX): \"3\" scale pulse 1.08 → về 1.0 với elastic — như số đang thở.\nVIEWER EMOTION: \"3 tiếng — tức là gần nửa ngày làm việc mỗi ngày. Mình đang lãng phí điều đó.\"\nVO SYNC: Số \"3\" xuất hiện 0.2s trước khi VO nói \"3 tiếng\" — visual dẫn trước audio.",
+      "subtitle": true
+    },
+    {
+      "sceneId": "scene_02",
+      "duration": 4.01,
+      "content_shape": "two-column",
+      "mood": "snappy",
+      "transition": { "type": "slide-left", "duration": 0.25 },
+      "sfx_picks": [
+        { "id": "click", "at": 0.0, "volume": 0.5 },
+        { "id": "click", "at": 2.0, "volume": 0.5 }
+      ],
+      "elements": [
+        { "id": "left-header", "text": "THUÊ NGƯỜI", "role": "header left column — bold, neon green" },
+        { "id": "left-content", "text": "tốn triệu", "role": "main text left — white, large" },
+        { "id": "right-header", "text": "TỰ VIẾT", "role": "header right column — bold, neon green" },
+        { "id": "right-content", "text": "kiệt sức", "role": "main text right — white, large" }
+      ],
+      "visual_brief": "CONTENT SHAPE: two-column — so sánh hai lựa chọn đối lập, cũ vs mới, có vs không.\nHERO FRAME: Hai cột đứng cạnh nhau, mỗi cột có header màu neon green và nội dung trắng lớn. Khoảng cách giữa hai cột đủ rộng để tạo cảm giác tách biệt. Đường viền mỏng giữa hai cột.\nENTRANCE: Cả hai cột slide in từ ngoài khung hình: cột trái từ trái, cột phải từ phải, đồng thời tại 0.2s, sau đó header của mỗi cột snap in 0.3s sau.\nFOCAL MOMENT: Tại 1.5s: cả hai cột đồng thời pulse nhẹ — nhấn mạnh sự bế tắc của cả hai lựa chọn.\nVIEWER EMOTION: \"Cả hai lựa chọn đều tệ — mình cần một lối thoát khác.\"\nVO SYNC: Khi VO nói \"Thuê người\" → cột trái xuất hiện. Khi VO nói \"Tự viết\" → cột phải xuất hiện.",
+      "subtitle": true
+    },
+    {
+      "sceneId": "scene_03",
+      "duration": 6.21,
+      "content_shape": "title-card",
+      "mood": "cinematic",
+      "transition": { "type": "fade", "duration": 0.4 },
+      "sfx_picks": [
+        { "id": "chime", "at": 0.0, "volume": 0.7 }
+      ],
+      "elements": [
+        { "id": "headline", "text": "CLAUDE AI", "role": "main headline — Exo 2 Bold, neon green, 120px" },
+        { "id": "subhead",  "text": "công cụ miễn phí, không cần code, không cần đăng ký thêm", "role": "supporting text — Inter medium, white, 36px" }
+      ],
+      "visual_brief": "CONTENT SHAPE: title-card — hook, bold claim, tên chủ đề.\nHERO FRAME: \"CLAUDE AI\" chiếm 60% canvas chiều ngang, neon green, centered, with strong glow. Dòng phụ bên dưới, trắng, căn giữa, khoảng cách vừa phải. Background dot grid visible but subtle.\nENTRANCE: Text fade in slowly over 0.8s, then slight y drift up-down ambient motion. Radial glow intensifies at center.\nFOCAL MOMENT: Tại 2.0s: \"CLAUDE AI\" pulse once with stronger glow — like a system booting up.\nVIEWER EMOTION: \"Đây là cái tên tôi cần nhớ — giải pháp đã xuất hiện.\"\nVO SYNC: Khi VO nói \"Claude AI\" → headline xuất hiện đầy đủ.",
+      "subtitle": true
+    },
+    {
+      "sceneId": "scene_04",
+      "duration": 3.4,
+      "content_shape": "linear-flow",
+      "mood": "fluid",
+      "transition": { "type": "slide-up", "duration": 0.2 },
+      "sfx_picks": [
+        { "id": "whoosh", "at": 0.0, "volume": 0.4 },
+        { "id": "ding", "at": 1.5, "volume": 0.6 }
+      ],
+      "elements": [
+        { "id": "step1", "text": "NHẬP YÊU CẦU", "role": "first node — neon green badge" },
+        { "id": "arrow1", "text": "→", "role": "connecting arrow" },
+        { "id": "step2", "text": "VIẾT XONG", "role": "second node — neon green badge" },
+        { "id": "time", "text": "10 GIÂY", "role": "timing label — white, small, below step2" }
+      ],
+      "visual_brief": "CONTENT SHAPE: linear-flow — các bước nối tiếp nhau.\nHERO FRAME: Hai node \"NHẬP YÊU CẦU\" và \"VIẾT XONG\" nối bằng arrow ngang, mỗi node là badge neon green. \"10 GIÂY\" nằm dưới node thứ hai. Toàn bộ cấu trúc nằm giữa canvas.\nENTRANCE: Node 1 bloom tại 0.3s. Arrow draw-on từ trái sang phải tại 0.8s. Node 2 bloom tại 1.2s. \"10 GIÂY\" drift up 0.3s sau node 2.\nFOCAL MOMENT: Tại 1.8s (khi ding SFX): node \"VIẾT XONG\" pulse mạnh và \"10 GIÂY\" scale up slightly — payoff của quy trình.\nVIEWER EMOTION: \"Quá đơn giản — chỉ hai bước, và nhanh đến bất ngờ.\"\nVO SYNC: Khi VO nói \"nhập yêu cầu\" → node 1 xuất hiện. Khi VO nói \"viết xong\" → node 2 xuất hiện. Khi VO nói \"10 giây\" → label \"10 GIÂY\" xuất hiện.",
+      "subtitle": true
+    },
+    {
+      "sceneId": "scene_05",
+      "duration": 6.16,
+      "content_shape": "dashboard",
+      "mood": "technical",
+      "transition": { "type": "grid-pop", "duration": 0.3 },
+      "sfx_picks": [
+        { "id": "ding", "at": 0.0, "volume": 0.5 },
+        { "id": "ding", "at": 2.5, "volume": 0.5 }
+      ],
+      "elements": [
+        { "id": "card1", "text": "12 giờ", "role": "metric card 1 — big number, neon green" },
+        { "id": "label1", "text": "TIẾT KIỆM MỖI TUẦN", "role": "label for card1 — white, small" },
+        { "id": "card2", "text": "37%", "role": "metric card 2 — big number, neon green" },
+        { "id": "label2", "text": "TĂNG ĐƠN HÀNG", "role": "label for card2 — white, small" }
+      ],
+      "visual_brief": "CONTENT SHAPE: dashboard — nhiều metric cùng một lúc.\nHERO FRAME: Hai cards xếp ngang, mỗi card gồm số lớn neon green và label trắng nhỏ phía dưới. Khoảng cách đều, căn giữa canvas. Mỗi card có nền rgba(57,255,20,0.12) và border-radius 12px.\nENTRANCE: Card 1 slide in từ trái tại 0.3s. Card 2 slide in từ phải tại 0.8s. Labels drift up 0.3s sau mỗi card.\nFOCAL MOMENT: Tại 2.8s: cả hai cards đồng thời pulse nhẹ — khẳng định tính đáng tin cậy của case study.\nVIEWER EMOTION: \"Hai con số này chứng minh nó thực sự hiệu quả — không phải lời nói suông.\"\nVO SYNC: Khi VO nói \"12 giờ\" → card1 xuất hiện. Khi VO nói \"37%\" → card2 xuất hiện.",
+      "subtitle": true
+    },
+    {
+      "sceneId": "scene_06",
+      "duration": 2.94,
+      "content_shape": "cta",
+      "mood": "snappy",
+      "transition": { "type": "pulse-in", "duration": 0.2 },
+      "sfx_picks": [
+        { "id": "chime", "at": 0.0, "volume": 0.8 }
+      ],
+      "elements": [
+        { "id": "badge", "text": "LINK TRONG BIO", "role": "CTA badge — neon green, bold, large, with halo glow" },
+        { "id": "urgency", "text": "BẮT ĐẦU NGAY HÔM NAY", "role": "urgency text — white, italic, smaller" }
+      ],
+      "visual_brief": "CONTENT SHAPE: cta — kêu gọi hành động kết thúc video.\nHERO FRAME: Badge \"LINK TRONG BIO\" nổi bật ở trung tâm, neon green, glow halo mạnh. Dòng \"BẮT ĐẦU NGAY HÔM NAY\" phía trên, trắng, nghiêng nhẹ. Toàn bộ nằm trong vùng an toàn.\nENTRANCE: Badge slam in tại 0.1s. Dòng urgency text sweep in từ trên xuống 0.3s sau.\nFOCAL MOMENT: Tại 0.6s (khi chime SFX): badge pulse mạnh nhất — tạo cảm giác khẩn trương.\nVIEWER EMOTION: \"Tôi sẽ mở bio ngay bây giờ — không trì hoãn thêm.\"\nVO SYNC: Khi VO nói \"link trong bio\" → badge xuất hiện đầy đủ.",
+      "subtitle": true
+    }
+  ]
+}

@@ -1,0 +1,193 @@
+<template id="scene-05-template">
+  <div id="scene-05" data-composition-id="scene_05" data-width="1920" data-height="1080">
+    <style>
+      #scene-05 {
+        background-color: #060810;
+        position: relative;
+        overflow: hidden;
+      }
+
+      /* Dot grid background */
+      #scene-05::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-image: radial-gradient(circle, rgba(255,255,255,0.28) 1px, transparent 1px);
+        background-size: 48px 48px;
+        z-index: -1;
+      }
+
+      /* Radial glow */
+      #scene-05::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 1200px;
+        height: 1200px;
+        background: radial-gradient(circle, rgba(57,255,20,0.12) 0%, transparent 70%);
+        transform: translate(-50%, -50%);
+        z-index: -1;
+      }
+
+      /* Corner brackets */
+      #scene-05 .corner-bracket {
+        position: absolute;
+        width: 56px;
+        height: 56px;
+        border: 3px solid rgba(57,255,20,0.5);
+        box-sizing: border-box;
+      }
+      #scene-05 .corner-bracket.tl { top: 0; left: 0; }
+      #scene-05 .corner-bracket.tr { top: 0; right: 0; }
+      #scene-05 .corner-bracket.bl { bottom: 0; left: 0; }
+      #scene-05 .corner-bracket.br { bottom: 0; right: 0; }
+
+      /* Scanlines overlay */
+      #scene-05 .scanlines {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: repeating-linear-gradient(
+          0deg,
+          rgba(0, 0, 0, 0) 0px,
+          rgba(0, 0, 0, 0) 1px,
+          rgba(0, 0, 0, 0.04) 1px,
+          rgba(0, 0, 0, 0.04) 2px
+        );
+        z-index: -1;
+      }
+
+      /* Layout container */
+      .s5-content {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        width: 100%;
+        height: 100%;
+        padding: 0;
+        gap: 64px;
+        box-sizing: border-box;
+      }
+
+      /* Cards container */
+      .s5-cards-container {
+        display: flex;
+        justify-content: center;
+        gap: 80px;
+        width: 100%;
+        max-width: 1400px;
+      }
+
+      .s5-card {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        width: 360px;
+        height: 280px;
+        background-color: rgba(57,255,20,0.12);
+        border-radius: 12px;
+        padding: 32px 24px;
+        box-sizing: border-box;
+      }
+
+      .s5-metric {
+        font-family: 'Exo 2', sans-serif;
+        font-weight: 800;
+        font-size: 84px;
+        line-height: 1;
+        color: #39FF14;
+        text-shadow: 0 0 16px rgba(57,255,20,0.7), 0 0 32px rgba(57,255,20,0.4);
+        margin: 0;
+        text-align: center;
+      }
+
+      .s5-label {
+        font-family: 'Inter', sans-serif;
+        font-weight: 500;
+        font-size: 24px;
+        line-height: 1.4;
+        color: rgba(255,255,255,0.55);
+        margin: 0;
+        text-align: center;
+        max-width: 300px;
+      }
+
+      /* Responsive adjustments */
+      @media (max-height: 1200px) {
+        .s5-metric { font-size: 72px; }
+        .s5-label { font-size: 22px; }
+      }
+      @media (max-height: 900px) {
+        .s5-metric { font-size: 64px; }
+        .s5-label { font-size: 20px; }
+      }
+    </style>
+
+    <div class="corner-bracket tl"></div>
+    <div class="corner-bracket tr"></div>
+    <div class="corner-bracket bl"></div>
+    <div class="corner-bracket br"></div>
+    <div class="scanlines"></div>
+
+    <div class="s5-content">
+      <div class="s5-cards-container">
+        <!-- Card 1 -->
+        <div id="s5-card1" class="s5-card clip" data-start="0.3" data-duration="6.16" data-track-index="0">
+          <div id="s5-metric1" class="s5-metric clip" data-start="0.3" data-duration="6.16" data-track-index="1">12 giờ</div>
+          <div id="s5-label1" class="s5-label clip" data-start="0.6" data-duration="6.16" data-track-index="2">TIẾT KIỆM MỖI TUẦN</div>
+        </div>
+
+        <!-- Card 2 -->
+        <div id="s5-card2" class="s5-card clip" data-start="0.8" data-duration="6.16" data-track-index="3">
+          <div id="s5-metric2" class="s5-metric clip" data-start="0.8" data-duration="6.16" data-track-index="4">37%</div>
+          <div id="s5-label2" class="s5-label clip" data-start="1.1" data-duration="6.16" data-track-index="5">TĂNG ĐƠN HÀNG</div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+
+      // Entrance animations — technical: left→right order
+      tl.from('#s5-card1', { x: -120, opacity: 0, duration: 0.5, ease: 'back.out(2)' }, 0.3);
+      tl.from('#s5-metric1', { y: 20, opacity: 0, duration: 0.4, ease: 'power2.inOut' }, 0.4);
+      tl.from('#s5-label1', { y: 20, opacity: 0, duration: 0.3, ease: 'power2.inOut' }, 0.6);
+
+      tl.from('#s5-card2', { x: 120, opacity: 0, duration: 0.5, ease: 'back.out(2)' }, 0.8);
+      tl.from('#s5-metric2', { y: 20, opacity: 0, duration: 0.4, ease: 'power2.inOut' }, 0.9);
+      tl.from('#s5-label2', { y: 20, opacity: 0, duration: 0.3, ease: 'power2.inOut' }, 1.1);
+
+      // Focal moment pulse at 2.8s
+      tl.to('#s5-card1, #s5-card2', { 
+        scale: 1.03, 
+        duration: 0.3, 
+        ease: 'sine.inOut', 
+        repeat: 1, 
+        yoyo: true,
+        overwrite: 'auto'
+      }, 2.8);
+
+      // Ensure no overlapping tweens on same properties by scoping and using overwrite
+      tl.to('#s5-metric1, #s5-metric2', { 
+        textShadow: '0 0 20px rgba(57, 255, 20, 0.9), 0 0 40px rgba(57, 255, 20, 0.7)', 
+        duration: 0.4, 
+        ease: 'sine.inOut', 
+        repeat: 1, 
+        yoyo: true,
+        overwrite: 'auto'
+      }, 2.8);
+
+      window.__timelines['scene_05'] = tl;
+    </script>
+  </div>
+</template>

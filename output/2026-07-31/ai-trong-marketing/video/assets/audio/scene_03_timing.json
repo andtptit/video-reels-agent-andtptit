@@ -1,0 +1,97 @@
+[
+  {
+    "word": "Có",
+    "start": 0.1375,
+    "end": 0.25
+  },
+  {
+    "word": "một",
+    "start": 0.25,
+    "end": 0.4625
+  },
+  {
+    "word": "cách",
+    "start": 0.4625,
+    "end": 0.65
+  },
+  {
+    "word": "khác",
+    "start": 0.65,
+    "end": 0.925
+  },
+  {
+    "word": "Claude",
+    "start": 1.1625,
+    "end": 1.6
+  },
+  {
+    "word": "AI",
+    "start": 1.6,
+    "end": 2.075
+  },
+  {
+    "word": "một",
+    "start": 2.3,
+    "end": 2.5125
+  },
+  {
+    "word": "công",
+    "start": 2.5125,
+    "end": 2.7
+  },
+  {
+    "word": "cụ",
+    "start": 2.7,
+    "end": 2.9125
+  },
+  {
+    "word": "miễn",
+    "start": 2.9125,
+    "end": 3.125
+  },
+  {
+    "word": "phí",
+    "start": 3.125,
+    "end": 3.5125
+  },
+  {
+    "word": "không",
+    "start": 3.6875,
+    "end": 3.925
+  },
+  {
+    "word": "cần",
+    "start": 3.925,
+    "end": 4.125
+  },
+  {
+    "word": "code",
+    "start": 4.125,
+    "end": 4.375
+  },
+  {
+    "word": "không",
+    "start": 4.5625,
+    "end": 4.7875
+  },
+  {
+    "word": "cần",
+    "start": 4.7875,
+    "end": 5
+  },
+  {
+    "word": "đăng",
+    "start": 5,
+    "end": 5.1875
+  },
+  {
+    "word": "ký",
+    "start": 5.1875,
+    "end": 5.3875
+  },
+  {
+    "word": "thêm",
+    "start": 5.3875,
+    "end": 5.7125
+  }
+]

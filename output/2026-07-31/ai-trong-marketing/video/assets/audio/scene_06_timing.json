@@ -1,0 +1,42 @@
+[
+  {
+    "word": "Bắt",
+    "start": 0.1375,
+    "end": 0.3
+  },
+  {
+    "word": "đầu",
+    "start": 0.3,
+    "end": 0.55
+  },
+  {
+    "word": "ngay",
+    "start": 0.55,
+    "end": 0.7875
+  },
+  {
+    "word": "hôm",
+    "start": 0.7875,
+    "end": 1
+  },
+  {
+    "word": "nay",
+    "start": 1,
+    "end": 1.325
+  },
+  {
+    "word": "link",
+    "start": 1.5125,
+    "end": 1.7875
+  },
+  {
+    "word": "trong",
+    "start": 1.7875,
+    "end": 2.025
+  },
+  {
+    "word": "bio",
+    "start": 2.025,
+    "end": 2.4375
+  }
+]

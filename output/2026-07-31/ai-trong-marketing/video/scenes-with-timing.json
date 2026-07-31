@@ -1,0 +1,533 @@
+{
+  "master_content": "master_content.md",
+  "platform": "9:16",
+  "total_estimated_duration": 45,
+  "scenes": [
+    {
+      "sceneId": "scene_01",
+      "narration": "Bạn đang tốn 3 tiếng mỗi ngày chỉ để viết content cho fanpage, email và quảng cáo?",
+      "meaning": "Làm nổi bật pain point cụ thể và cấp thiết của chủ doanh nghiệp nhỏ",
+      "estimated_duration": 6,
+      "mood_hint": "explosive",
+      "is_hook": true,
+      "_audio": {
+        "voiceover": "assets/audio/scene_01_vo.mp3",
+        "voiceover_start": 0,
+        "vo_duration": 4.7625,
+        "scene_duration": 5.26,
+        "word_timestamps": [
+          {
+            "word": "Bạn",
+            "start": 0.1375,
+            "end": 0.325
+          },
+          {
+            "word": "đang",
+            "start": 0.325,
+            "end": 0.5375
+          },
+          {
+            "word": "tốn",
+            "start": 0.5375,
+            "end": 0.75
+          },
+          {
+            "word": "3",
+            "start": 0.75,
+            "end": 0.9375
+          },
+          {
+            "word": "tiếng",
+            "start": 0.9375,
+            "end": 1.15
+          },
+          {
+            "word": "mỗi",
+            "start": 1.15,
+            "end": 1.325
+          },
+          {
+            "word": "ngày",
+            "start": 1.325,
+            "end": 1.5875
+          },
+          {
+            "word": "chỉ",
+            "start": 1.5875,
+            "end": 1.75
+          },
+          {
+            "word": "để",
+            "start": 1.75,
+            "end": 1.925
+          },
+          {
+            "word": "viết",
+            "start": 1.925,
+            "end": 2.15
+          },
+          {
+            "word": "content",
+            "start": 2.15,
+            "end": 2.575
+          },
+          {
+            "word": "cho",
+            "start": 2.575,
+            "end": 2.7375
+          },
+          {
+            "word": "fanpage",
+            "start": 2.7375,
+            "end": 3.3125
+          },
+          {
+            "word": "email",
+            "start": 3.5375,
+            "end": 3.975
+          },
+          {
+            "word": "và",
+            "start": 3.975,
+            "end": 4.1875
+          },
+          {
+            "word": "quảng",
+            "start": 4.1875,
+            "end": 4.4125
+          },
+          {
+            "word": "cáo",
+            "start": 4.4125,
+            "end": 4.7625
+          }
+        ],
+        "timing_anchors": {}
+      }
+    },
+    {
+      "sceneId": "scene_02",
+      "narration": "Thuê người thì tốn triệu. Tự viết thì kiệt sức.",
+      "meaning": "Củng cố cảm giác bế tắc với hai lựa chọn hiện tại",
+      "estimated_duration": 5,
+      "mood_hint": "snappy",
+      "is_hook": false,
+      "_audio": {
+        "voiceover": "assets/audio/scene_02_vo.mp3",
+        "voiceover_start": 5.26,
+        "vo_duration": 3.5125,
+        "scene_duration": 4.01,
+        "word_timestamps": [
+          {
+            "word": "Thuê",
+            "start": 0.125,
+            "end": 0.275
+          },
+          {
+            "word": "người",
+            "start": 0.275,
+            "end": 0.6
+          },
+          {
+            "word": "thì",
+            "start": 0.6,
+            "end": 0.85
+          },
+          {
+            "word": "tốn",
+            "start": 0.85,
+            "end": 1.1125
+          },
+          {
+            "word": "triệu",
+            "start": 1.1125,
+            "end": 1.45
+          },
+          {
+            "word": "Tự",
+            "start": 2.325,
+            "end": 2.5
+          },
+          {
+            "word": "viết",
+            "start": 2.5,
+            "end": 2.7875
+          },
+          {
+            "word": "thì",
+            "start": 2.7875,
+            "end": 3
+          },
+          {
+            "word": "kiệt",
+            "start": 3,
+            "end": 3.2375
+          },
+          {
+            "word": "sức",
+            "start": 3.2375,
+            "end": 3.5125
+          }
+        ],
+        "timing_anchors": {}
+      }
+    },
+    {
+      "sceneId": "scene_03",
+      "narration": "Có một cách khác: Claude AI — một công cụ miễn phí, không cần code, không cần đăng ký thêm.",
+      "meaning": "Giới thiệu giải pháp như một lối thoát rõ ràng và dễ tiếp cận",
+      "estimated_duration": 7,
+      "mood_hint": "cinematic",
+      "is_hook": false,
+      "_audio": {
+        "voiceover": "assets/audio/scene_03_vo.mp3",
+        "voiceover_start": 9.27,
+        "vo_duration": 5.7125,
+        "scene_duration": 6.21,
+        "word_timestamps": [
+          {
+            "word": "Có",
+            "start": 0.1375,
+            "end": 0.25
+          },
+          {
+            "word": "một",
+            "start": 0.25,
+            "end": 0.4625
+          },
+          {
+            "word": "cách",
+            "start": 0.4625,
+            "end": 0.65
+          },
+          {
+            "word": "khác",
+            "start": 0.65,
+            "end": 0.925
+          },
+          {
+            "word": "Claude",
+            "start": 1.1625,
+            "end": 1.6
+          },
+          {
+            "word": "AI",
+            "start": 1.6,
+            "end": 2.075
+          },
+          {
+            "word": "một",
+            "start": 2.3,
+            "end": 2.5125
+          },
+          {
+            "word": "công",
+            "start": 2.5125,
+            "end": 2.7
+          },
+          {
+            "word": "cụ",
+            "start": 2.7,
+            "end": 2.9125
+          },
+          {
+            "word": "miễn",
+            "start": 2.9125,
+            "end": 3.125
+          },
+          {
+            "word": "phí",
+            "start": 3.125,
+            "end": 3.5125
+          },
+          {
+            "word": "không",
+            "start": 3.6875,
+            "end": 3.925
+          },
+          {
+            "word": "cần",
+            "start": 3.925,
+            "end": 4.125
+          },
+          {
+            "word": "code",
+            "start": 4.125,
+            "end": 4.375
+          },
+          {
+            "word": "không",
+            "start": 4.5625,
+            "end": 4.7875
+          },
+          {
+            "word": "cần",
+            "start": 4.7875,
+            "end": 5
+          },
+          {
+            "word": "đăng",
+            "start": 5,
+            "end": 5.1875
+          },
+          {
+            "word": "ký",
+            "start": 5.1875,
+            "end": 5.3875
+          },
+          {
+            "word": "thêm",
+            "start": 5.3875,
+            "end": 5.7125
+          }
+        ],
+        "timing_anchors": {}
+      }
+    },
+    {
+      "sceneId": "scene_04",
+      "narration": "Chỉ cần nhập yêu cầu, nó viết xong trong 10 giây.",
+      "meaning": "Làm rõ tính đơn giản và tốc độ của giải pháp",
+      "estimated_duration": 5,
+      "mood_hint": "fluid",
+      "is_hook": false,
+      "_audio": {
+        "voiceover": "assets/audio/scene_04_vo.mp3",
+        "voiceover_start": 15.48,
+        "vo_duration": 2.9,
+        "scene_duration": 3.4,
+        "word_timestamps": [
+          {
+            "word": "Chỉ",
+            "start": 0.125,
+            "end": 0.275
+          },
+          {
+            "word": "cần",
+            "start": 0.275,
+            "end": 0.4875
+          },
+          {
+            "word": "nhập",
+            "start": 0.4875,
+            "end": 0.7625
+          },
+          {
+            "word": "yêu",
+            "start": 0.7625,
+            "end": 0.9
+          },
+          {
+            "word": "cầu",
+            "start": 0.9,
+            "end": 1.275
+          },
+          {
+            "word": "nó",
+            "start": 1.4875,
+            "end": 1.7125
+          },
+          {
+            "word": "viết",
+            "start": 1.7125,
+            "end": 1.9
+          },
+          {
+            "word": "xong",
+            "start": 1.9,
+            "end": 2.1875
+          },
+          {
+            "word": "trong",
+            "start": 2.1875,
+            "end": 2.3875
+          },
+          {
+            "word": "10",
+            "start": 2.3875,
+            "end": 2.5875
+          },
+          {
+            "word": "giây",
+            "start": 2.5875,
+            "end": 2.9
+          }
+        ],
+        "timing_anchors": {}
+      }
+    },
+    {
+      "sceneId": "scene_05",
+      "narration": "Một chủ tiệm nail đã tiết kiệm 12 giờ mỗi tuần — và tăng đơn hàng 37% chỉ sau 2 tuần.",
+      "meaning": "Chứng minh hiệu quả bằng case study cụ thể và có số liệu",
+      "estimated_duration": 10,
+      "mood_hint": "technical",
+      "is_hook": false,
+      "_audio": {
+        "voiceover": "assets/audio/scene_05_vo.mp3",
+        "voiceover_start": 18.88,
+        "vo_duration": 5.6625,
+        "scene_duration": 6.16,
+        "word_timestamps": [
+          {
+            "word": "Một",
+            "start": 0.125,
+            "end": 0.3125
+          },
+          {
+            "word": "chủ",
+            "start": 0.3125,
+            "end": 0.45
+          },
+          {
+            "word": "tiệm",
+            "start": 0.45,
+            "end": 0.7
+          },
+          {
+            "word": "nail",
+            "start": 0.7,
+            "end": 0.95
+          },
+          {
+            "word": "đã",
+            "start": 0.95,
+            "end": 1.1125
+          },
+          {
+            "word": "tiết",
+            "start": 1.1125,
+            "end": 1.3125
+          },
+          {
+            "word": "kiệm",
+            "start": 1.3125,
+            "end": 1.525
+          },
+          {
+            "word": "12 giờ",
+            "start": 1.525,
+            "end": 2.1
+          },
+          {
+            "word": "mỗi",
+            "start": 2.1,
+            "end": 2.3125
+          },
+          {
+            "word": "tuần",
+            "start": 2.3125,
+            "end": 2.6625
+          },
+          {
+            "word": "và",
+            "start": 2.9375,
+            "end": 3.1125
+          },
+          {
+            "word": "tăng",
+            "start": 3.1125,
+            "end": 3.325
+          },
+          {
+            "word": "đơn",
+            "start": 3.325,
+            "end": 3.5125
+          },
+          {
+            "word": "hàng",
+            "start": 3.5125,
+            "end": 3.7375
+          },
+          {
+            "word": "37%",
+            "start": 3.7375,
+            "end": 4.6625
+          },
+          {
+            "word": "chỉ",
+            "start": 4.6625,
+            "end": 4.875
+          },
+          {
+            "word": "sau",
+            "start": 4.875,
+            "end": 5.15
+          },
+          {
+            "word": "2",
+            "start": 5.15,
+            "end": 5.35
+          },
+          {
+            "word": "tuần",
+            "start": 5.35,
+            "end": 5.6625
+          }
+        ],
+        "timing_anchors": {}
+      }
+    },
+    {
+      "sceneId": "scene_06",
+      "narration": "Bắt đầu ngay hôm nay: link trong bio.",
+      "meaning": "Kêu gọi hành động rõ ràng, đơn giản và có hướng dẫn cụ thể",
+      "estimated_duration": 5,
+      "mood_hint": "snappy",
+      "is_hook": false,
+      "_audio": {
+        "voiceover": "assets/audio/scene_06_vo.mp3",
+        "voiceover_start": 25.04,
+        "vo_duration": 2.4375,
+        "scene_duration": 2.94,
+        "word_timestamps": [
+          {
+            "word": "Bắt",
+            "start": 0.1375,
+            "end": 0.3
+          },
+          {
+            "word": "đầu",
+            "start": 0.3,
+            "end": 0.55
+          },
+          {
+            "word": "ngay",
+            "start": 0.55,
+            "end": 0.7875
+          },
+          {
+            "word": "hôm",
+            "start": 0.7875,
+            "end": 1
+          },
+          {
+            "word": "nay",
+            "start": 1,
+            "end": 1.325
+          },
+          {
+            "word": "link",
+            "start": 1.5125,
+            "end": 1.7875
+          },
+          {
+            "word": "trong",
+            "start": 1.7875,
+            "end": 2.025
+          },
+          {
+            "word": "bio",
+            "start": 2.025,
+            "end": 2.4375
+          }
+        ],
+        "timing_anchors": {}
+      }
+    }
+  ],
+  "_audio": {
+    "music_track": "assets/music/fluid-ambient.mp3",
+    "music_volume": 0.18
+  }
+}

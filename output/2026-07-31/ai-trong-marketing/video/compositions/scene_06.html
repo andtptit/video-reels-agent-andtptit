@@ -1,0 +1,197 @@
+<template id="scene-06-template">
+  <div id="scene-06" data-composition-id="scene-06" data-duration="2.94" data-width="1920" data-height="1080">
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Exo+2:wght@700..900&family=Inter:wght@400;500;600&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap');
+      
+      :root {
+        --bg-color: #060810;
+        --text-white: #FFFFFF;
+        --accent-green: #39FF14;
+        --accent-green-dim: rgba(57, 255, 20, 0.12);
+        --text-secondary: rgba(255, 255, 255, 0.55);
+      }
+
+      #scene-06 {
+        background-color: var(--bg-color);
+        overflow: hidden;
+        position: relative;
+        width: 100%;
+        height: 100%;
+      }
+
+      /* --- Background Layer --- */
+      .s6-bg-layer {
+        position: absolute;
+        inset: 0;
+        z-index: 0;
+      }
+
+      .s6-dot-grid {
+        position: absolute;
+        inset: 0;
+        background-image: radial-gradient(circle, var(--text-secondary) 1.5px, transparent 1.5px);
+        background-size: 48px 48px;
+        opacity: 0.28;
+      }
+
+      .s6-radial-glow {
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(circle at center, rgba(57, 255, 20, 0.15), transparent 65%);
+      }
+
+      .s6-scanlines {
+        position: absolute;
+        inset: 0;
+        background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.3) 2px, rgba(0,0,0,0.3) 4px);
+        opacity: 0.04;
+        pointer-events: none;
+      }
+
+      .s6-corner-brackets {
+        position: absolute;
+        inset: 0;
+        z-index: 2;
+      }
+
+      .s6-bracket {
+        position: absolute;
+        width: 64px;
+        height: 64px;
+        border: 3px solid var(--accent-green);
+        opacity: 0.4;
+        border-radius: 8px;
+        box-sizing: border-box;
+      }
+
+      .s6-bracket.tl { top: 48px; left: 48px; border-right: none; border-bottom: none; }
+      .s6-bracket.tr { top: 48px; right: 48px; border-left: none; border-bottom: none; }
+      .s6-bracket.bl { bottom: 48px; left: 48px; border-right: none; border-top: none; }
+      .s6-bracket.br { bottom: 48px; right: 48px; border-left: none; border-top: none; }
+
+      /* --- Content Layer --- */
+      .s6-content-wrapper {
+        position: relative;
+        z-index: 10;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        gap: 32px;
+        padding: 60px;
+        box-sizing: border-box;
+      }
+
+      .s6-urgency {
+        font-family: 'Playfair Display', serif;
+        font-style: italic;
+        font-weight: 600;
+        font-size: 56px;
+        color: var(--text-white);
+        text-align: center;
+        letter-spacing: 2px;
+        line-height: 1.3;
+        transform-origin: center top;
+      }
+
+      .s6-divider {
+        width: 120px;
+        height: 3px;
+        background: var(--accent-green);
+        box-shadow: 0 0 15px var(--accent-green);
+        border-radius: 2px;
+        opacity: 0;
+      }
+
+      .s6-badge {
+        font-family: 'Exo 2', sans-serif;
+        font-weight: 800;
+        font-size: 96px;
+        line-height: 1.1;
+        color: var(--accent-green);
+        text-shadow: 0 0 30px rgba(57, 255, 20, 0.9), 0 0 60px rgba(57, 255, 20, 0.5);
+        text-align: center;
+        text-transform: uppercase;
+        letter-spacing: 6px;
+        background: var(--accent-green-dim);
+        padding: 40px 80px;
+        border: 3px solid var(--accent-green);
+        border-radius: 20px;
+        opacity: 0;
+        transform-origin: center center;
+      }
+
+      /* Responsive safety */
+      @media (max-width: 1200px) {
+        .s6-badge { font-size: 64px; padding: 24px 48px; }
+        .s6-urgency { font-size: 40px; }
+      }
+    </style>
+
+    <!-- Background Elements -->
+    <div class="s6-bg-layer">
+      <div class="s6-dot-grid"></div>
+      <div class="s6-radial-glow"></div>
+      <div class="s6-scanlines"></div>
+      <div class="s6-corner-brackets">
+        <div class="s6-bracket tl"></div>
+        <div class="s6-bracket tr"></div>
+        <div class="s6-bracket bl"></div>
+        <div class="s6-bracket br"></div>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="s6-content-wrapper">
+      <div class="s6-urgency clip">BẮT ĐẦU NGAY HÔM NAY</div>
+      <div class="s6-divider clip"></div>
+      <div class="s6-badge clip">LINK TRONG<br>BIO</div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+
+      // Entrance Animations
+      // "technical" flow: Top to Bottom
+      
+      // 1. Urgency Text sweeps in from top (0.3s)
+      tl.fromTo(".s6-urgency", 
+        { y: -30, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.5, ease: "back.out(1.7)" }, 
+        0.3
+      );
+
+      // 2. Divider expands slightly (0.2s)
+      tl.fromTo(".s6-divider",
+        { scaleX: 0, opacity: 0 },
+        { scaleX: 1, opacity: 1, duration: 0.4, ease: "power2.out" },
+        0.25
+      );
+
+      // 3. Badge Slams in (0.1s) - High impact, fast
+      tl.fromTo(".s6-badge", 
+        { scale: 0.85, opacity: 0, y: 40 },
+        { scale: 1, opacity: 1, y: 0, duration: 0.6, ease: "back.out(2)" }, 
+        0.1
+      );
+
+      // Focal Moment: Pulse at 0.6s
+      // Sharp elastic bounce to emphasize urgency. 
+      // Using overwrite: "auto" to prevent GSAP tween conflict during the slam-in animation.
+      tl.to(".s6-badge", { 
+        scale: 1.12, 
+        duration: 0.25, 
+        ease: "elastic.out(1, 0.5)",
+        yoyo: true, 
+        repeat: 1,
+        overwrite: "auto" 
+      }, 0.6);
+
+      window.__timelines["scene-06"] = tl;
+    </script>
+  </div>
+</template>

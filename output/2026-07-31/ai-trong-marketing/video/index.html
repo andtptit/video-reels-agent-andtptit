@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Claude AI Content</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@700..900&family=Inter:wght@400;500;600&family=Playfair+Display:ital@1&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #060810; }
+
+    /* ── Atmosphere Layers ── */
+    .clip { will-change: opacity; }
+
+    #bg-dots {
+      position: relative;
+      width: 100%; height: 100%;
+      background-image: radial-gradient(circle, rgba(255,255,255,0.28) 1px, transparent 1px);
+      background-size: 48px 48px;
+    }
+
+    #bg-glow {
+      position: relative;
+      width: 100%; height: 100%;
+      background: radial-gradient(ellipse 55% 50% at 50% 50%, rgba(57,255,20,0.08) 0%, transparent 70%);
+    }
+
+    #bg-scanlines {
+      position: relative;
+      width: 100%; height: 100%;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(255,255,255,0.04) 2px,
+        rgba(255,255,255,0.04) 4px
+      );
+      pointer-events: none;
+    }
+
+    .corner {
+      position: relative;
+      width: 56px; height: 56px;
+      opacity: 0.5;
+    }
+    .corner-tl { border-top: 3px solid #39FF14; border-left: 3px solid #39FF14; }
+    .corner-tr { border-top: 3px solid #39FF14; border-right: 3px solid #39FF14; }
+    .corner-bl { border-bottom: 3px solid #39FF14; border-left: 3px solid #39FF14; }
+    .corner-br { border-bottom: 3px solid #39FF14; border-right: 3px solid #39FF14; }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+</head>
+<body>
+
+<div id="root" data-composition-id="main" data-start="0" data-duration="26.48" data-width="1080" data-height="1920">
+
+  <!-- ── Atmosphere: tracks 0–6, full duration ── -->
+  <div id="bg-dots"       class="clip bg-dots"        data-start="0"   data-duration="26.48" data-track-index="0"></div>
+  <div id="bg-glow"       class="clip bg-glow"        data-start="0"   data-duration="26.48" data-track-index="1"></div>
+  <div id="bg-scanlines"  class="clip bg-scanlines"   data-start="0"   data-duration="26.48" data-track-index="2"></div>
+  <div id="corner-tl"     class="clip corner corner-tl"   data-start="0"   data-duration="26.48" data-track-index="3"></div>
+  <div id="corner-tr"     class="clip corner corner-tr"   data-start="0"   data-duration="26.48" data-track-index="4"></div>
+  <div id="corner-bl"     class="clip corner corner-bl"   data-start="0"   data-duration="26.48" data-track-index="5"></div>
+  <div id="corner-br"     class="clip corner corner-br"   data-start="0"   data-duration="26.48" data-track-index="6"></div>
+
+  <!-- ── Music: track 20 ── -->
+  <audio id="bg-music" class="clip" data-start="0" data-duration="26.48" data-track-index="20" data-volume="0.18" src="assets/music/fluid-ambient.mp3"></audio>
+
+  <!-- ── Voiceover: track 21 ── -->
+  <audio id="vo-01" class="clip" data-start="0.00"  data-duration="4.7625" data-track-index="21" data-volume="1.0" src="assets/audio/scene_01_vo.mp3"></audio>
+  <audio id="vo-02" class="clip" data-start="4.96"  data-duration="3.5125" data-track-index="21" data-volume="1.0" src="assets/audio/scene_02_vo.mp3"></audio>
+  <audio id="vo-03" class="clip" data-start="8.67"  data-duration="5.7125" data-track-index="21" data-volume="1.0" src="assets/audio/scene_03_vo.mp3"></audio>
+  <audio id="vo-04" class="clip" data-start="14.58" data-duration="2.9"    data-track-index="21" data-volume="1.0" src="assets/audio/scene_04_vo.mp3"></audio>
+  <audio id="vo-05" class="clip" data-start="17.68" data-duration="5.6625" data-track-index="21" data-volume="1.0" src="assets/audio/scene_05_vo.mp3"></audio>
+  <audio id="vo-06" class="clip" data-start="23.54" data-duration="2.4375" data-track-index="21" data-volume="1.0" src="assets/audio/scene_06_vo.mp3"></audio>
+
+  <!-- ── Scenes: tracks 10/11 alternating ── -->
+  <div id="scene-01" class="clip" data-composition-id="scene-01" data-composition-src="compositions/scene_01.html" data-start="0.00"  data-duration="5.26"  data-track-index="10" data-width="1080" data-height="1920"></div>
+  <div id="scene-02" class="clip" data-composition-id="scene-02" data-composition-src="compositions/scene_02.html" data-start="4.96"  data-duration="4.01"  data-track-index="11" data-width="1080" data-height="1920"></div>
+  <div id="scene-03" class="clip" data-composition-id="scene-03" data-composition-src="compositions/scene_03.html" data-start="8.67"  data-duration="6.21"  data-track-index="10" data-width="1080" data-height="1920"></div>
+  <div id="scene-04" class="clip" data-composition-id="scene-04" data-composition-src="compositions/scene_04.html" data-start="14.58" data-duration="3.40"  data-track-index="11" data-width="1080" data-height="1920"></div>
+  <div id="scene-05" class="clip" data-composition-id="scene-05" data-composition-src="compositions/scene_05.html" data-start="17.68" data-duration="6.16"  data-track-index="10" data-width="1080" data-height="1920"></div>
+  <div id="scene-06" class="clip" data-composition-id="scene-06" data-composition-src="compositions/scene_06.html" data-start="23.54" data-duration="2.94"  data-track-index="11" data-width="1080" data-height="1920"></div>
+
+</div>
+
+<script>
+  window.__timelines = window.__timelines || {};
+  const tl = gsap.timeline({ paused: true });
+
+  // ── Atmosphere Entrances ──
+  tl.from('#bg-dots',       { opacity: 0, duration: 1.0, ease: 'power2.out' }, 0);
+  tl.from('#bg-glow',       { opacity: 0, duration: 1.4, ease: 'power2.out' }, 0.2);
+  tl.from('#bg-scanlines',  { opacity: 0, duration: 0.8, ease: 'power2.out' }, 0);
+  tl.from('#corner-tl',     { opacity: 0, x: -30, duration: 0.6, ease: 'back.out(2)' }, 0.3);
+  tl.from('#corner-tr',     { opacity: 0, x: 30, duration: 0.6, ease: 'back.out(2)' }, 0.35);
+  tl.from('#corner-bl',     { opacity: 0, y: -30, duration: 0.6, ease: 'back.out(2)' }, 0.4);
+  tl.from('#corner-br',     { opacity: 0, y: -30, duration: 0.6, ease: 'back.out(2)' }, 0.45);
+
+  // ── Crossfades ──
+  // Scene 01 → Scene 02
+  tl.to('#scene-01', { opacity: 0, duration: 0.3, ease: 'power2.inOut' }, 4.96);
+  tl.set('#scene-01', { opacity: 0 }, 5.26);
+
+  // Scene 02 → Scene 03
+  tl.to('#scene-02', { opacity: 0, duration: 0.3, ease: 'power2.inOut' }, 8.67);
+  tl.set('#scene-02', { opacity: 0 }, 8.97);
+
+  // Scene 03 → Scene 04
+  tl.to('#scene-03', { opacity: 0, duration: 0.3, ease: 'power2.inOut' }, 14.58);
+  tl.set('#scene-03', { opacity: 0 }, 14.88);
+
+  // Scene 04 → Scene 05
+  tl.to('#scene-04', { opacity: 0, duration: 0.3, ease: 'power2.inOut' }, 17.68);
+  tl.set('#scene-04', { opacity: 0 }, 17.98);
+
+  // Scene 05 → Scene 06
+  tl.to('#scene-05', { opacity: 0, duration: 0.3, ease: 'power2.inOut' }, 23.54);
+  tl.set('#scene-05', { opacity: 0 }, 23.84);
+
+  window.__timelines['main'] = tl;
+</script>
+
+</body>
+</html>

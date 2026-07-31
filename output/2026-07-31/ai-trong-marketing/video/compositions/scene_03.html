@@ -1,0 +1,137 @@
+<template id="scene-03-template">
+  <div id="scene-03" data-composition-id="scene-03" data-width="1920" data-height="1080" data-duration="6.21">
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Exo+2:wght@700..900&family=Inter:wght@500&display=swap');
+      
+      #scene-03 {
+        position: relative;
+        overflow: hidden;
+        background-color: #060810;
+        font-family: 'Inter', sans-serif;
+      }
+
+      /* Atmosphere Layers */
+      .s3-bg {
+        position: absolute; inset: 0; z-index: 0;
+        background-image: radial-gradient(circle, #39FF14 1.5px, transparent 1.5px);
+        background-size: 48px 48px;
+        opacity: 0.28;
+      }
+      
+      .s3-glow {
+        position: absolute; inset: 0; z-index: 1;
+        background: radial-gradient(circle at 50% 50%, rgba(57, 255, 20, 0.18) 0%, transparent 50%);
+      }
+
+      .s3-scanlines {
+        position: absolute; inset: 0; z-index: 2;
+        background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.5) 2px, rgba(0,0,0,0.5) 4px);
+        pointer-events: none;
+      }
+
+      .s3-corner {
+        position: absolute; z-index: 3;
+        width: 56px; height: 56px; opacity: 0.5;
+      }
+      .s3-corner::before, .s3-corner::after {
+        content: ""; position: absolute; border: 3px solid rgba(255, 255, 255, 0.5);
+      }
+      .s3-corner--tl { top: 32px; left: 32px; }
+      .s3-corner--tl::before { top: 0; left: 0; width: 100%; height: 3px; }
+      .s3-corner--tl::after { top: 0; left: 0; width: 3px; height: 100%; }
+      
+      .s3-corner--tr { top: 32px; right: 32px; }
+      .s3-corner--tr::before { top: 0; right: 0; width: 100%; height: 3px; }
+      .s3-corner--tr::after { top: 0; right: 0; width: 3px; height: 100%; }
+
+      .s3-corner--bl { bottom: 32px; left: 32px; }
+      .s3-corner--bl::before { bottom: 0; left: 0; width: 100%; height: 3px; }
+      .s3-corner--bl::after { bottom: 0; left: 0; width: 3px; height: 100%; }
+
+      .s3-corner--br { bottom: 32px; right: 32px; }
+      .s3-corner--br::before { bottom: 0; right: 0; width: 100%; height: 3px; }
+      .s3-corner--br::after { bottom: 0; right: 0; width: 3px; height: 100%; }
+
+      /* Content Layout */
+      .s3-content {
+        position: relative; z-index: 10;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        width: 100%; height: 100%; padding: 120px 160px; gap: 40px;
+        box-sizing: border-box;
+      }
+
+      .s3-wrap {
+        display: flex; justify-content: center; align-items: center;
+      }
+
+      .s3-headline {
+        font-family: 'Exo 2', sans-serif;
+        font-optical-sizing: auto;
+        font-weight: 900;
+        font-size: 120px;
+        line-height: 1;
+        letter-spacing: -2px;
+        color: #39FF14;
+        filter: drop-shadow(0 0 30px rgba(57, 255, 20, 0.8));
+        text-align: center;
+      }
+
+      .s3-subhead {
+        font-family: 'Inter', sans-serif;
+        font-weight: 500;
+        font-size: 36px;
+        line-height: 1.4;
+        color: rgba(255, 255, 255, 0.9);
+        text-align: center;
+        max-width: 900px;
+      }
+    </style>
+
+    <!-- Atmosphere -->
+    <div class="s3-bg"></div>
+    <div class="s3-glow"></div>
+    <div class="s3-scanlines"></div>
+    
+    <div class="s3-corner s3-corner--tl"></div>
+    <div class="s3-corner s3-corner--tr"></div>
+    <div class="s3-corner s3-corner--bl"></div>
+    <div class="s3-corner s3-corner--br"></div>
+
+    <!-- Main Content -->
+    <div class="s3-content">
+      <div class="s3-wrap">
+        <h1 class="s3-headline clip">CLAUDE AI</h1>
+      </div>
+      <p class="s3-subhead clip">công cụ miễn phí, không cần code, không cần đăng ký thêm</p>
+    </div>
+
+    <!-- GSAP Timeline -->
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+
+      // Cinematic entrances: slow fade + slight y drift
+      tl.from(".s3-headline", { opacity: 0, y: 35, duration: 0.9, ease: "power3.out" }, 0.3);
+      tl.from(".s3-subhead", { opacity: 0, y: 25, duration: 0.8, ease: "power2.out" }, 0.65);
+
+      // Focal moment: system boot glow pulse at 2.0s
+      tl.to(".s3-headline", { 
+        filter: "drop-shadow(0 0 70px rgba(57, 255, 20, 1)) scale(1.02)", 
+        duration: 0.35, 
+        ease: "power2.inOut", 
+        yoyo: true, 
+        repeat: 1 
+      }, 2.0);
+
+      // Ambient continuous float (starts after entrance settles)
+      tl.fromTo(".s3-wrap", 
+        { y: -5 }, 
+        { y: 5, duration: 3.0, ease: "sine.inOut", yoyo: true, repeat: Math.ceil((6.21 - 2.5) / 3.0) }, 
+        2.5
+      );
+
+      window.__timelines["scene-03"] = tl;
+    </script>
+  </div>
+</template>
