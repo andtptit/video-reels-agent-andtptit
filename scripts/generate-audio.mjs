@@ -16,10 +16,23 @@
  */
 import { writeFileSync, mkdirSync, existsSync, readFileSync, copyFileSync } from "fs";
 import { join, resolve } from "path";
+import * as elevenlabs from "../server/providers/tts/elevenlabs.mjs";
+import * as edgeTts from "../server/providers/tts/edge-tts.mjs";
 
 const ROOT = join(import.meta.dirname, "..");
-const API_KEY = process.env.ELEVENLABS_API_KEY;
-if (!API_KEY) { console.error("Missing ELEVENLABS_API_KEY in .env"); process.exit(1); }
+
+// TTS_PROVIDER=elevenlabs (default, cần ELEVENLABS_API_KEY) | edge-tts (free, no key)
+const TTS_PROVIDERS = { elevenlabs, "edge-tts": edgeTts };
+const providerId = process.env.TTS_PROVIDER || "elevenlabs";
+const ttsProvider = TTS_PROVIDERS[providerId];
+if (!ttsProvider) {
+  console.error(`Unknown TTS_PROVIDER "${providerId}". Valid: ${Object.keys(TTS_PROVIDERS).join(", ")}`);
+  process.exit(1);
+}
+if (providerId === "elevenlabs" && !process.env.ELEVENLABS_API_KEY) {
+  console.error("Missing ELEVENLABS_API_KEY in .env (or set TTS_PROVIDER=edge-tts to use the free provider)");
+  process.exit(1);
+}
 
 const [projectPath] = process.argv.slice(2);
 if (!projectPath) {
@@ -47,30 +60,9 @@ const plans = { ...raw, scenes: raw.scenes ?? raw.plans ?? [] };
 const audioDir = join(projectAbs, "assets", "audio");
 mkdirSync(audioDir, { recursive: true });
 
-// eleven_turbo_v2_5 — hỗ trợ tiếng Việt, nhanh hơn multilingual
-const VOICE_ID = process.env.ELEVENLABS_VOICE_ID || "3VnrjnYrskPMDsapTr8X";
-const MODEL_ID = "eleven_turbo_v2_5";
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
-
-function extractWordTimestamps(chars, times) {
-  const words = [];
-  let word = "", start = null;
-  for (let i = 0; i <= chars.length; i++) {
-    const ch = i < chars.length ? chars[i] : " ";
-    if (/[\s,.!?;:]/.test(ch)) {
-      if (word) {
-        words.push({ word, start, end: times[i - 1] ?? times[times.length - 1] });
-        word = ""; start = null;
-      }
-    } else {
-      if (start === null) start = times[i];
-      word += ch;
-    }
-  }
-  return words;
-}
 
 function findWordTime(wordTimestamps, target) {
   const norm = (s) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
@@ -115,33 +107,20 @@ async function generateVoiceover(scene) {
     return existsSync(timingFile) ? JSON.parse(readFileSync(timingFile, "utf-8")) : null;
   }
 
-  process.stdout.write(`  tts   ${scene.sceneId} "${scene.narration.slice(0, 45)}..." `);
+  process.stdout.write(`  tts[${providerId}]   ${scene.sceneId} "${scene.narration.slice(0, 45)}..." `);
 
-  const res = await fetch(
-    `https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}/with-timestamps`,
-    {
-      method: "POST",
-      headers: { "xi-api-key": API_KEY, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        text: scene.narration,
-        model_id: MODEL_ID,
-        voice_settings: { stability: 0.5, similarity_boost: 0.75 },
-      }),
-    }
-  );
+  let result;
+  try {
+    result = await ttsProvider.synthesize({ text: scene.narration, destPath: dest });
+  } catch (err) {
+    console.error(`FAILED: ${err.message}`);
+    return null;
+  }
 
-  if (!res.ok) { console.error(`FAILED (${res.status}): ${await res.text()}`); return null; }
-
-  const data = await res.json();
-  const audioBuf = Buffer.from(data.audio_base64, "base64");
-  writeFileSync(dest, audioBuf);
-
-  const { characters, character_start_times_seconds } = data.alignment;
-  const wordTimestamps = extractWordTimestamps(characters, character_start_times_seconds);
+  const { wordTimestamps, voDuration, audioBytes } = result;
   writeFileSync(join(audioDir, `${scene.sceneId}_timing.json`), JSON.stringify(wordTimestamps, null, 2));
 
-  const voDuration = character_start_times_seconds.at(-1) ?? 0;
-  console.log(`ok (~${voDuration.toFixed(2)}s, ${(audioBuf.length / 1024).toFixed(0)} KB)`);
+  console.log(`ok (~${voDuration.toFixed(2)}s, ${(audioBytes / 1024).toFixed(0)} KB)`);
   return { wordTimestamps, voDuration };
 }
 
@@ -160,7 +139,7 @@ function selectMusic(plans) {
 // ─── Main ────────────────────────────────────────────────────────────────────
 
 console.log(`\nAudio generation → ${projectPath}/\n`);
-console.log(`  model  ${MODEL_ID}\n  voice  ${VOICE_ID}\n`);
+console.log(`  provider  ${providerId}\n`);
 
 const output = { ...raw, scenes: [] };
 let cursor = 0;

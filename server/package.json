@@ -1,0 +1,8 @@
+{
+  "name": "video-reels-agent-server",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "msedge-tts": "^2.0.7"
+  }
+}
