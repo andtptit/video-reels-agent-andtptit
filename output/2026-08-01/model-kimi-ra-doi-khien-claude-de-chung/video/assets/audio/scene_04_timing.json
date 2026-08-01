@@ -1,0 +1,97 @@
+[
+  {
+    "word": "xử",
+    "start": 0.125,
+    "end": 0.325
+  },
+  {
+    "word": "lý",
+    "start": 0.325,
+    "end": 0.575
+  },
+  {
+    "word": "200k",
+    "start": 0.575,
+    "end": 1.1625
+  },
+  {
+    "word": "token",
+    "start": 1.1625,
+    "end": 1.6
+  },
+  {
+    "word": "trong",
+    "start": 1.6,
+    "end": 1.775
+  },
+  {
+    "word": "nháy",
+    "start": 1.775,
+    "end": 1.95
+  },
+  {
+    "word": "mắt",
+    "start": 1.95,
+    "end": 2.175
+  },
+  {
+    "word": "hiểu",
+    "start": 2.4125,
+    "end": 2.6125
+  },
+  {
+    "word": "tiếng",
+    "start": 2.6125,
+    "end": 2.825
+  },
+  {
+    "word": "Việt",
+    "start": 2.825,
+    "end": 3.0625
+  },
+  {
+    "word": "như",
+    "start": 3.0625,
+    "end": 3.2125
+  },
+  {
+    "word": "người",
+    "start": 3.2125,
+    "end": 3.4
+  },
+  {
+    "word": "bản",
+    "start": 3.4,
+    "end": 3.5875
+  },
+  {
+    "word": "xứ",
+    "start": 3.5875,
+    "end": 3.975
+  },
+  {
+    "word": "và",
+    "start": 4.15,
+    "end": 4.375
+  },
+  {
+    "word": "quan",
+    "start": 4.375,
+    "end": 4.625
+  },
+  {
+    "word": "trọng",
+    "start": 4.625,
+    "end": 4.95
+  },
+  {
+    "word": "miễn",
+    "start": 5.1125,
+    "end": 5.325
+  },
+  {
+    "word": "phí",
+    "start": 5.325,
+    "end": 5.7
+  }
+]

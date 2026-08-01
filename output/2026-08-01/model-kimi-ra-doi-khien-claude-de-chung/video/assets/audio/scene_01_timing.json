@@ -1,0 +1,77 @@
+[
+  {
+    "word": "KIMI",
+    "start": 0.1375,
+    "end": 0.7875
+  },
+  {
+    "word": "vừa",
+    "start": 0.7875,
+    "end": 1.0375
+  },
+  {
+    "word": "ra",
+    "start": 1.0375,
+    "end": 1.2125
+  },
+  {
+    "word": "mắt",
+    "start": 1.2125,
+    "end": 1.45
+  },
+  {
+    "word": "và",
+    "start": 1.45,
+    "end": 1.725
+  },
+  {
+    "word": "Claude",
+    "start": 1.725,
+    "end": 2.125
+  },
+  {
+    "word": "đang",
+    "start": 2.125,
+    "end": 2.3125
+  },
+  {
+    "word": "lo",
+    "start": 2.3125,
+    "end": 2.4875
+  },
+  {
+    "word": "lắng",
+    "start": 2.4875,
+    "end": 2.8125
+  },
+  {
+    "word": "và",
+    "start": 3.025,
+    "end": 3.2
+  },
+  {
+    "word": "có",
+    "start": 3.2,
+    "end": 3.375
+  },
+  {
+    "word": "lý",
+    "start": 3.375,
+    "end": 3.6
+  },
+  {
+    "word": "do",
+    "start": 3.6,
+    "end": 3.8375
+  },
+  {
+    "word": "chính",
+    "start": 3.8375,
+    "end": 4.05
+  },
+  {
+    "word": "đáng",
+    "start": 4.05,
+    "end": 4.35
+  }
+]

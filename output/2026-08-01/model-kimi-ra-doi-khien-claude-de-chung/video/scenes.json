@@ -1,0 +1,47 @@
+{
+  "master_content": "master_content.md",
+  "platform": "9:16",
+  "total_estimated_duration": 30,
+  "scenes": [
+    {
+      "sceneId": "scene_01",
+      "narration": "KIMI vừa ra mắt và Claude đang lo lắng — và có lý do chính đáng.",
+      "meaning": "Giới thiệu KIMI như mối đe dọa thực sự cho Claude.",
+      "estimated_duration": 4,
+      "mood_hint": "explosive",
+      "is_hook": true
+    },
+    {
+      "sceneId": "scene_02",
+      "narration": "Bạn có thấy mỗi tháng lại có thêm 5 model AI mới, nhưng chẳng cái nào thực sự thông minh hơn?",
+      "meaning": "Chỉ ra vấn đề của thị trường AI hiện tại.",
+      "estimated_duration": 5,
+      "mood_hint": "cinematic",
+      "is_hook": false
+    },
+    {
+      "sceneId": "scene_03",
+      "narration": "Chúng chỉ nói nhiều hơn, chậm hơn, tốn tiền hơn. KIMI khác biệt:",
+      "meaning": "Chuyển hướng sang giải pháp KIMI.",
+      "estimated_duration": 6,
+      "mood_hint": "snappy",
+      "is_hook": false
+    },
+    {
+      "sceneId": "scene_04",
+      "narration": "xử lý 200k token trong nháy mắt, hiểu tiếng Việt như người bản xứ, và quan trọng — miễn phí.",
+      "meaning": "Liệt kê ưu điểm vượt trội của KIMI.",
+      "estimated_duration": 7,
+      "mood_hint": "technical",
+      "is_hook": false
+    },
+    {
+      "sceneId": "scene_05",
+      "narration": "Không cần chờ đợi, không cần upgrade. 3 ngày đầu tiên, 2 triệu người đã thử. Link tải ngay trong bio, đừng bỏ lỡ.",
+      "meaning": "Chứng minh sức hút và kêu gọi hành động.",
+      "estimated_duration": 8,
+      "mood_hint": "snappy",
+      "is_hook": false
+    }
+  ]
+}

@@ -1,0 +1,116 @@
+{
+  "design": "DESIGN.md",
+  "format": "9:16",
+  "total_duration": 32.22,
+  "scenes": [
+    {
+      "sceneId": "scene_01",
+      "duration": 4.85,
+      "content_shape": "spotlight",
+      "mood": "explosive",
+      "transition": { "type": "flash-white", "duration": 0.3 },
+      "sfx_picks": [
+        { "id": "drum-hit", "at": 0.0, "volume": 0.7 }
+      ],
+      "elements": [
+        { "id": "title_kimi",     "text": "KIMI",             "role": "hero title — neon green 140px, glow mạnh, center" },
+        { "id": "subtitle_hook",  "text": "vừa ra mắt.",      "role": "subtitle — white 36px, under KIMI" },
+        { "id": "claude_alert",   "text": "Claude đang lo.",   "role": "secondary — rgba(255,255,255,0.55) 28px, xuất hiện sau" },
+        { "id": "divider",        "text": "",                  "role": "line neon green 2px, sweep ngang giữa KIMI và Claude" },
+        { "id": "reason",         "text": "Và có lý do.",      "role": "caption — white 24px, xuất hiện cuối" }
+      ],
+      "visual_brief": "CONTENT SHAPE: spotlight — KIMI được đặt vào trung tâm spotlight, xung quanh context mờ. Viewer nhìn thấy KIMI là focal point duy nhất.\n\nHERO FRAME: 'KIMI' neon green 140px chiếm center canvas, glow mạnh. Bên dưới divider sweep ngang, 'Claude đang lo.' mờ hơn ở phía dưới. Radial glow tập trung vào chữ KIMI.\n\nENTRANCE: drum-hit tại 0.0s → 'KIMI' slam từ scale 0 với elastic overshoot. Divider sweep ngang tại 0.5s. 'Claude đang lo.' drift up từ dưới tại 1.0s. 'Và có lý do.' snap in tại 2.0s.\n\nFOCAL MOMENT: Tại 0.0s — 'KIMI' impact slam + neon glow burst — đây là khoảnh khắc mở video, viewer phải dừng ngay.\n\nVIEWER EMOTION: 'KIMI là gì mà Claude phải lo? Mình cần biết ngay.'\n\nVO SYNC: 'KIMI' xuất hiện ngay khi VO nói 'KIMI' (0.14s). 'Claude đang lo' xuất hiện khi VO nói 'Claude' (1.73s). 'Và có lý do' xuất hiện khi VO nói 'chính đáng' (4.05s).",
+      "subtitle": true
+    },
+    {
+      "sceneId": "scene_02",
+      "duration": 5.71,
+      "content_shape": "counter",
+      "mood": "cinematic",
+      "transition": { "type": "fade-through-black", "duration": 0.3 },
+      "sfx_picks": [
+        { "id": "click", "at": 0.8, "volume": 0.4 },
+        { "id": "click", "at": 1.4, "volume": 0.4 },
+        { "id": "click", "at": 2.0, "volume": 0.5 }
+      ],
+      "elements": [
+        { "id": "counter_num",   "text": "5",                 "role": "big counter — neon green 130px, đếm lên từ 0" },
+        { "id": "counter_label", "text": "model AI mới/tháng", "role": "label — white 32px, bên phải số" },
+        { "id": "reality_text",  "text": "Nhưng chẳng cái nào\nthông minh hơn.", "role": "reality check — rgba(255,255,255,0.55) 26px, xuất hiện sau counter" },
+        { "id": "question_mark", "text": "?",                  "role": "punctuation — neon green 60px, pulse nhẹ" }
+      ],
+      "visual_brief": "CONTENT SHAPE: counter — số 5 đếm lên từ 0→5 tạo cảm giác realtime, như mỗi click là một model mới ra mắt.\n\nHERO FRAME: '5' neon green 130px chiếm center, bên phải 'model AI mới/tháng' trắng. Phía dưới 'Nhưng chẳng cái nào thông minh hơn.' mờ hơn, tạo contrast giữa số lượng và chất lượng.\n\nENTRANCE: Số đếm từ 0→5 trong 1.2s, mỗi click SFX = +1. Tại 1.5s: 'model AI mới/tháng' drift up từ dưới. Pause 0.5s. Tại 2.5s: 'Nhưng chẳng cái nào...' reveal từ opacity 0→1, slow. Dấu '?' pulse tại 4.5s.\n\nFOCAL MOMENT: Tại 2.5s — text 'chẳng cái nào thông minh hơn' xuất hiện với slow fade-in, tạo khoảnh khắc 'aha' cho viewer — số lượng không có nghĩa gì.\n\nVIEWER EMOTION: '5 model mỗi tháng mà chẳng cái nào giỏi hơn? Vậy thì sao phải quan tâm số lượng.'\n\nVO SYNC: Counter bắt đầu khi VO nói '5' (1.75s relative → 0.9s scene local). 'chẳng cái nào thông minh hơn' xuất hiện đồng thời VO (3.56s relative → ~2.2s scene local).",
+      "subtitle": true
+    },
+    {
+      "sceneId": "scene_03",
+      "duration": 5.9,
+      "content_shape": "two-column",
+      "mood": "snappy",
+      "transition": { "type": "slide-left", "duration": 0.3 },
+      "sfx_picks": [
+        { "id": "click", "at": 0.4, "volume": 0.4 },
+        { "id": "click", "at": 1.0, "volume": 0.4 },
+        { "id": "click", "at": 1.6, "volume": 0.4 },
+        { "id": "whoosh", "at": 3.8, "volume": 0.5 }
+      ],
+      "elements": [
+        { "id": "header_them",   "text": "CHÚNG",            "role": "left column header — rgba(255,255,255,0.55) 28px, muted" },
+        { "id": "them_1",        "text": "nói nhiều hơn",     "role": "left item — white 26px, strike-through effect" },
+        { "id": "them_2",        "text": "chậm hơn",          "role": "left item — white 26px, strike-through effect" },
+        { "id": "them_3",        "text": "tốn tiền hơn",      "role": "left item — white 26px, strike-through effect" },
+        { "id": "divider_v",     "text": "",                  "role": "vertical neon green line 2px, center" },
+        { "id": "header_kimi",   "text": "KIMI",             "role": "right column header — neon green 36px, glow" },
+        { "id": "kimi_badge",    "text": "khác biệt",         "role": "right item — white 28px, xuất hiện sau whoosh" },
+        { "id": "arrow_right",   "text": "→",                "role": "arrow neon green, xuất hiện cùng whoosh" }
+      ],
+      "visual_brief": "CONTENT SHAPE: two-column — bên trái là những model khác (tệ), bên phải là KIMI (tốt). Divider dọc chia đôi màn hình, tạo contrast trực quan.\n\nHERO FRAME: Trái: 'CHÚNG' muted + 3 nhược điểm có strike-through. Phải: 'KIMI' neon green glow + 'khác biệt'. Divider neon xanh giữa. Viewer thấy ngay sự đối lập.\n\nENTRANCE: 'CHÚNG' snap in trái tại 0.2s. 3 nhược điểm cascade từ trên xuống (0.4s, 1.0s, 1.6s) — mỗi cái kèm click SFX và strike-through draw-on. Pause 0.5s. Tại 3.8s: whoosh → divider sweep xuống center → 'KIMI' bloom phải + 'khác biệt' snap in.\n\nFOCAL MOMENT: Tại 3.9s (whoosh SFX) — divider xuất hiện + 'KIMI' bloom với glow burst. Đây là pivot của video — từ tiêu cực sang tích cực.\n\nVIEWER EMOTION: 'À — những model kia tệ hết, nhưng KIMI thì khác. Đây là lý do mình nên quan tâm.'\n\nVO SYNC: 'nói nhiều hơn' → them_1 snap in (0.48s). 'chậm hơn' → them_2 snap in (1.58s). 'tốn tiền hơn' → them_3 snap in (2.59s). 'KIMI khác biệt' → KIMI bloom + whoosh (4.04s).",
+      "subtitle": true
+    },
+    {
+      "sceneId": "scene_04",
+      "duration": 6.2,
+      "content_shape": "checklist",
+      "mood": "technical",
+      "transition": { "type": "slide-left", "duration": 0.3 },
+      "sfx_picks": [
+        { "id": "click", "at": 0.5, "volume": 0.5 },
+        { "id": "click", "at": 2.4, "volume": 0.5 },
+        { "id": "ding",  "at": 4.8, "volume": 0.6 }
+      ],
+      "elements": [
+        { "id": "feat_1",       "text": "200K token\ntrong nháy mắt",  "role": "feature 1 — card rgba(57,255,20,0.12) border neon green, icon ⚡" },
+        { "id": "feat_2",       "text": "Hiểu tiếng Việt\nnhư người bản xứ", "role": "feature 2 — card rgba(57,255,20,0.12) border neon green, icon 🇻🇳" },
+        { "id": "feat_3",       "text": "MIỄN PHÍ",              "role": "feature 3 — card neon green fill #39FF14, text #060810 40px bold, icon ✓" },
+        { "id": "check_1",      "text": "✓",                   "role": "check mark neon green, xuất hiện sau feat_1" },
+        { "id": "check_2",      "text": "✓",                   "role": "check mark neon green, xuất hiện sau feat_2" },
+        { "id": "check_3",      "text": "✓",                   "role": "check mark white, xuất hiện sau feat_3" }
+      ],
+      "visual_brief": "CONTENT SHAPE: checklist — 3 tính năng xuất hiện lần lượt, mỗi tính năng được tick off như một checklist. Viewer thấy KIMI vượt trội qua 3 điểm cụ thể.\n\nHERO FRAME: 3 cards xếp dọc, căn giữa canvas. Card 1: '200K token trong nháy mắt' + icon ⚡. Card 2: 'Hiểu tiếng Việt như người bản xứ' + icon. Card 3: 'MIỄN PHÍ' — card đặc biệt, fill neon green, text đen, to hơn. Mỗi card có dấu ✓ neon bên phải.\n\nENTRANCE: Card 1 slide in từ trái tại 0.4s → check_1 appear tại 1.2s (click SFX). Card 2 slide in từ trái tại 2.3s → check_2 appear tại 3.2s (click SFX). Card 3 slam in tại 4.8s (ding SFX) — impact mạnh hơn 2 card kia vì đây là killer feature. check_3 xuất hiện ngay.\n\nFOCAL MOMENT: Tại 4.9s (ding SFX) — 'MIỄN PHÍ' card slam in với scale overshoot + green flash toàn cảnh. Đây là payoff — tất cả tính năng tốt và FREE.\n\nVIEWER EMOTION: '200K token, tiếng Việt, và miễn phí — cái này đáng thử ngay.'\n\nVO SYNC: '200k token' → feat_1 xuất hiện (0.58s). 'tiếng Việt như người bản xứ' → feat_2 xuất hiện (2.62s). 'miễn phí' → feat_3 slam in + ding (5.11s).",
+      "subtitle": true
+    },
+    {
+      "sceneId": "scene_05",
+      "duration": 9.56,
+      "content_shape": "cta",
+      "mood": "snappy",
+      "transition": { "type": "flash-white", "duration": 0.3 },
+      "sfx_picks": [
+        { "id": "click",   "at": 3.2, "volume": 0.5 },
+        { "id": "impact",  "at": 4.4, "volume": 0.6 },
+        { "id": "chime",   "at": 6.5, "volume": 0.5 }
+      ],
+      "elements": [
+        { "id": "no_wait",     "text": "Không chờ đợi.\nKhông upgrade.", "role": "top caption — white 26px, rgba(255,255,255,0.65)" },
+        { "id": "social_num",  "text": "2M",              "role": "big number — neon green 110px, glow" },
+        { "id": "social_label","text": "người thử trong 3 ngày", "role": "label — white 28px, dưới số" },
+        { "id": "cta_badge",   "text": "TẢI NGAY →",     "role": "CTA badge — neon green fill, #060810 text 36px bold, rounded 16px, pulse glow" },
+        { "id": "cta_sub",     "text": "Link trong bio", "role": "caption — rgba(255,255,255,0.55) 22px, dưới badge" },
+        { "id": "urgency",     "text": "Đừng bỏ lỡ.",    "role": "urgency — white 24px italic, xuất hiện cuối" },
+        { "id": "halo_glow",   "text": "",               "role": "radial glow phía sau CTA badge, ambient pulse" }
+      ],
+      "visual_brief": "CONTENT SHAPE: cta — scene kết thúc với CTA badge nổi bật, social proof (2M người) tạo urgency, và lời kêu gọi rõ ràng.\n\nHERO FRAME: Trên cùng: 'Không chờ đợi. Không upgrade.' muted. Center: '2M' neon green 110px glow + 'người thử trong 3 ngày'. Dưới: CTA badge 'TẢI NGAY →' neon green fill, text đen, halo glow pulse. Cuối: 'Link trong bio' + 'Đừng bỏ lỡ.' italic.\n\nENTRANCE: 'Không chờ đợi. Không upgrade.' drift down từ trên tại 0.3s. '2M' impact từ scale 0 tại 3.2s (click SFX) — đếm nhanh 0→2M trong 0.5s. 'người thử trong 3 ngày' sweep up tại 4.2s. Tại 4.5s (impact SFX): CTA badge slam in + halo glow burst. 'Link trong bio' drift up tại 6.0s. 'Đừng bỏ lỡ.' fade in tại 8.0s (chime SFX).\n\nFOCAL MOMENT: Tại 4.5s (impact SFX) — CTA badge 'TẢI NGAY →' slam in với scale overshoot + halo glow burst. Toàn bộ screen có brief green flash. Đây là peak — viewer phải hành động.\n\nVIEWER EMOTION: '2 triệu người thử trong 3 ngày — mình không thể bỏ lỡ. Link trong bio, tải ngay.'\n\nVO SYNC: 'Không cần chờ đợi' → no_wait xuất hiện (0.13s). '2 triệu' → 2M impact (4.45s relative → 3.2s scene local). 'Link tải ngay trong bio' → CTA badge + link text (6.61s relative → ~5.3s scene local). 'đừng bỏ lỡ' → urgency italic (8.19s relative → ~6.9s scene local).",
+      "subtitle": true
+    }
+  ]
+}

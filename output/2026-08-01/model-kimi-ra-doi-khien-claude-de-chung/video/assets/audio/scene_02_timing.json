@@ -1,0 +1,107 @@
+[
+  {
+    "word": "Bạn",
+    "start": 0.1375,
+    "end": 0.3375
+  },
+  {
+    "word": "có",
+    "start": 0.3375,
+    "end": 0.4625
+  },
+  {
+    "word": "thấy",
+    "start": 0.4625,
+    "end": 0.7
+  },
+  {
+    "word": "mỗi",
+    "start": 0.7,
+    "end": 0.9125
+  },
+  {
+    "word": "tháng",
+    "start": 0.9125,
+    "end": 1.1125
+  },
+  {
+    "word": "lại",
+    "start": 1.1125,
+    "end": 1.3625
+  },
+  {
+    "word": "có",
+    "start": 1.3625,
+    "end": 1.5375
+  },
+  {
+    "word": "thêm",
+    "start": 1.5375,
+    "end": 1.75
+  },
+  {
+    "word": "5",
+    "start": 1.75,
+    "end": 1.95
+  },
+  {
+    "word": "model",
+    "start": 1.95,
+    "end": 2.4
+  },
+  {
+    "word": "AI",
+    "start": 2.4,
+    "end": 2.7
+  },
+  {
+    "word": "mới",
+    "start": 2.7,
+    "end": 3.0875
+  },
+  {
+    "word": "nhưng",
+    "start": 3.3,
+    "end": 3.5625
+  },
+  {
+    "word": "chẳng",
+    "start": 3.5625,
+    "end": 3.75
+  },
+  {
+    "word": "cái",
+    "start": 3.75,
+    "end": 3.9
+  },
+  {
+    "word": "nào",
+    "start": 3.9,
+    "end": 4.125
+  },
+  {
+    "word": "thực",
+    "start": 4.125,
+    "end": 4.2875
+  },
+  {
+    "word": "sự",
+    "start": 4.2875,
+    "end": 4.55
+  },
+  {
+    "word": "thông",
+    "start": 4.55,
+    "end": 4.7375
+  },
+  {
+    "word": "minh",
+    "start": 4.7375,
+    "end": 4.9375
+  },
+  {
+    "word": "hơn",
+    "start": 4.9375,
+    "end": 5.2125
+  }
+]
