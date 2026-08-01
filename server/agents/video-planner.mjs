@@ -63,7 +63,12 @@ DESIGN.md và scenes-with-timing.json đã được nhúng đầy đủ trong us
 
   const userPrompt = `DESIGN.md:\n${design}\n\n---\n\nscenes-with-timing.json:\n${scenesWithTiming}`;
 
-  const result = await runAgent({ systemPrompt, userPrompt, tools, model, maxTurns, onEvent });
+  // Heaviest single-call task in the pipeline (detailed visual_brief + elements +
+  // sfx_picks per scene, often 8+ scenes) — confirmed live that the DashScope global
+  // default (was 90s) wasn't enough: 3 separate real runs each burned the full 90s ×
+  // 3 retries and still got AbortError, so the model was still generating, not stuck.
+  // Give this one extra headroom beyond the (now-raised) global default.
+  const result = await runAgent({ systemPrompt, userPrompt, tools, model, maxTurns, onEvent, timeoutMs: 240_000 });
 
   const outFile = join(projectDir, "video-plan.json");
   if (existsSync(outFile)) {

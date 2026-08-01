@@ -56,6 +56,7 @@ export async function runAgent({
   onEvent = () => {},
   priorMessages = null,
   stopAfterWrites = null,
+  timeoutMs,
 }) {
   const messages = priorMessages
     ? [...priorMessages, { role: "user", content: userPrompt }]
@@ -75,7 +76,7 @@ export async function runAgent({
   let successfulWrites = 0;
 
   for (let turn = 0; turn < maxTurns; turn++) {
-    const response = await chatCompletion({ model, messages, tools: tools.definitions });
+    const response = await chatCompletion({ model, messages, tools: tools.definitions, ...(timeoutMs ? { timeoutMs } : {}) });
     usage.apiCalls += 1;
     if (response.usage) {
       usage.promptTokens += response.usage.prompt_tokens ?? 0;

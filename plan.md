@@ -1061,3 +1061,40 @@ vì chỉ sửa theo suy đoán.
   tốn token nhiều nhất (N scene × 1 lần gọi agent riêng) nên là chỗ cần hiện nhất.
 - `Pipeline.jsx` — thêm "Tổng số lần gọi API" cạnh "Tổng token đã dùng" ở đầu trang.
 - Đã build `web/` (`npx vite build`) xác nhận không lỗi JSX sau khi sửa.
+
+---
+
+## Đã sửa — video-planner timeout: DashScope bị abort sau đúng 90s × 3 lần (phiên 2026-08-01)
+
+User báo lỗi thật qua UI khi dùng style "animation thuần" (không phải ai-image):
+`DashScope chat completion failed after 3 attempt(s): This operation was aborted`, xảy
+ra ở bước 3 (Video plan). `job-status.json` của project
+`output/2026-08-01/con-nguoi-ngay-cang-le-thuoc-nhieu-vao-ai/video` cho thấy user đã
+retry 3 lần, mỗi lần đúng ~4m33s trước khi báo lỗi.
+
+### Root cause
+
+`4m33s ≈ 90s + 90s + 90s + 1s + 2s` (2 backoff giữa 3 attempt) — khớp chính xác với
+`chatCompletion()` cũ (`server/providers/llm/dashscope.mjs`) dùng `timeoutMs = 90_000,
+retries = 2` mặc định. Cả 3 attempt đều bị `AbortController` tự hủy đúng ở mốc 90s,
+KHÔNG phải lỗi network tức thời (ECONNRESET/transient) — nghĩa là DashScope vẫn đang
+generate, chỉ là chưa xong trong 90s. `video-plan.json` là task nặng nhất pipeline:
+model `qwen3.6-plus` (reasoning) phải viết `visual_brief` chi tiết + `elements` +
+`sfx_picks` cho 8 scene trong 1 lần gọi — nặng hơn hẳn `content-planner` (chỉ 2 file
+ngắn, xong trong 35s cùng project này).
+
+### Fix
+
+- `dashscope.mjs`: bump `timeoutMs` mặc định 90_000 → 180_000.
+- `run-agent.mjs`: thêm param `timeoutMs` optional, forward xuống `chatCompletion`.
+- `video-planner.mjs`: set riêng `timeoutMs: 240_000` (dư hẳn so với global default) vì
+  đây là task nặng nhất, chỉ chạy 1 lần/video nên timeout dài hơn không tốn thêm chi
+  phí, chỉ tốn thời gian chờ khi thật sự cần.
+
+### Verify thật — không chỉ sửa code rồi đoán
+
+Chạy lại ĐÚNG project + ĐÚNG lệnh đã fail (`node --env-file=.env
+server/agents/test-video-planner.mjs <projectDir> animation`, model thật
+`qwen3.6-plus`, không mock) — thành công ngay ở turn đầu, `video-plan.json` sinh ra 8
+scene, `format: "9:16"` khớp project. Request y hệt trước đây bị abort 3 lần liên tiếp
+ở 90s giờ hoàn tất gọn trong 1 attempt với timeout mới.

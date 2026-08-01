@@ -31,7 +31,7 @@ export async function chatCompletion({
   messages,
   tools,
   apiKey = process.env.DASHSCOPE_API_KEY,
-  timeoutMs = 90_000,
+  timeoutMs = 180_000,
   retries = 2,
 }) {
   if (!apiKey) throw new Error("Missing DASHSCOPE_API_KEY");
