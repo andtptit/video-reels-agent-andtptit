@@ -1235,3 +1235,35 @@ provider có sẵn từ Phase 4).
 - Ghép từ chưa có dấu câu (word_timestamps không có token dấu câu riêng) — phụ đề hiện
   đọc liền mạch không chấm/phẩy, chỉ là vấn đề thẩm mỹ nhỏ, chưa xử lý.
 - Style thứ 2 (Pastel Minimal hoặc khác) — registry đã sẵn sàng nhận thêm, chưa viết.
+
+---
+
+## Đánh giá — đối chiếu setup options của Pixelle-Video, việc gì nên làm tiếp (phiên 2026-08-01)
+
+User hỏi (chưa code, chỉ thảo luận): Pixelle-Video có nhiều bước setup hơn hẳn — chọn
+template HTML, model tạo ảnh, số scene, prefix prompt tạo ảnh, prefix prompt tạo kịch
+bản — có nên mang hết sang không? Đã đọc thật `pixelle_video/config/schema.py` +
+`web/pipelines/standard.py` của Pixelle-Video (không đoán) để đối chiếu, kết luận:
+
+| Mục Pixelle-Video | Đánh giá |
+|---|---|
+| Chọn template HTML | Đã có (`subStyle` dropdown, xem mục "Sub karaoke" phía trên) — mở rộng chỉ cần thêm file registry |
+| Model tạo ảnh | Đã có (`DASHSCOPE_MODEL_IMAGE` — xem mục ngay trên) |
+| Số scene (`n_scenes`, chọn TRƯỚC khi generate) | **Không nên copy** — mâu thuẫn triết lý content hiện tại. Pixelle chọn N trước rồi ép nội dung vừa N. Repo này (CLAUDE.md) cắt cảnh theo Ý NGHĨA — "mỗi cảnh 5-15s, một ý, một cảm xúc" — KHÔNG theo số cố định. Áp N cứng sẽ ép câu chuyện co giãn cho vừa số, ngược hướng đang làm. |
+| Prefix prompt tạo ảnh (Pixelle: `comfyui.image.prompt_prefix`, mặc định "Minimalist black-and-white matchstick figure style...") | **Đáng làm nhất** — hiện `image_prompt` mỗi scene hoàn toàn do LLM tự quyết phong cách (anime/minimal/...) dựa trên DESIGN.md, chưa có cách user chỉnh nhanh mà không sửa DESIGN.md. Tận dụng đúng cơ chế "style clause dùng chung" đã có sẵn trong `video-planner.mjs`'s `imageStyleOverride` (dòng "DÙNG CHUNG 1 cụm mô tả phong cách... ở cuối MỌI prompt") — chỉ cần cho user override cụm đó thay vì để model tự nghĩ. |
+| Prefix prompt tạo kịch bản | Có thể làm — nhưng đã có field `audience` truyền vào `content-planner` đóng vai trò gần tương tự. Nếu làm, nên là field "ghi chú phong cách" TỰ DO, bổ sung chứ không thay `audience`. |
+
+### Việc nên làm ở phiên sau (chưa code, đã thống nhất hướng)
+
+1. **Prefix prompt tạo ảnh** — field mới (tên đề xuất: `imageStylePrefix`), truyền qua
+   route `/video-plan` giống `template`/`subStyle`/`visualStyle` hiện tại, inject vào
+   `imageStyleOverride` trong `video-planner.mjs` (thay vì để model tự bịa style
+   clause, dùng đúng chuỗi user nhập). Áp dụng cho CẢ 2 luồng `visualStyle: "ai-image"`
+   VÀ `template: "sub"` vì cả hai đều dùng chung field `image_prompt`.
+2. **Prefix/ghi chú phong cách kịch bản** — field tự do mới trong bước 1 (Content
+   plan), truyền vào `content-planner.mjs` bên cạnh `audience` hiện có, không thay thế.
+3. Không làm "chọn số scene cố định trước" — đã quyết định loại khỏi scope, ghi lại ở
+   đây để phiên sau không lặp lại câu hỏi này từ đầu.
+
+UI: cả 2 field mới nên là input text tùy chọn (không bắt buộc), đặt cạnh dropdown
+template/visualStyle tương ứng ở Pipeline.jsx bước 1 và bước 3.
