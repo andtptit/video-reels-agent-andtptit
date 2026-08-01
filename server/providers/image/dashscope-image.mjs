@@ -22,6 +22,11 @@ import { writeFileSync } from "fs";
 
 const ENDPOINT = "https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation";
 
+// Overridable via .env (DASHSCOPE_MODEL_IMAGE), same pattern as DASHSCOPE_MODEL /
+// DASHSCOPE_MODEL_CHEAP in run-agent.mjs — lets a future/alternate image model be
+// swapped in for testing without editing code.
+const DEFAULT_IMAGE_MODEL = process.env.DASHSCOPE_MODEL_IMAGE || "wan2.6-image";
+
 const SIZE_FOR_FORMAT = {
   "9:16": "864*1536",
   "16:9": "1536*864",
@@ -40,6 +45,7 @@ export async function generateImage({
   negativePrompt = DEFAULT_NEGATIVE_PROMPT,
   apiKey = process.env.DASHSCOPE_API_KEY,
   timeoutMs = 120_000,
+  model = DEFAULT_IMAGE_MODEL,
 }) {
   if (!apiKey) throw new Error("Missing DASHSCOPE_API_KEY");
   const size = SIZE_FOR_FORMAT[format] ?? SIZE_FOR_FORMAT["9:16"];
@@ -52,7 +58,7 @@ export async function generateImage({
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json", "X-DashScope-SSE": "enable" },
       body: JSON.stringify({
-        model: "wan2.6-image",
+        model,
         input: { messages: [{ role: "user", content: [{ text: prompt }] }] },
         parameters: {
           size,
@@ -115,8 +121,8 @@ export async function generateImage({
 }
 
 /** Generates + immediately downloads into destPath (URL expires in 24h). */
-export async function generateAndSaveImage({ prompt, format, negativePrompt, destPath, apiKey }) {
-  const { imageUrl } = await generateImage({ prompt, format, negativePrompt, apiKey });
+export async function generateAndSaveImage({ prompt, format, negativePrompt, destPath, apiKey, model }) {
+  const { imageUrl } = await generateImage({ prompt, format, negativePrompt, apiKey, ...(model ? { model } : {}) });
   const res = await fetch(imageUrl);
   if (!res.ok) throw new Error(`Failed to download generated image (${res.status})`);
   const buf = Buffer.from(await res.arrayBuffer());
