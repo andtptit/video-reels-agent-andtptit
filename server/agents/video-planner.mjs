@@ -4,11 +4,12 @@
  * the prompt — small, required, no reason to spend a tool-call round-trip on them).
  * Output: video-plan.json, written via the write_file tool.
  */
-import { readFileSync, existsSync } from "fs";
+import { readFileSync, writeFileSync, existsSync } from "fs";
 import { join } from "path";
 import { runAgent, DEFAULT_MODEL } from "./run-agent.mjs";
 import { createFsTools } from "../tools/fs-tools.mjs";
 import { checkDurationSum } from "../tools/validators.mjs";
+import { DEFAULT_SUB_STYLE } from "../templates/sub-styles/index.mjs";
 
 const SKILL_PATH = join(import.meta.dirname, "..", "..", ".agents", "skills", "video-planner", "SKILL.md");
 
@@ -18,17 +19,25 @@ export async function runVideoPlanner({
   // "ai-image" — mỗi scene có thêm 1 ảnh nền sinh bằng AI (wan2.6-image), scene-writer
   // sẽ tải ảnh dựa trên field `image_prompt` mà bước này viết ra.
   visualStyle = "animation",
+  // "motion" (default) — luồng hiện tại, scene-writer (LLM) viết layout/animation.
+  // "sub" — luồng hoàn toàn tách biệt (sub-scene-writer.mjs, KHÔNG qua LLM cho bước
+  // viết composition): ảnh AI nền full-bleed + sub karaoke từng chữ chạy theo
+  // word_timestamps thật. Luôn cần ảnh AI nên ép visualStyle="ai-image" bên dưới bất
+  // kể caller truyền gì — không để 2 tham số này lỡ mâu thuẫn nhau.
+  template = "motion",
+  subStyle = DEFAULT_SUB_STYLE,
   model = DEFAULT_MODEL,
   maxTurns = 8,
   onEvent,
 }) {
+  const effectiveVisualStyle = template === "sub" ? "ai-image" : visualStyle;
   const skill = readFileSync(SKILL_PATH, "utf-8");
   const design = readFileSync(join(projectDir, "DESIGN.md"), "utf-8");
   const scenesWithTiming = readFileSync(join(projectDir, "scenes-with-timing.json"), "utf-8");
   const tools = createFsTools(projectDir);
 
   const imageStyleOverride =
-    visualStyle === "ai-image"
+    effectiveVisualStyle === "ai-image"
       ? `
 
 ---
@@ -75,6 +84,15 @@ DESIGN.md và scenes-with-timing.json đã được nhúng đầy đủ trong us
     const plan = JSON.parse(readFileSync(outFile, "utf-8"));
     const durationCheck = checkDurationSum({ total: plan.total_duration ?? 0, scenes: plan.scenes ?? [], key: "duration" });
     if (!durationCheck.ok) onEvent?.({ type: "duration-check", ...durationCheck });
+
+    // Written by CODE, not the model — routes.mjs's scene-generate route trusts
+    // `plan.template` to decide scene-writer (LLM) vs sub-scene-writer (deterministic)
+    // per scene, and every past pipeline bug traced back to trusting the model to
+    // echo a structural value correctly instead of the caller just setting it.
+    plan.template = template;
+    if (template === "sub") plan.subStyle = subStyle;
+    writeFileSync(outFile, JSON.stringify(plan, null, 2));
+
     return { ...result, durationCheck };
   }
 

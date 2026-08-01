@@ -1,22 +1,25 @@
 #!/usr/bin/env node
 /**
  * Standalone smoke test for the video-planner agent task.
- * Usage: node --env-file=.env server/agents/test-video-planner.mjs <projectDir> [visualStyle]
- * visualStyle: "animation" (default) | "ai-image"
+ * Usage: node --env-file=.env server/agents/test-video-planner.mjs <projectDir> [visualStyle] [template] [subStyle]
+ * visualStyle: "animation" (default) | "ai-image" — ignored when template="sub" (forced to ai-image)
+ * template: "motion" (default) | "sub"
  */
 import { runVideoPlanner } from "./video-planner.mjs";
 
-const [projectDir, visualStyle = "animation"] = process.argv.slice(2);
+const [projectDir, visualStyle = "animation", template = "motion", subStyle] = process.argv.slice(2);
 if (!projectDir) {
-  console.error("Usage: node --env-file=.env server/agents/test-video-planner.mjs <projectDir> [visualStyle]");
+  console.error("Usage: node --env-file=.env server/agents/test-video-planner.mjs <projectDir> [visualStyle] [template] [subStyle]");
   process.exit(1);
 }
 
-console.log(`\nVideo-planner (DashScope) → ${projectDir}/ [visualStyle=${visualStyle}]\n`);
+console.log(`\nVideo-planner (DashScope) → ${projectDir}/ [visualStyle=${visualStyle}, template=${template}]\n`);
 
 const result = await runVideoPlanner({
   projectDir,
   visualStyle,
+  template,
+  ...(subStyle ? { subStyle } : {}),
   onEvent: (evt) => {
     if (evt.type === "assistant" && evt.message.tool_calls) {
       for (const call of evt.message.tool_calls) console.log(`  [turn ${evt.turn}] tool_call → ${call.function.name}`);

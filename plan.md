@@ -1141,3 +1141,97 @@ xác nhận `render` chuyển từ `"running"` (đứng từ 9:43 sáng) sang `"
 báo, tức nút Render sẽ hiện lại đúng như thiết kế UI (`renderStatus !== "running"`).
 Việc chạy lại toàn bộ render thật (để tạo `.mp4`) chưa làm ở đây — cần user tự bấm lại
 qua UI sau khi restart server.
+
+---
+
+## Mới — Style "Sub karaoke" (`template: "sub"`), tách biệt hoàn toàn khỏi luồng animation (phiên 2026-08-01)
+
+User muốn 1 luồng thứ 3, KHÔNG phối với `visualStyle` hiện có ("animation"/"ai-image"),
+tham khảo trực tiếp 2 file mẫu trong repo `Pixelle-Video`
+(`data/templates/1080x1920/image_full_focus.html`, `image_pastel_minimal.html`): ảnh
+AI full-bleed làm nền + 1 khối phụ đề tĩnh gần đáy — đơn giản hơn nhiều so với
+`scene-writer` hiện tại (không có `data-start/data-duration/GSAP timeline`, chỉ là
+template `{{placeholder}}` tĩnh). Yêu cầu: giữ đúng tinh thần layout đó, nhưng THÊM
+timing — chữ sáng lên đúng lúc được nói (karaoke), dùng `word_timestamps` thật đã có
+sẵn từ bước audio.
+
+### Quyết định kiến trúc quan trọng nhất: **bỏ hẳn LLM cho bước viết composition**
+
+Khác với `scene-writer.mjs` (agent gọi DashScope để viết HTML sáng tạo mỗi scene),
+style "sub" sinh HTML **thẳng bằng code**, không qua `runAgent` — vì mọi giá trị cần
+(đường dẫn ảnh, thời điểm từng từ, kích thước canvas) đều đã có sẵn từ dữ liệu, không
+có gì cần model "quyết định". Lợi ích thật, không phải lý thuyết: rẻ hơn (0 token cho
+bước này), nhanh hơn (không chờ DashScope), và không thể dính lại các lớp bug đã gặp
+trước đó (LLM viết sai `.clip`, sai kích thước canvas...) vì không có LLM viết HTML
+nữa — chỉ còn 1 lệnh gọi DashScope thật cho mỗi scene: sinh ảnh nền (`wan2.6-image`,
+provider có sẵn từ Phase 4).
+
+### File mới
+
+- `server/templates/sub-styles/image-full-focus.mjs` — port từ
+  `image_full_focus.html` của Pixelle-Video, viết lại theo convention HyperFrames.
+  Ảnh nền vẫn `class="clip" data-start/data-duration` (time-gated, giống scene-writer's
+  ai-image), nhưng mỗi từ phụ đề là `<span>` KHÔNG có `class="clip"` — vì không ẩn/hiện
+  theo thời gian (luôn hiện suốt scene), chỉ đổi màu (karaoke highlight) qua GSAP
+  `.to()` tại đúng `word.start`/`word.end` — CLAUDE.md's "element có timing phải
+  class=clip" chỉ áp dụng cho hiện/ẩn, không áp dụng cho tween màu thuần. Font size,
+  padding, chiều cao dải gradient... tính theo % kích thước canvas (không hardcode
+  1080×1920 như bản gốc Pixelle) để dùng chung được cho cả 9:16 lẫn 16:9.
+- `server/templates/sub-styles/index.mjs` — registry `{styleKey: renderModule}` — thêm
+  style mới sau này (user tự nói "image_full_focus chỉ là 1 style tôi muốn") chỉ cần 1
+  file + 1 dòng đăng ký, không đụng gì tới sub-scene-writer.mjs.
+- `server/agents/sub-scene-writer.mjs` — hàm thay thế `scene-writer.mjs` khi
+  `template === "sub"`: gọi `generateAndSaveImage` (ảnh AI thật) rồi render template
+  thẳng bằng code, ghi file, lint để bắt lỗi cấu trúc còn sót (dù không có LLM viết,
+  vẫn lint để chắc chắn — verify thật cho thấy 0 lỗi).
+- `server/agents/test-sub-scene-writer.mjs` — script test độc lập, giống
+  `test-scene-writer.mjs` nhưng cho luồng mới.
+
+### Nối dây (routes.mjs / video-planner.mjs / UI)
+
+- `video-planner.mjs`: thêm `template` ("motion" mặc định | "sub") + `subStyle`. Khi
+  `template === "sub"`, ÉP `visualStyle = "ai-image"` bên trong (sub luôn cần ảnh AI,
+  không để 2 tham số này lỡ mâu thuẫn nếu caller quên đồng bộ). Sau khi model viết
+  xong `video-plan.json`, **code tự ghi đè thêm field `template`/`subStyle` vào file**
+  — KHÔNG dựa vào model tự nhớ echo lại đúng giá trị (đúng bài học từ mọi bug trước:
+  đừng tin LLM giữ đúng 1 giá trị cấu trúc xuyên suốt).
+- `routes.mjs` (`POST /projects/:id/scenes/:sceneId/generate`): đọc
+  `videoPlan.template` — nếu `"sub"` thì đọc thêm `scenes-with-timing.json` (để lấy
+  `narration` + `_audio.word_timestamps`, 2 field này KHÔNG có trong `video-plan.json`
+  — đã xác nhận bằng cách đọc file thật) rồi gọi `runSubSceneWriter`; ngược lại giữ
+  nguyên `runSceneWriter` như cũ. `root-composer` KHÔNG cần sửa gì — nó đã đối xử với
+  mọi `compositions/scene_XX.html` một cách generic (chỉ cần đúng
+  `id/data-composition-id/timeline registration`), đã verify điều này đúng từ Phase 4.
+- UI (`Pipeline.jsx`, bước 3): thêm select "Kiểu video" (`template`) — "Chuyển động
+  (card/animation)" | "Sub karaoke (ảnh AI + phụ đề chạy chữ)". Chọn "Chuyển động" thì
+  hiện lại select `visualStyle` cũ; chọn "Sub karaoke" thì hiện select `subStyle`
+  (hiện chỉ có "Full Focus", registry sẽ phình thêm sau).
+
+### Verify thật — toàn bộ pipeline mới, không chỉ đọc code
+
+1. `test-video-planner.mjs <scratchProject> animation sub` (gọi DashScope thật,
+   `qwen3.6-plus`) — xác nhận `video-plan.json` có đúng `template: "sub"`,
+   `subStyle: "image_full_focus"`, và mỗi scene có `image_prompt`.
+2. `test-sub-scene-writer.mjs <scratchProject> scene_01` — gọi `wan2.6-image` thật sinh
+   ảnh + ghi HTML — PASS, lint 0 lỗi.
+3. `hyperframes render` thật trên project (đã có root từ Phase 4) → render ra
+   `.mp4` thành công (8.39s, 252 frame).
+4. Trích frame thật bằng `ffmpeg` ở 3 mốc (0.5s / 4.0s / 7.5s) và XEM bằng mắt (không
+   chỉ tin render "complete"): t=0.5s từ "đang" sáng màu cam đúng lúc; t=4.0s không từ
+   nào sáng (đang ở khoảng lặng giữa 2 từ — xác nhận timing thật, không phải luôn sáng
+   1 màu cố định); t=7.5s từ cuối "custom" sáng đúng lúc kết câu. Ảnh nền AI, dải
+   gradient, layout khớp hệt bản Pixelle gốc.
+
+### Chưa làm / biết trước
+
+- Chưa test `root-composer` (LLM) tự động ghép NHIỀU scene "sub" vào 1 root hoàn
+  chỉnh qua UI thật — mới verify bằng root dựng tay cho 1 scene. Tin tưởng cao vì
+  root-composer đã verify generic hóa từ Phase 4, nhưng chưa có bằng chứng trực tiếp
+  cho style này.
+- `video-planner` vẫn sinh đủ `visual_brief`/`elements` cho style "sub" dù không dùng
+  tới (chỉ cần `image_prompt`) — lãng phí nhẹ (prompt/output dài hơn cần thiết) nhưng
+  không sửa vì không muốn đụng vào schema SKILL.md đã test kỹ, rủi ro cao hơn lợi ích
+  ở quy mô hiện tại.
+- Ghép từ chưa có dấu câu (word_timestamps không có token dấu câu riêng) — phụ đề hiện
+  đọc liền mạch không chấm/phẩy, chỉ là vấn đề thẩm mỹ nhỏ, chưa xử lý.
+- Style thứ 2 (Pastel Minimal hoặc khác) — registry đã sẵn sàng nhận thêm, chưa viết.

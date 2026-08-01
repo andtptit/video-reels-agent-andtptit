@@ -16,6 +16,7 @@ import { runGenerateAudio } from "./pipeline/generate-audio.mjs";
 import { runContentPlanner } from "./agents/content-planner.mjs";
 import { runVideoPlanner } from "./agents/video-planner.mjs";
 import { runSceneWriter } from "./agents/scene-writer.mjs";
+import { runSubSceneWriter } from "./agents/sub-scene-writer.mjs";
 import { runRootComposer } from "./agents/root-composer.mjs";
 import { render } from "./tools/hyperframes-cli.mjs";
 import { readJobStatus, runStep, getEmitter } from "./jobs/job-status.mjs";
@@ -110,9 +111,9 @@ router.post("/projects/:id/audio", withProjectDir, (req, res) => {
 });
 
 router.post("/projects/:id/video-plan", withProjectDir, (req, res) => {
-  const { visualStyle } = req.body ?? {};
+  const { visualStyle, template, subStyle } = req.body ?? {};
   runInBackground(req.projectDir, "video-plan", (onEvent) =>
-    queues.dashscope.run(() => runVideoPlanner({ projectDir: req.projectDir, visualStyle, onEvent }))
+    queues.dashscope.run(() => runVideoPlanner({ projectDir: req.projectDir, visualStyle, template, subStyle, onEvent }))
   );
   res.status(202).json({ step: "video-plan", status: "running" });
 });
@@ -125,6 +126,22 @@ router.post("/projects/:id/scenes/:sceneId/generate", withProjectDir, (req, res)
   const videoPlan = JSON.parse(readFileSync(videoPlanFile, "utf-8"));
   const scene = videoPlan.scenes?.find((s) => s.sceneId === sceneId);
   if (!scene) return res.status(404).json({ error: `Scene "${sceneId}" not found in video-plan.json` });
+
+  // `template` is written by video-planner.mjs itself (code, not the model) — see
+  // its doc comment for why trusting the LLM to echo this correctly was rejected.
+  if (videoPlan.template === "sub") {
+    const timingFile = join(req.projectDir, "scenes-with-timing.json");
+    if (!existsSync(timingFile)) return res.status(400).json({ error: "scenes-with-timing.json not found — run /audio first" });
+    const sceneTiming = JSON.parse(readFileSync(timingFile, "utf-8")).scenes?.find((s) => s.sceneId === sceneId);
+    if (!sceneTiming) return res.status(404).json({ error: `Scene "${sceneId}" not found in scenes-with-timing.json` });
+
+    runInBackground(req.projectDir, `scene:${sceneId}`, (onEvent) =>
+      queues.dashscope.run(() =>
+        runSubSceneWriter({ projectDir: req.projectDir, scene, sceneTiming, format: videoPlan.format, subStyle: videoPlan.subStyle, onEvent })
+      )
+    );
+    return res.status(202).json({ step: `scene:${sceneId}`, status: "running" });
+  }
 
   const designFile = join(req.projectDir, "DESIGN.md");
   if (!existsSync(designFile)) return res.status(400).json({ error: "DESIGN.md not found in project" });

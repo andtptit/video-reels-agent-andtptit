@@ -28,7 +28,9 @@ export function Pipeline({ id, idea, platform }) {
   const { steps, totalUsage } = useJobStatus(id);
   const [audience, setAudience] = useState("");
   const [ttsProvider, setTtsProvider] = useState("edge-tts");
+  const [template, setTemplate] = useState("motion");
   const [visualStyle, setVisualStyle] = useState("animation");
+  const [subStyle, setSubStyle] = useState("image_full_focus");
   const [formError, setFormError] = useState(null);
 
   const planStatus = steps.plan?.status;
@@ -99,11 +101,21 @@ export function Pipeline({ id, idea, platform }) {
       <StepRow title="3. Video plan" status={videoPlanStatus} error={steps["video-plan"]?.error} usage={steps["video-plan"]?.usage}>
         {audioStatus === "done" && videoPlanStatus !== "done" && videoPlanStatus !== "running" && (
           <div className="inline-form">
-            <select value={visualStyle} onChange={(e) => setVisualStyle(e.target.value)}>
-              <option value="animation">Animation (CSS/GSAP thuần)</option>
-              <option value="ai-image">Ảnh nền AI (wan2.6-image)</option>
+            <select value={template} onChange={(e) => setTemplate(e.target.value)}>
+              <option value="motion">Chuyển động (card/animation)</option>
+              <option value="sub">Sub karaoke (ảnh AI + phụ đề chạy chữ)</option>
             </select>
-            <button type="button" onClick={() => run(() => api.runVideoPlan(id, { visualStyle }))}>
+            {template === "motion" ? (
+              <select value={visualStyle} onChange={(e) => setVisualStyle(e.target.value)}>
+                <option value="animation">Nền CSS/GSAP thuần</option>
+                <option value="ai-image">Nền ảnh AI (wan2.6-image)</option>
+              </select>
+            ) : (
+              <select value={subStyle} onChange={(e) => setSubStyle(e.target.value)}>
+                <option value="image_full_focus">Full Focus (ảnh full-bleed + sub đáy)</option>
+              </select>
+            )}
+            <button type="button" onClick={() => run(() => api.runVideoPlan(id, { template, visualStyle, subStyle }))}>
               Chạy video-planner
             </button>
           </div>
