@@ -102,12 +102,13 @@ xong, trả lời bằng 1 câu tóm tắt — không tool call nào nữa.`;
   // again — confirmed live that re-sending was pure waste (~7.8k tokens/attempt) since
   // the model already has all of it in context from attempt 0.
   let priorMessages = null;
-  const usage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
+  const usage = { promptTokens: 0, completionTokens: 0, totalTokens: 0, apiCalls: 0 };
   const addUsage = (u) => {
     if (!u) return;
     usage.promptTokens += u.promptTokens ?? 0;
     usage.completionTokens += u.completionTokens ?? 0;
     usage.totalTokens += u.totalTokens ?? 0;
+    usage.apiCalls += u.apiCalls ?? 0;
   };
 
   for (let attempt = 0; attempt <= maxFixAttempts; attempt++) {
@@ -117,7 +118,12 @@ xong, trả lời bằng 1 câu tóm tắt — không tool call nào nữa.`;
         : `Lần viết trước (attempt ${attempt}) có lỗi MỚI cần sửa (lint và/hoặc kích thước canvas sai — không tính lỗi có sẵn của project):\n${JSON.stringify(lastNewFindings, null, 2)}\n\nSửa lại đúng file ${outPath} để hết các lỗi này. Không giải thích — sửa trực tiếp.`;
 
     try {
-      agentResult = await runAgent({ systemPrompt, userPrompt, tools, model, maxTurns, onEvent, priorMessages });
+      // stopAfterWrites: 1 — this task only ever writes 1 file (outPath); stop the
+      // instant that write succeeds instead of letting the model keep calling
+      // write_file on its own judgment (see run-agent.mjs's doc for the real
+      // incident this fixes: 184k tokens burned on a scene already lint-clean
+      // after its first write).
+      agentResult = await runAgent({ systemPrompt, userPrompt, tools, model, maxTurns, onEvent, priorMessages, stopAfterWrites: 1 });
     } catch (err) {
       addUsage(err.usage);
       err.usage = { ...usage };

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api.js";
 import { StatusBadge } from "./StatusBadge.jsx";
+import { TokenBadge } from "./TokenBadge.jsx";
 
 export function SceneGrid({ id, steps, refreshKey }) {
   const [videoPlan, setVideoPlan] = useState(null);
@@ -24,7 +25,10 @@ export function SceneGrid({ id, steps, refreshKey }) {
             <div key={scene.sceneId} className="scene-card">
               <strong>{scene.sceneId}</strong>
               <div className="muted">{scene.content_shape} · {scene.duration}s</div>
-              <StatusBadge status={stepStatus} />
+              <div className="step-row-badges">
+                <StatusBadge status={stepStatus} />
+                <TokenBadge usage={steps[stepKey]?.usage} />
+              </div>
               <button
                 type="button"
                 disabled={stepStatus === "running"}

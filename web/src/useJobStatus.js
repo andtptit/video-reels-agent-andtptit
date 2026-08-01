@@ -38,6 +38,7 @@ export function useJobStatus(projectId) {
               promptTokens: (totalUsage?.promptTokens ?? 0) + (event.usage.promptTokens ?? 0),
               completionTokens: (totalUsage?.completionTokens ?? 0) + (event.usage.completionTokens ?? 0),
               totalTokens: (totalUsage?.totalTokens ?? 0) + (event.usage.totalTokens ?? 0),
+              apiCalls: (totalUsage?.apiCalls ?? 0) + (event.usage.apiCalls ?? 0),
             };
           }
         }

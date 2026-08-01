@@ -180,12 +180,13 @@ trả lời bằng 1 câu tóm tắt — không tool call nào nữa.`;
   // carries the conversation across fix attempts so retries only send the new lint
   // findings, not skill + worked example + scene data again (~8.4k tokens/attempt).
   let priorMessages = null;
-  const usage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
+  const usage = { promptTokens: 0, completionTokens: 0, totalTokens: 0, apiCalls: 0 };
   const addUsage = (u) => {
     if (!u) return;
     usage.promptTokens += u.promptTokens ?? 0;
     usage.completionTokens += u.completionTokens ?? 0;
     usage.totalTokens += u.totalTokens ?? 0;
+    usage.apiCalls += u.apiCalls ?? 0;
   };
 
   for (let attempt = 0; attempt <= maxFixAttempts; attempt++) {
@@ -195,7 +196,9 @@ trả lời bằng 1 câu tóm tắt — không tool call nào nữa.`;
         : `Lần viết trước (attempt ${attempt}) có lỗi lint MỚI (không tính lỗi có sẵn của project):\n${JSON.stringify(lastNewFindings, null, 2)}\n\nSửa lại đúng file index.html để hết các lỗi này. Không giải thích — sửa trực tiếp.`;
 
     try {
-      agentResult = await runAgent({ systemPrompt, userPrompt, tools, model, maxTurns, onEvent, priorMessages });
+      // stopAfterWrites: 1 — same fix as scene-writer.mjs (same architecture, same
+      // observed risk of looping on write_file past the point the task is done).
+      agentResult = await runAgent({ systemPrompt, userPrompt, tools, model, maxTurns, onEvent, priorMessages, stopAfterWrites: 1 });
     } catch (err) {
       addUsage(err.usage);
       err.usage = { ...usage };

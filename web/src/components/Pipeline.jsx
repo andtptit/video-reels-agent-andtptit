@@ -50,7 +50,12 @@ export function Pipeline({ id, idea, platform }) {
     <div>
       <p className="muted">
         Project: {id}
-        {totalUsage?.totalTokens ? <> · Tổng token đã dùng: <strong>{totalUsage.totalTokens.toLocaleString("vi-VN")}</strong></> : null}
+        {totalUsage?.totalTokens ? (
+          <>
+            {" "}· Tổng token đã dùng: <strong>{totalUsage.totalTokens.toLocaleString("vi-VN")}</strong>
+            {" "}· Tổng số lần gọi API: <strong>{(totalUsage.apiCalls ?? 0).toLocaleString("vi-VN")}</strong>
+          </>
+        ) : null}
       </p>
       {formError && <p className="error">{formError}</p>}
 

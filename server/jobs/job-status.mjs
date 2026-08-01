@@ -62,10 +62,11 @@ export function emitProgress(projectDir, event) {
     // Running total across every step that reported DashScope usage — steps without
     // an LLM call (audio/render) never pass `usage`, so they don't contribute.
     if (full.usage) {
-      current.totalUsage ??= { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
+      current.totalUsage ??= { promptTokens: 0, completionTokens: 0, totalTokens: 0, apiCalls: 0 };
       current.totalUsage.promptTokens += full.usage.promptTokens ?? 0;
       current.totalUsage.completionTokens += full.usage.completionTokens ?? 0;
       current.totalUsage.totalTokens += full.usage.totalTokens ?? 0;
+      current.totalUsage.apiCalls += full.usage.apiCalls ?? 0;
     }
   }
   current.events ??= [];

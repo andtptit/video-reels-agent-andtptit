@@ -758,3 +758,73 @@ lại xem `plan.md`/repo còn gì lệch thực tế không. Đối chiếu tr�
 Không phát hiện thêm sai lệch nào khác giữa `plan.md` và trạng thái thật của code/git
 sau khi rà (đã kiểm tra: `.gitignore` đúng như mô tả, `output/` đã dọn đúng như mô tả,
 toàn bộ file `server/`+`web/` khớp danh sách đã liệt kê).
+
+---
+
+## Đã sửa — 2 bug tốn token nghiêm trọng ở `run-agent.mjs` (phiên 2026-08-01, phát hiện
+qua UI thật của user)
+
+User tự tay generate `scene_01` của project `model-kimi-ra-doi-khien-claude-de-chung`
+qua UI, thấy scene 4.85s tốn **90.197 token** (`prompt: 75.148 + completion: 15.049`) —
+đặt câu hỏi hợp lý "có đúng không". Điều tra bằng dữ liệu thật (`job-status.json`), không
+chỉ tin số liệu:
+
+### Bug 1 — `reasoning_content` bị echo lại nguyên văn qua mọi turn/attempt
+
+`qwen3.6-plus`/`qwen3.7-flash` là **reasoning model**, trả về `reasoning_content` (chuỗi
+suy luận ẩn) trên mỗi assistant message. `run-agent.mjs` cũ làm `messages.push(message)`
+— đẩy NGUYÊN VĂN message (kèm `reasoning_content`) vào lịch sử hội thoại, rồi lịch sử đó
+được gửi lại đầy đủ ở mọi turn sau (và mọi attempt sau, qua `priorMessages`). Đo thật:
+scene_01 sinh ra 26.771 ký tự (~6.700 token) reasoning qua 5 turn, bị echo lại nhiều lần
+→ phần lớn trong 75k prompt token. Đây là anti-pattern đã biết với reasoning model (không
+nên "đọc lại" scratchpad cũ của chính mình).
+
+**Đã sửa**: `run-agent.mjs` giờ destructure bỏ `reasoning_content` trước khi
+`messages.push(...)` — giữ nguyên trong event gửi cho `onEvent` (để debug/log), chỉ
+không lưu vào lịch sử gửi lại API.
+
+### Bug 2 — model gọi lặp `write_file` nhiều lần không dừng, dễ vượt `maxTurns`
+
+Test lại ngay sau khi sửa bug 1 (trên `scene_02`, chưa generate) để đo hiệu quả — **tệ
+hơn**: 184.005 token rồi **crash** vì vượt `maxTurns` (6), do model gọi `write_file` liền
+**6 lần** trong 1 attempt mà không bao giờ tự dừng để báo "xong" (loop này KHÔNG phải do
+bug 1 gây ra — cùng pattern đã có sẵn trong chính log `scene_01` trước khi sửa, chỉ nhẹ
+hơn: 2 lần thay vì 6, do `scene_01` ít lỗi lint hơn nên "may mắn" không chạm trần). Kiểm
+tra file để lại trên đĩa (đọc local, không tốn token): `compositions/scene_02.html` sau
+lần ghi cuối (turn 5, trước khi crash) đã lint sạch (`0 errors, 0 warnings`) — tức model
+đã xong việc từ sớm, chỉ tiếp tục gọi `write_file` thêm nhiều lần vô ích.
+
+**Đã sửa (theo yêu cầu user)**: `run-agent.mjs` thêm param `stopAfterWrites` — dừng
+attempt NGAY sau N lần `write_file` thành công đầu tiên, không đợi model tự quyết định
+dừng. Nối vào `scene-writer.mjs` và `root-composer.mjs` (cả hai đều `stopAfterWrites: 1`,
+cùng kiến trúc "chỉ ghi đúng 1 file/attempt", cùng rủi ro loop) — KHÔNG đụng
+`content-planner.mjs`/`video-planner.mjs` (ghi nhiều file hơn 1, không có vòng retry,
+chưa quan sát thấy triệu chứng này).
+
+### Đã test lại thật, cả 2 fix cùng lúc — bằng chứng số liệu, không chỉ đọc code
+
+Test trên `scene_03` (project thật, scene mới hoàn toàn): **PASS 2 attempt, 40.792
+token** (`prompt: 25.626 + completion: 15.166`) — log xác nhận mỗi attempt dừng đúng
+ngay sau 1 lần `write_file`, không còn gọi lặp. So với trước khi sửa: chưa bằng nửa chi
+phí của `scene_01` (90.197) và không còn rủi ro crash như `scene_02` (184.005+lỗi). Lint
+toàn project sau test vẫn `ok: true, 0 errors, 0 warnings`.
+
+**Chi phí thật của việc điều tra + test**: ~274k token thật đã tốn trên tài khoản
+DashScope của user trong quá trình chẩn đoán 2 bug này (90k của scene_01 gốc + 184k của
+lần test scene_02 gây crash) — user đã chấp nhận đánh đổi này để có bằng chứng thật thay
+vì chỉ sửa theo suy đoán.
+
+### Thêm: hiển thị token + số lần gọi API trên UI (theo yêu cầu user, để dễ đối chiếu/debug)
+
+- `run-agent.mjs` — `usage` giờ có thêm field `apiCalls` (đếm số lần gọi
+  `chatCompletion`, không phải từ API trả về — tự đếm ở code). Số call cao bất thường tự
+  nó là tín hiệu cảnh báo sớm cho đúng loại bug #2 ở trên, không cần đợi thấy số token.
+- `job-status.mjs` + `useJobStatus.js` — cộng dồn `apiCalls` vào `totalUsage` (cả phía
+  server lưu file lẫn phía client cộng dồn sống qua SSE), cùng cách đã làm với 3 field
+  token trước đó.
+- `TokenBadge.jsx` — hiện thêm "· N call" cạnh số token.
+- `SceneGrid.jsx` — mỗi scene-card giờ có `TokenBadge` riêng (trước đó THIẾU — chỉ
+  `StepRow` của 4 bước chính có, đúng gap đã nêu trong góp ý UI/UX trước đó) — đây là chỗ
+  tốn token nhiều nhất (N scene × 1 lần gọi agent riêng) nên là chỗ cần hiện nhất.
+- `Pipeline.jsx` — thêm "Tổng số lần gọi API" cạnh "Tổng token đã dùng" ở đầu trang.
+- Đã build `web/` (`npx vite build`) xác nhận không lỗi JSX sau khi sửa.
