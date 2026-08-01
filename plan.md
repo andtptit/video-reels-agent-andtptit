@@ -676,10 +676,9 @@ project rác/test đã bị commit nhầm ở lần init đầu tiên —
 `.DS_Store` bị commit nhầm trong `cach-dung-claude-code-bien-mot-y-tuong-thanh-phan-/`.
 Đã kiểm tra: 5 project còn lại trong `output/2026-05-16/` đều có nội dung thật (12–31
 file, 1.9–4.4MB), không đụng vào. Thêm `.DS_Store` và `job-status.json` (runtime state
-mới của Phase 2, không nên commit) vào `.gitignore`. **Thay đổi đang ở trạng thái
-staged (`git rm --cached` + working tree đã xoá), CHƯA commit** — để user tự review
-`git status`/`git diff --cached` và commit khi sẵn sàng, cùng lúc với các file Phase 2
-mới (`server/routes.mjs`, `server/jobs/`, `server/lib/`, `server/pipeline/`, ...).
+mới của Phase 2, không nên commit) vào `.gitignore`. **✅ Đã commit** (xem ghi chú cuối
+file — đợt commit lớn `36a3d69` gộp toàn bộ Phase 2/3/root-composer/5 tính năng UI/dọn
+rác, xác nhận lại bằng `git log`/`git status` sạch ở phiên sau).
 
 **✅ Phase 3 (Frontend) đã xong VÀ đã test trong trình duyệt thật** — xem mục "Đã làm
 — Phase 3" bên trên. Vite+React ở `web/`, đã chạy golden path thật qua Playwright
@@ -712,12 +711,50 @@ Tất cả 4 Phase gốc (0/1/2/3) + 3 việc nhỏ + dọn rác + root-composer
 duy nhất **Phase 4 — tích hợp ảnh AI** (chưa bắt đầu) — xem mục "Chưa làm" phía trên.
 
 Thứ tự đề xuất cho phiên sau:
-1. **Review + commit toàn bộ thay đổi đang pending** (xem `git status` — tích luỹ qua
-   rất nhiều phiên: Phase 2, Phase 3, root-composer, 5 tính năng UI, dọn rác — CHƯA
-   commit lần nào cho tới giờ, nên review kỹ trước khi commit 1 lần lớn hoặc chia nhỏ
-   theo từng hạng mục)
+1. ~~Review + commit toàn bộ thay đổi đang pending~~ — **✅ đã commit** (`eb0f46b` →
+   `36a3d69` → `c0abc2a`, xác nhận `git status` sạch sau khi pull). Không còn việc gì ở
+   mục này.
 2. Cân nhắc lại chi phí token thực tế (đã thảo luận với user — nhánh DashScope tốn hơn
-   dự kiến ban đầu, ~50k token riêng bước ghép video cho 3 scene) — nếu muốn tối ưu
-   tiếp, hướng khả thi nhất còn lại là đổi model rẻ hơn cho bước scene-writer/root
-   (user đã đồng ý để "fix sau")
+   dự kiến ban đầu, ~50k token riêng bước ghép video cho 3 scene) — **✅ đã xử lý một
+   phần**: đổi sang `qwen3.6-plus`/`qwen3.7-flash` (xem mục ngay dưới đây), nhưng chưa
+   đo lại chi phí $ thật sau lần đổi model mới nhất này.
 3. Phase 4 (ảnh AI)
+
+---
+
+## Cập nhật (phiên 2026-08-01, sau khi pull `36a3d69`+`c0abc2a`) — đối chiếu tài liệu vs thực tế
+
+User đổi `.env` sang `DASHSCOPE_MODEL=qwen3.6-plus` / `DASHSCOPE_MODEL_CHEAP=qwen3.7-flash`
+(khớp kết luận test ở mục "Cập nhật: đổi sang `qwen3.7-flash`" phía trên) và yêu cầu rà
+lại xem `plan.md`/repo còn gì lệch thực tế không. Đối chiếu trực tiếp (`git log`,
+`git status`, đọc file thật) thay vì chỉ tin nội dung `plan.md`, phát hiện 5 gap — cả 5
+đều đã sửa trong phiên này:
+
+1. **Phần "Quyết định tiếp theo" ở trên bị stale** — viết "CHƯA commit" trong khi
+   `git status` đã sạch từ trước (việc commit đã xảy ra ở phiên khác, giữa lúc viết
+   đoạn đó và lúc phiên này đọc lại). Đã sửa 2 đoạn liên quan ở trên (đánh dấu ✅/gạch
+   ngang thay vì xoá, để giữ lại lịch sử quyết định).
+2. **`.env.example` vẫn ghi default `qwen-plus`/`qwen-turbo`** dù `.env` thật + kết luận
+   test trong file này đã chuyển sang `qwen3.6-plus`/`qwen3.7-flash` từ lâu — máy/phiên
+   mới clone repo sẽ vô tình dùng lại model cũ, chậm/tốn hơn không cần thiết. Đã cập
+   nhật default trong `.env.example` sang 2 model mới, giữ nguyên comment giải thích vai
+   trò từng biến.
+3. **`.env` thật thiếu hẳn `TTS_PROVIDER`** — không có dòng này, code tự rơi về default
+   cứng `"elevenlabs"` trong `scripts/generate-audio.mjs`, nhưng ElevenLabs đã xác nhận
+   bị chặn ở Free plan (402/401, xem mục Phase 0). Chạy audio thật (không phải test) mà
+   quên set biến này mỗi lần gọi sẽ fail ngay từ dòng đầu. Đã thêm
+   `TTS_PROVIDER=edge-tts` vào `.env` thật.
+4. **`CLAUDE.md`/`AGENTS.md` không nhắc gì đến nhánh `server/`+`web/`** — đây là tài liệu
+   workspace chính, tự động nạp vào context mọi phiên Claude Code, nhưng vẫn mô tả pipeline
+   như thể chỉ có mỗi cách chạy qua Claude Code. Đã thêm 1 mục ngắn "Web UI thay thế
+   (DashScope)" vào cả 2 file, trỏ sang `plan.md` để đọc chi tiết thay vì lặp lại nội
+   dung.
+5. **Không có `README.md` ở root; `web/README.md` vẫn là boilerplate Vite mặc định** —
+   yêu cầu `npm install` trong `server/` và `web/` (bắt buộc, thiếu sẽ lỗi
+   `ERR_MODULE_NOT_FOUND`) chưa từng nằm ở đâu dễ tìm. Đã tạo `README.md` ở root tóm tắt
+   2 cách chạy (Claude Code / Web UI DashScope) + lệnh cài đặt, và viết lại
+   `web/README.md` thay boilerplate.
+
+Không phát hiện thêm sai lệch nào khác giữa `plan.md` và trạng thái thật của code/git
+sau khi rà (đã kiểm tra: `.gitignore` đúng như mô tả, `output/` đã dọn đúng như mô tả,
+toàn bộ file `server/`+`web/` khớp danh sách đã liệt kê).

@@ -133,9 +133,38 @@ output/YYYY-MM-DD/{slug}/video/
 
 ---
 
+## Web UI thay thế (DashScope) — dùng khi hết credit Claude
+
+Workflow trên là cách chạy chính qua Claude Code. Có thêm 1 nhánh song song trong
+`server/` + `web/`: cùng pipeline (idea → content-planner → audio → video-planner →
+scene-writer → root-composer → render), nhưng bước [2],[4],[5],[6] chạy bằng agent gọi
+DashScope (Qwen) qua HTTP thay vì Claude Code, có UI web để thao tác. Mục đích: tiết
+kiệm chi phí khi không cần dùng Claude, không thay thế workflow chính.
+
+```
+cd server && npm install && npm start   # API tại :3001, cần DASHSCOPE_API_KEY trong .env
+cd web    && npm install && npm run dev # UI tại :5173
+```
+
+Chi tiết đầy đủ (kiến trúc, model đang dùng, bug đã gặp, việc còn thiếu — Phase 4 tích
+hợp ảnh AI) nằm ở [`plan.md`](plan.md), không lặp lại ở đây.
+
+---
+
 ## Environment Variables (.env)
 
 ```
 ELEVENLABS_API_KEY=...
 ELEVENLABS_VOICE_ID=3VnrjnYrskPMDsapTr8X
+
+# TTS free fallback (ElevenLabs Free plan chặn TTS-qua-API + Sound Generation)
+TTS_PROVIDER=edge-tts
+EDGE_TTS_VOICE=vi-VN-HoaiMyNeural
+
+# Bắt buộc cho nhánh Web UI (server/) — xem plan.md
+DASHSCOPE_API_KEY=...
+DASHSCOPE_MODEL=qwen3.6-plus
+DASHSCOPE_MODEL_CHEAP=qwen3.7-flash
 ```
+
+Xem `.env.example` để có bản đầy đủ kèm giải thích từng biến.
