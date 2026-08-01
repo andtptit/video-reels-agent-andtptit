@@ -150,9 +150,12 @@ router.post("/projects/:id/root", withProjectDir, (req, res) => {
   }
   const designFile = join(req.projectDir, "DESIGN.md");
   if (!existsSync(designFile)) return res.status(400).json({ error: "DESIGN.md not found in project" });
+  const videoPlanFile = join(req.projectDir, "video-plan.json");
+  if (!existsSync(videoPlanFile)) return res.status(400).json({ error: "video-plan.json not found — run /video-plan first" });
 
   const scenesWithTiming = JSON.parse(readFileSync(scenesWithTimingFile, "utf-8"));
   const design = readFileSync(designFile, "utf-8");
+  const videoPlan = JSON.parse(readFileSync(videoPlanFile, "utf-8"));
 
   const { steps } = readJobStatus(req.projectDir);
   const doneSceneIds = (scenesWithTiming.scenes ?? [])
@@ -164,7 +167,9 @@ router.post("/projects/:id/root", withProjectDir, (req, res) => {
   }
 
   runInBackground(req.projectDir, "root", (onEvent) =>
-    queues.dashscope.run(() => runRootComposer({ projectDir: req.projectDir, design, scenesWithTiming, doneSceneIds, onEvent }))
+    queues.dashscope.run(() =>
+      runRootComposer({ projectDir: req.projectDir, design, scenesWithTiming, doneSceneIds, format: videoPlan.format, onEvent })
+    )
   );
   res.status(202).json({ step: "root", status: "running", sceneIds: doneSceneIds });
 });

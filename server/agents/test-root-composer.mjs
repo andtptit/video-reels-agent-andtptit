@@ -16,6 +16,7 @@ if (!projectDir) {
 
 const design = readFileSync(join(projectDir, "DESIGN.md"), "utf-8");
 const scenesWithTiming = JSON.parse(readFileSync(join(projectDir, "scenes-with-timing.json"), "utf-8"));
+const videoPlan = JSON.parse(readFileSync(join(projectDir, "video-plan.json"), "utf-8"));
 
 const doneSceneIds = sceneIdsArg.length
   ? sceneIdsArg
@@ -35,6 +36,7 @@ const result = await runRootComposer({
   design,
   scenesWithTiming,
   doneSceneIds,
+  format: videoPlan.format,
   onEvent: (evt) => {
     if (evt.type === "assistant" && evt.message.tool_calls) {
       for (const call of evt.message.tool_calls) console.log(`  [turn ${evt.turn}] tool_call → ${call.function.name}`);

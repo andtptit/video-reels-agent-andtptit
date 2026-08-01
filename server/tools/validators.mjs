@@ -54,3 +54,38 @@ export function checkCanvasDimensions(html, expectedWidth, expectedHeight) {
     },
   ];
 }
+
+// Root composer's index.html declares data-width/data-height MULTIPLE times — once
+// on the root <div>, once per scene host <div data-composition-src=...> — and every
+// one of them must agree with the project's format. checkCanvasDimensions() above
+// only inspects the FIRST occurrence (correct for a single-composition scene file,
+// wrong here). Confirmed live: root-composer had no format/dimension guidance at
+// all and wrote every data-width/data-height as 1920x1080 for a 9:16 project — the
+// root matched what would've been the first-match check, but every scene host did
+// too, and each scene's own 1080x1920 sub-composition got squeezed into that
+// landscape host, producing the exact "content bunched in a corner, text
+// overlapping" render the user reported. Flags EVERY mismatching occurrence, not
+// just the first, and reports which attribute+value so the fix-retry prompt can
+// point at the literal wrong numbers instead of a vague "dimensions are wrong".
+export function checkAllCanvasDimensions(html, expectedWidth, expectedHeight) {
+  const findings = [];
+  for (const match of html.matchAll(/data-width="(\d+)"/g)) {
+    const actual = Number(match[1]);
+    if (actual !== expectedWidth) {
+      findings.push({
+        code: "canvas-dimension-mismatch",
+        message: `Tìm thấy data-width="${actual}" nhưng project này dùng ${expectedWidth}x${expectedHeight} — sửa MỌI data-width/data-height (root lẫn từng scene host) về đúng số này.`,
+      });
+    }
+  }
+  for (const match of html.matchAll(/data-height="(\d+)"/g)) {
+    const actual = Number(match[1]);
+    if (actual !== expectedHeight) {
+      findings.push({
+        code: "canvas-dimension-mismatch",
+        message: `Tìm thấy data-height="${actual}" nhưng project này dùng ${expectedWidth}x${expectedHeight} — sửa MỌI data-width/data-height (root lẫn từng scene host) về đúng số này.`,
+      });
+    }
+  }
+  return findings;
+}

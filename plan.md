@@ -226,6 +226,92 @@ task độc lập, phải gửi skill đầy đủ ít nhất 1 lần).
 
 ---
 
+## Đã sửa — `root-composer` không nhận `format`, render ra video sai hướng (phiên 2026-08-01)
+
+User báo qua ảnh chụp thật (project `model-kimi-ra-doi-khien-claude-de-chung`, tạo bằng
+Web UI): (1) chữ dính vào nhau, nội dung dồn hết lên góc trên; (2) đã chọn 9:16 dọc lúc
+tạo project nhưng video render ra **ngang**.
+
+### Root cause #2 (đã xác nhận + sửa) — đúng 1 bug giải thích được cả 2 hiện tượng lúc đầu
+
+`root-composer.mjs` chưa từng nhận `format` — khác `scene-writer.mjs` đã được vá từ
+trước (xem mục "canvas dimension mismatch" phía trên), nhưng **quên áp dụng tương tự
+cho root-composer**. Kiểm tra trực tiếp file thật: `video-plan.json` ghi `format:"9:16"`,
+nhưng root `index.html` bị ghi `data-width="1920" data-height="1080"` (ngang) — cả ở
+`<div id="root">` LẪN mọi scene-host `data-composition-src=...`, trong khi từng file
+`compositions/scene_0N.html` (do `scene-writer` viết, đã có `format` từ trước) lại đúng
+`1080×1920`. `ffprobe` xác nhận render ra đúng `1920×1080` — khớp bug báo cáo.
+
+**Đã sửa**:
+- `server/lib/canvas.mjs`'s `dimensionsForFormat()` giờ dùng chung cho `root-composer.mjs`
+  (trước đó chỉ `scene-writer.mjs` dùng).
+- `root-composer.mjs` nhận thêm param `format`, thêm dòng bắt buộc vào system prompt
+  (dùng đúng số cho MỌI `data-width`/`data-height` trong file — root lẫn từng scene host,
+  không lấy số từ `WORKED_EXAMPLE`).
+- `server/tools/validators.mjs` thêm `checkAllCanvasDimensions()` — khác
+  `checkCanvasDimensions()` (chỉ check occurrence ĐẦU TIÊN, đúng cho 1 file scene) ở chỗ
+  quét TẤT CẢ occurrence trong `index.html` (root + N scene host), vì root có nhiều
+  `data-width`/`data-height` cùng lúc. Nối vào cùng retry gate với lint (hard-fail, không
+  chỉ warning).
+- `routes.mjs` (`POST /projects/:id/root`) đọc thêm `video-plan.json` để lấy `format`,
+  truyền vào `runRootComposer`. `test-root-composer.mjs` cũng cập nhật tương tự.
+
+**Đã test lại thật trên đúng project bị lỗi**: chạy lại `test-root-composer.mjs` →
+PASS 2 attempt, 94.495 token → `grep data-width/data-height index.html` xác nhận toàn bộ
+6 chỗ (root + 5 scene) đều đúng `1080×1920` → render lại → `ffprobe` xác nhận **1080×1920
+thật** (trước đó 1920×1080) → trích frame xác nhận không còn tràn ngang.
+
+### Bug #1 (chữ dính, dồn góc trên) — ĐÃ CHẨN ĐOÁN CHÍNH XÁC, CHƯA TÌM RA NGUYÊN NHÂN THẬT
+
+Sau khi sửa xong bug #2 (video đã đúng hướng), render lại vẫn còn nguyên bug #1 — xác
+nhận đây là **2 bug độc lập**, không phải cùng 1 nguồn.
+
+Dùng đúng công cụ chẩn đoán (`hyperframes inspect --json --at 3`, chưa từng dùng tới
+trước phiên này) thay vì đoán mò: xác nhận chính xác `#el-title_kimi` nằm ở
+`rect{top:-14, bottom:154}` bên trong `containerRect` ĐÃ ĐÚNG `{0,0,1080,1920}` — tức
+khung canvas đúng, nhưng nội dung bên trong co lại thành khối ~150px cao rồi nằm sát đỉnh
+thay vì `.s1-content{height:100%; justify-content:center}` phải canh giữa khối đó trong
+suốt 1920px.
+
+**5 giả thuyết đã test thật (mỗi lần đều `inspect`/render lại thật, không đoán suông),
+CẢ 5 ĐỀU KHÔNG ĐỔI GÌ** — tự nó là dữ liệu quan trọng (loại trừ được rất nhiều hướng):
+1. `html,body{width:1080px;height:1920px}` (thiếu so với bản Claude tự viết) — không đổi
+2. `#scene-01{width:100%;height:100%}` tường minh — không đổi
+3. `#scene-01{width:1080px;height:1920px}` (px tuyệt đối, loại trừ % ambiguity) — không đổi
+4. Thêm `data-start="0"` còn thiếu trên root sub-composition — không đổi
+5. Đổi hẳn nội dung chữ (`KIMI`→`CACHETEST999`) — **CÓ đổi** (chứng minh KHÔNG PHẢI do
+   cache, `inspect`/`render` đọc file fresh mỗi lần) nhưng vị trí top/bottom vẫn y hệt
+6. Đổi `font-size` 140px→40px — **CÓ đổi kích thước box** (48px thay vì 168px, đúng theo
+   line-height) nhưng vẫn neo sát đỉnh (`top:-4` thay vì `top:-14`) — chứng minh CSS của
+   `.s1-title` tự nó có được áp dụng, chỉ riêng phần CANH GIỮA THEO CHIỀU DỌC của
+   `.s1-content` là không có tác dụng
+
+Đã đọc thẳng source thật của `hyperframe-runtime.js` (bản `0.6.12`, tìm được trong
+`npm-cache/_npx`) tìm rule CSS ép `.clip` thành `position:absolute` — **không tìm thấy**
+rule như vậy, nên giả thuyết "framework ép mọi `.clip` absolute" cũng bị loại.
+
+**Kết luận trung thực**: đã thu hẹp bug xuống đúng "vì sao `.s1-content{height:100%;
+justify-content:center}` không canh giữa được trong 1 container ĐÃ ĐÚNG kích thước",
+nhưng chưa xác định được cơ chế thật. Đã revert `scene_01.html` về đúng bản gốc (bỏ hết
+text/CSS test) — KHÔNG để lại trạng thái thử nghiệm dở dang trong project thật của user.
+
+**Việc cần làm ở phiên sau** (ưu tiên, vì đây là bug ảnh hưởng chất lượng hiển thị của
+MỌI video qua nhánh DashScope):
+- So sánh nhị phân: bắt đầu từ 1 scene tối giản (chỉ 1 dòng chữ, không atmosphere, không
+  GSAP) rồi thêm dần từng phần cho tới khi bug xuất hiện — cách chắc ăn nhất để cô lập
+  đúng dòng CSS/cấu trúc gây lỗi, thay vì đoán nguyên khối như phiên này.
+- Có thể liên quan `.s1-atmo` (4 layer atmosphere position:absolute inset:0 nằm TRƯỚC
+  `.s1-content` trong DOM) — chưa test giả thuyết "atmosphere layer ảnh hưởng tới sizing
+  của sibling sau nó".
+- Cân nhắc thêm `hyperframes inspect` vào validation gate của `scene-writer.mjs` (đã có
+  sẵn `lint` + `checkCanvasDimensions` + `checkPseudoElementAnimations` — `inspect` là
+  công cụ ĐÚNG cho đúng lớp bug này, xem `hyperframes-core` skill: "text spilling out of
+  a bubble... content moved off canvas") — NHƯNG nên làm SAU KHI đã hiểu nguyên nhân thật,
+  không phải trước, vì tự-sửa không có nguyên nhân rõ ràng dễ khiến model sửa sai hướng
+  qua nhiều vòng tốn token vô ích (đúng bài học đã rút ra từ bug `write_file` loop).
+
+---
+
 ## Đã làm — Phase 2 (Backend API + job queue) ✅ xong, đã test qua HTTP thật
 
 Thêm dependency `express` vào `server/package.json` (`npm install` trong `server/` cần

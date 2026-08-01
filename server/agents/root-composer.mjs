@@ -22,7 +22,8 @@ import { join } from "path";
 import { runAgent, CHEAP_MODEL } from "./run-agent.mjs";
 import { createFsTools } from "../tools/fs-tools.mjs";
 import { lint } from "../tools/hyperframes-cli.mjs";
-import { checkPseudoElementAnimations } from "../tools/validators.mjs";
+import { checkPseudoElementAnimations, checkAllCanvasDimensions } from "../tools/validators.mjs";
+import { dimensionsForFormat } from "../lib/canvas.mjs";
 
 const SKILL_PATH = join(import.meta.dirname, "..", "..", ".agents", "skills", "hyperframes", "SKILL.md");
 
@@ -86,12 +87,20 @@ function diffNewFindings(baseline, current) {
  * @param {string[]} params.doneSceneIds - sceneIds whose sub-composition already
  *   passed scene-writer successfully; the caller (routes.mjs) is responsible for
  *   filtering this from job-status — root-composer only ever wires exactly these.
+ * @param {string} params.format - video-plan.json's top-level `format` ("9:16" |
+ *   "16:9"). Confirmed live this was missing entirely: with no dimension guidance,
+ *   root-composer defaulted every data-width/data-height in index.html (root AND
+ *   every scene host) to 1920x1080 regardless of the project's actual format,
+ *   squeezing correctly-authored 1080x1920 scenes into a landscape host — content
+ *   bunched in a corner, text overlapping, and the final render came out landscape
+ *   even though the project was created as portrait.
  */
 export async function runRootComposer({
   projectDir,
   design,
   scenesWithTiming,
   doneSceneIds,
+  format,
   model = CHEAP_MODEL,
   // Was 8 — confirmed live that's too tight: the model spent 6 of 8 turns re-reading
   // index.html/compositions/*.html/assets/* via read_file/list_dir even though all
@@ -109,6 +118,7 @@ export async function runRootComposer({
 
   const skill = readFileSync(SKILL_PATH, "utf-8");
   const tools = createFsTools(projectDir);
+  const { width, height } = dimensionsForFormat(format);
 
   const doneScenes = (scenesWithTiming.scenes ?? []).filter((s) => doneSceneIds.includes(s.sceneId));
 
@@ -149,6 +159,13 @@ Bạn đang viết ROOT composition (\`index.html\` ở gốc project), KHÔNG p
   scene-writer tạo ra) — KHÔNG cần \`read_file\` để kiểm tra lại, cứ dùng đúng
   \`data-composition-id\`/\`data-composition-src\` theo \`sceneId\` cho sẵn trong danh sách
   scene bên dưới
+- Kích thước canvas của TOÀN BỘ project là \`data-width="${width}" data-height="${height}"\`
+  — dùng ĐÚNG 2 số này cho MỌI \`data-width\`/\`data-height\` trong file: cả \`<div id="root">\`
+  gốc LẪN từng scene host (\`<div data-composition-src="compositions/scene_NN.html">\`).
+  KHÔNG tự đoán, KHÔNG lấy số từ ví dụ bên dưới (ví dụ chỉ minh hoạ cấu trúc, số liệu
+  của nó có thể khác project này) — mọi scene đã được scene-writer viết đúng theo
+  ${width}×${height}, nếu root/scene-host dùng số khác thì nội dung sẽ bị co/tràn khi
+  ghép, và video render ra sẽ sai hướng (ngang/dọc) so với lựa chọn của user.
 
 DESIGN.md, danh sách scene (kèm đủ \`vo_duration\`/\`scene_duration\`/đường dẫn audio), và
 tên nhạc nền ĐÃ được nhúng đầy đủ trong user message bên dưới — KHÔNG gọi \`read_file\`
@@ -208,11 +225,16 @@ trả lời bằng 1 câu tóm tắt — không tool call nào nữa.`;
     addUsage(agentResult.usage);
 
     const current = await lint(projectDir);
-    lastNewFindings = diffNewFindings(baseline, current);
+    const html = readFileSync(join(projectDir, "index.html"), "utf-8");
+    // Same reasoning as scene-writer.mjs's dimension check: hyperframes lint
+    // validates each file in isolation, so it can never catch root/scene-host
+    // dimensions disagreeing with the project's actual format. Hard-fail here
+    // (folded into the same retry gate as lint), not just a warning, or nothing
+    // actually forces the model to fix it.
+    lastNewFindings = [...diffNewFindings(baseline, current), ...checkAllCanvasDimensions(html, width, height)];
     onEvent?.({ type: "lint", attempt, newFindingCount: lastNewFindings.length });
 
     if (lastNewFindings.length === 0) {
-      const html = readFileSync(join(projectDir, "index.html"), "utf-8");
       const staticWarnings = checkPseudoElementAnimations(html);
       if (staticWarnings.length) onEvent?.({ type: "static-check", staticWarnings });
       return { ok: true, attempts: attempt + 1, agentResult, staticWarnings, usage };
