@@ -13,13 +13,14 @@
  * written yet, root index.html not wired up until step 6); blocking on those would
  * make convergence impossible through no fault of this scene's HTML.
  */
-import { readFileSync } from "fs";
+import { readFileSync, mkdirSync } from "fs";
 import { join } from "path";
 import { runAgent, CHEAP_MODEL } from "./run-agent.mjs";
 import { createFsTools } from "../tools/fs-tools.mjs";
 import { lint } from "../tools/hyperframes-cli.mjs";
 import { checkPseudoElementAnimations, checkCanvasDimensions, checkClipClassOverride } from "../tools/validators.mjs";
 import { dimensionsForFormat } from "../lib/canvas.mjs";
+import { generateAndSaveImage } from "../providers/image/dashscope-image.mjs";
 
 const SKILL_PATH = join(import.meta.dirname, "..", "..", ".agents", "skills", "hyperframes", "SKILL.md");
 
@@ -61,6 +62,43 @@ export async function runSceneWriter({
   const outPath = `compositions/scene_${padded}.html`;
   const { width, height } = dimensionsForFormat(format);
 
+  // AI-image style: video-planner already wrote `image_prompt` per scene (style-aware,
+  // consistent across the whole video — see video-planner.mjs). Generate + download
+  // BEFORE the agent runs, not as a tool it calls mid-conversation, so the agent never
+  // has to wait on/retry a slow external call inside its own turn budget, and the file
+  // is guaranteed to exist by the time the prompt below references its path.
+  let imagePath = null;
+  if (scene.image_prompt) {
+    imagePath = `assets/images/scene_${padded}.png`;
+    mkdirSync(join(projectDir, "assets", "images"), { recursive: true });
+    await generateAndSaveImage({
+      prompt: scene.image_prompt,
+      format,
+      destPath: join(projectDir, imagePath),
+    });
+    onEvent?.({ type: "image", outPath: imagePath });
+  }
+
+  const imageOverride = imagePath
+    ? `
+
+---
+
+Scene này dùng ẢNH NỀN AI (đã sinh sẵn, không tự tạo ảnh khác): \`${imagePath}\`, kích
+thước ĐÃ ĐÚNG ${width}×${height} khớp canvas. Bắt buộc:
+
+- Chèn \`<img id="${classPrefix.slice(1)}bg-image" src="${imagePath}" class="clip"
+  data-start="0" data-duration="${scene.duration}" data-track-index="0"
+  style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover;
+  z-index:0;" alt="">\` — LUÔN đứng ĐẦU TIÊN trong DOM (trước mọi element chữ khác),
+  \`id\` bắt buộc và phải duy nhất, data-track-index="0" (không dùng track 0 cho
+  element nào khác).
+- Text/element khác nằm TRÊN ảnh — thêm \`z-index\` lớn hơn 0 cho container chữ (ví dụ
+  \`z-index:10\`) để không bị ảnh che.
+- KHÔNG thêm lại atmosphere layer nào tự vẽ (dot-grid, glow...) đè lên ảnh — ảnh đã
+  đóng vai trò nền, tránh xung đột thị giác.`
+    : "";
+
   const systemPrompt = `${skill}
 
 ---
@@ -90,7 +128,7 @@ override bắt buộc riêng của project này (cao hơn hướng dẫn chung �
   — element gốc của sub-composition PHẢI dùng ĐÚNG 2 số này (khớp \`format\` của
   project), KHÔNG tự đoán hay dùng số khác. Toàn bộ layout/font-size/vị trí bên trong
   phải được thiết kế vừa khung ${width}×${height}, không chỉ đặt đúng attribute rồi bỏ
-  mặc nội dung tràn/lệch.
+  mặc nội dung tràn/lệch.${imageOverride}
 
 Bạn đang chạy tự động (non-interactive). Dùng tool \`write_file\` để lưu đúng 1 file
 vào project root (path tương đối, không tiền tố project): \`${outPath}\`. Sau khi ghi

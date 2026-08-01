@@ -1,0 +1,125 @@
+/**
+ * DashScope wan2.6-image provider — text-to-image via the NATIVE multimodal-generation
+ * endpoint (different from `providers/llm/dashscope.mjs`, which uses the
+ * OpenAI-compatible chat endpoint; image generation has no OpenAI-compatible route).
+ *
+ * Confirmed live, endpoint discovered by trial + real error messages, not guessed:
+ * - Plain text-to-image (no input image) requires `enable_interleave: true`.
+ * - `enable_interleave: true` forces streaming — a non-streaming request is rejected
+ *   outright ("stream=False is not supported"). The model streams commentary TEXT
+ *   chunks first, then the actual image chunk — must consume the whole SSE stream
+ *   and take the LAST `{type:"image"}` part, not the first response.
+ * - `size` must be "<number>*<number>"; despite the API's own error text calling it
+ *   "H*W format", the FIRST number came out as the output PNG's WIDTH in every test
+ *   here (confirmed with `file` on the downloaded image) — so treat it as "W*H" in
+ *   practice, not the documented "H*W".
+ * - Total pixels must be within [589824, 1638400] when enable_interleave is true.
+ *   SIZE_FOR_FORMAT below hits that budget at exact 9:16 / 16:9 ratios.
+ * - Returned image URLs are OSS-signed and expire in 24h — download into the
+ *   project's assets/ immediately; never persist the URL itself.
+ */
+import { writeFileSync } from "fs";
+
+const ENDPOINT = "https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation";
+
+const SIZE_FOR_FORMAT = {
+  "9:16": "864*1536",
+  "16:9": "1536*864",
+};
+
+// Confirmed live: the positive prompt saying "no watermark, no text" is not reliably
+// enough on its own — a real generation still had a small stock-photo-style watermark
+// in the corner. `negative_prompt` is a separate, more effective lever the API exposes;
+// always send it unless the caller has a reason to override.
+const DEFAULT_NEGATIVE_PROMPT = "text, words, letters, watermark, logo, signature, caption, subtitle";
+
+/** @returns {Promise<{imageUrl: string}>} a 24h-expiring OSS URL — download it immediately. */
+export async function generateImage({
+  prompt,
+  format = "9:16",
+  negativePrompt = DEFAULT_NEGATIVE_PROMPT,
+  apiKey = process.env.DASHSCOPE_API_KEY,
+  timeoutMs = 120_000,
+}) {
+  if (!apiKey) throw new Error("Missing DASHSCOPE_API_KEY");
+  const size = SIZE_FOR_FORMAT[format] ?? SIZE_FOR_FORMAT["9:16"];
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  let res;
+  try {
+    res = await fetch(ENDPOINT, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json", "X-DashScope-SSE": "enable" },
+      body: JSON.stringify({
+        model: "wan2.6-image",
+        input: { messages: [{ role: "user", content: [{ text: prompt }] }] },
+        parameters: {
+          size,
+          n: 1,
+          watermark: false,
+          enable_interleave: true,
+          stream: true,
+          negative_prompt: negativePrompt,
+        },
+      }),
+      signal: controller.signal,
+    });
+  } catch (err) {
+    throw new Error(`wan2.6-image request failed: ${err.message}`, { cause: err });
+  } finally {
+    clearTimeout(timer);
+  }
+
+  if (!res.ok) {
+    throw new Error(`wan2.6-image request failed (${res.status}): ${await res.text()}`);
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buf = "";
+  let imageUrl = null;
+  let errorMessage = null;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    const lines = buf.split("\n");
+    buf = lines.pop();
+    for (const line of lines) {
+      if (!line.startsWith("data:")) continue;
+      let parsed;
+      try {
+        parsed = JSON.parse(line.slice(5));
+      } catch {
+        continue;
+      }
+      if (parsed.code) {
+        errorMessage = parsed.message; // SSE error event, e.g. event:error
+        continue;
+      }
+      const content = parsed.output?.choices?.[0]?.message?.content;
+      if (Array.isArray(content)) {
+        for (const part of content) {
+          if (part.type === "image" && part.image) imageUrl = part.image;
+        }
+      }
+    }
+  }
+
+  if (!imageUrl) {
+    throw new Error(`wan2.6-image returned no image${errorMessage ? `: ${errorMessage}` : " (unknown reason)"}`);
+  }
+  return { imageUrl };
+}
+
+/** Generates + immediately downloads into destPath (URL expires in 24h). */
+export async function generateAndSaveImage({ prompt, format, negativePrompt, destPath, apiKey }) {
+  const { imageUrl } = await generateImage({ prompt, format, negativePrompt, apiKey });
+  const res = await fetch(imageUrl);
+  if (!res.ok) throw new Error(`Failed to download generated image (${res.status})`);
+  const buf = Buffer.from(await res.arrayBuffer());
+  writeFileSync(destPath, buf);
+  return { destPath, bytes: buf.length };
+}

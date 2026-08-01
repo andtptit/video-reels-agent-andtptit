@@ -1,20 +1,22 @@
 #!/usr/bin/env node
 /**
  * Standalone smoke test for the video-planner agent task.
- * Usage: node --env-file=.env server/agents/test-video-planner.mjs <projectDir>
+ * Usage: node --env-file=.env server/agents/test-video-planner.mjs <projectDir> [visualStyle]
+ * visualStyle: "animation" (default) | "ai-image"
  */
 import { runVideoPlanner } from "./video-planner.mjs";
 
-const [projectDir] = process.argv.slice(2);
+const [projectDir, visualStyle = "animation"] = process.argv.slice(2);
 if (!projectDir) {
-  console.error("Usage: node --env-file=.env server/agents/test-video-planner.mjs <projectDir>");
+  console.error("Usage: node --env-file=.env server/agents/test-video-planner.mjs <projectDir> [visualStyle]");
   process.exit(1);
 }
 
-console.log(`\nVideo-planner (DashScope) → ${projectDir}/\n`);
+console.log(`\nVideo-planner (DashScope) → ${projectDir}/ [visualStyle=${visualStyle}]\n`);
 
 const result = await runVideoPlanner({
   projectDir,
+  visualStyle,
   onEvent: (evt) => {
     if (evt.type === "assistant" && evt.message.tool_calls) {
       for (const call of evt.message.tool_calls) console.log(`  [turn ${evt.turn}] tool_call → ${call.function.name}`);

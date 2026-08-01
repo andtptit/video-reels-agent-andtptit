@@ -216,13 +216,75 @@ task độc lập, phải gửi skill đầy đủ ít nhất 1 lần).
 
 ---
 
-### Phase 4 — Tích hợp ảnh AI (chưa bắt đầu)
-- `server/providers/image/dashscope-image.mjs` — DashScope image-gen (Tongyi
-  Wanxiang/Qwen-Image), cố định style-prompt suffix (line-art/stick-figure) để nhất
-  quán qua các scene
-- `video-planner` cần thêm field `image_prompts` per scene khi style = "ảnh AI"
-- `scene-writer` cần chèn `<img>` với `data-start/data-duration/data-track-index` theo
-  đúng convention media hiện có
+### ✅ Phase 4 — Tích hợp ảnh AI: phần core đã xong + verify thật (phiên 2026-08-01)
+
+Model dùng: **`wan2.6-image`** (theo yêu cầu user). API contract KHÔNG tự đoán — tìm qua
+`WebSearch`/`WebFetch` docs Alibaba Cloud, rồi xác nhận lại bằng gọi API thật (endpoint
+tài liệu ghi cần `{WorkspaceId}` subdomain, nhưng thử domain `dashscope-intl.aliyuncs.com`
+đã dùng cho chat completions thì THÀNH CÔNG luôn, không cần workspace subdomain — tiết
+kiệm 1 bước tra cứu thêm).
+
+**API contract thật (khác vài chỗ so với docs, đã tự dò qua chuỗi lỗi thật)**:
+- Endpoint: `POST https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation`
+  (native DashScope, KHÔNG phải OpenAI-compatible)
+- Text-to-image thuần (không có ảnh input) BẮT BUỘC `enable_interleave: true`
+- `enable_interleave: true` BẮT BUỘC `stream: true` + header `X-DashScope-SSE: enable`
+  — request non-streaming bị từ chối thẳng
+- Response là SSE: model trả TEXT commentary từng chunk TRƯỚC, ảnh là chunk `{type:
+  "image"}` cuối cùng — phải đọc hết stream, không lấy chunk đầu
+- `size` dạng `"<số>*<số>"` — tài liệu ghi "H*W format" nhưng test thật xác nhận SỐ ĐẦU
+  = width ảnh ra (ngược với tên gọi tài liệu) — tổng pixel phải trong khoảng
+  [589824, 1638400] khi `enable_interleave=true`. Đã tính sẵn 2 size khớp đúng tỉ lệ:
+  9:16 → `"864*1536"`, 16:9 → `"1536*864"`
+- URL ảnh trả về ký OSS, hết hạn 24h — phải tải về ngay, không lưu URL lại dùng sau
+- Positive prompt "no watermark, no text" KHÔNG đủ tin cậy — test thật ra ảnh có
+  watermark nhỏ ở góc dù đã ghi rõ trong prompt. Phải dùng riêng `negative_prompt`
+  (param khác, hiệu quả hơn hẳn) — test lại xác nhận hết watermark.
+
+**Đã làm**:
+- `server/providers/image/dashscope-image.mjs` — `generateImage()` (gọi API, tự parse
+  SSE, trả URL) + `generateAndSaveImage()` (gọi + tải về đĩa ngay, vì URL hết hạn 24h)
+- `video-planner.mjs` — thêm param `visualStyle` ("animation" mặc định, không đổi hành
+  vi cũ | "ai-image"). Khi "ai-image", override prompt yêu cầu thêm field `image_prompt`
+  mỗi scene: mô tả đúng theo DESIGN.md (model tự đọc, không hardcode màu/style), không
+  chữ/watermark trong ảnh, chừa negative space cho text overlay, DÙNG CHUNG 1 style
+  clause cho mọi scene trong video (chỉ đổi chủ thể) để nhất quán — vì đây là 1 lần gọi
+  duy nhất thấy hết mọi scene, giữ nhất quán dễ hơn để mỗi scene-writer tự quyết riêng lẻ
+- `scene-writer.mjs` — nếu `scene.image_prompt` tồn tại: tải ảnh về
+  `assets/images/scene_NN.png` NGAY TRƯỚC KHI gọi agent (không phải để model tự gọi tool
+  giữa chừng — tránh model phải chờ/retry 1 call chậm bên trong turn budget của nó), rồi
+  chèn hướng dẫn bắt buộc vào prompt: `<img>` đứng ĐẦU TIÊN trong DOM, `data-track-index=
+  "0"` riêng, `position:absolute;inset:0;object-fit:cover;z-index:0`, content chữ đè lên
+  với `z-index` cao hơn, KHÔNG tự vẽ thêm atmosphere layer (dot-grid/glow) đè lên ảnh
+
+**Đã test end-to-end thật** (project scratch, chủ đề "Claude Code" cũ đã có sẵn
+`DESIGN.md`+`scenes-with-timing.json`):
+- `video-planner` với `visualStyle=ai-image`: viết đúng 5 `image_prompt`, style nhất
+  quán y hệt nhau across scene ("dark tech aesthetic with neon green accent, no text, no
+  words, no watermark"), mỗi scene mô tả khác nhau đúng theo `content_shape` riêng (2
+  panel trống cho two-column, radial glow cho spotlight, 3 slot cho checklist...)
+- `scene-writer` cho `scene_01` (ai-image): PASS sau 3 attempt, ảnh tải về đúng
+  864×1536 (đúng 9:16), `<img>` chèn đúng mọi thuộc tính bắt buộc
+- **Phát hiện + verify bằng mắt, KHÔNG chỉ tin lint pass**: file `scene_01.html` model
+  viết ra là 1 HTML document đầy đủ (`<!doctype html>...`), KHÔNG bọc `<template>` như
+  convention sub-composition — khác mọi file trước đó trong phiên. `hyperframes lint`
+  KHÔNG bắt được điều này (giống 2 bug trước — lint không kiểm cấu trúc `<template>`).
+  Build 1 root tối giản + render thật để kiểm tra thay vì tin lint: **render ra ĐÚNG**,
+  ảnh nền + 2 card chữ chồng lên nhau chính xác, không lệch, không đen — tức framework
+  vẫn load được sub-composition dù thiếu `<template>` (ít nhất ở bản CLI 0.6.12 này).
+  Chưa sửa/ép buộc lại `<template>` vì THỰC TẾ vẫn render đúng — ghi lại để biết, không
+  phải bug chặn, nhưng nên theo dõi nếu gặp lại ở scene khác.
+- Ảnh render ra khớp gần như hoàn hảo với layout chữ đè lên (2 tấm neon xanh trong ảnh
+  trùng đúng vị trí 2 card chứa số liệu) — chất lượng vượt kỳ vọng ban đầu.
+
+**Chưa làm** (còn lại của Phase 4, không chặn việc dùng thử qua CLI/test script):
+- Chưa nối `visualStyle` qua `routes.mjs`/`createProject`/UI — hiện chỉ chọn được qua
+  tham số hàm trực tiếp (`test-video-planner.mjs <projectDir> ai-image`), user UI chưa
+  có cách chọn style "ảnh AI" khi tạo project.
+- Chưa test `root-composer` với scene có ảnh (chỉ mới test 1 scene độc lập, chưa ghép
+  nhiều scene ai-image vào 1 video hoàn chỉnh qua root thật).
+- Chưa xử lý trường hợp `generateAndSaveImage` lỗi giữa chừng (API down, quota hết) —
+  hiện lỗi sẽ ném thẳng ra ngoài, làm cả scene fail, chưa có fallback về animation thuần.
 
 ---
 
