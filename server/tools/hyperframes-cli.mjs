@@ -102,12 +102,28 @@ export function validate(projectDir, { contrast = false } = {}) {
   return runJsonCommand(args, projectDir);
 }
 
+// No prior timeout on this call meant a hung `hyperframes render` child process
+// (or one orphaned by a server restart — see reconcileInterruptedSteps) would leave
+// job-status.json stuck at "running" forever, with no way to recover from the UI.
+// 10 minutes is generous for a single short-form video render on this hardware but
+// still a hard ceiling — override via env for unusually long/complex projects.
+const RENDER_TIMEOUT_MS = Number(process.env.RENDER_TIMEOUT_MS) || 10 * 60 * 1000;
+
 /** Render doesn't support --json; resolve/reject on process exit and surface stderr on failure. */
 export async function render(projectDir) {
   try {
-    const { stdout } = await execHyperframes(["render"], { cwd: projectDir, maxBuffer: 1024 * 1024 * 50 });
+    const { stdout } = await execHyperframes(["render"], {
+      cwd: projectDir,
+      maxBuffer: 1024 * 1024 * 50,
+      timeout: RENDER_TIMEOUT_MS,
+    });
     return { ok: true, output: stdout };
   } catch (err) {
-    return { ok: false, output: err.stdout, error: err.stderr ?? err.message };
+    const timedOut = err.killed && err.signal;
+    return {
+      ok: false,
+      output: err.stdout,
+      error: timedOut ? `Render bị hủy vì quá ${RENDER_TIMEOUT_MS / 1000}s không xong` : (err.stderr ?? err.message),
+    };
   }
 }

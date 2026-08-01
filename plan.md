@@ -1098,3 +1098,46 @@ server/agents/test-video-planner.mjs <projectDir> animation`, model thật
 `qwen3.6-plus`, không mock) — thành công ngay ở turn đầu, `video-plan.json` sinh ra 8
 scene, `format: "9:16"` khớp project. Request y hệt trước đây bị abort 3 lần liên tiếp
 ở 90s giờ hoàn tất gọn trong 1 attempt với timeout mới.
+
+---
+
+## Đã sửa — Render kẹt mãi "Đang chạy…" sau khi restart server (phiên 2026-08-01)
+
+User báo qua UI: bước Render bấm chạy rồi đứng yên "Đang chạy…" không bao giờ xong,
+nút Render cũng biến mất (bị ẩn khi `status === "running"`) nên không bấm lại được.
+
+### Root cause (2 lỗi cộng lại)
+
+1. `job-status.json` không có cơ chế phục hồi: state sống hoàn toàn trên đĩa, nhưng
+   `"running"` chỉ có nghĩa "một tiến trình NÀO ĐÓ đang làm việc này" — nếu tiến trình
+   đó chết (crash, hoặc user restart server để nạp code mới, đúng như hướng dẫn tôi
+   đưa ở mục fix timeout phía trên) thì không còn ai gọi `emitProgress` "done"/"error"
+   nữa, entry "running" tồn tại vĩnh viễn trên đĩa.
+2. `render()` trong `hyperframes-cli.mjs` gọi `execFile` KHÔNG có `timeout` — nếu tiến
+   trình `hyperframes render` con bị treo thật (không phải do restart) thì cũng đứng
+   yên vô thời hạn, không có giới hạn nào.
+
+Xác nhận thật: PID server cũ (10020, khởi động 9:40 sáng) đã không còn tồn tại khi
+kiểm tra lúc 17:02 chiều — server đã bị restart (theo đúng chỉ dẫn của tôi ở fix
+trước), nhưng `job-status.json` của project
+`con-nguoi-ngay-cang-le-thuoc-nhieu-vao-ai` vẫn ghi `render: running` từ lúc 9:43
+sáng, đứng yên hơn 7 tiếng.
+
+### Fix
+
+- `job-status.mjs`: thêm `reconcileInterruptedSteps(projectDir)` — quét mọi step
+  đang `"running"`, chuyển thành `"error"` kèm thông báo rõ ràng ("Bị gián đoạn do
+  server khởi động lại giữa chừng").
+- `index.mjs`: gọi hàm trên cho MỌI project (`listProjects()`) ngay lúc server khởi
+  động, trước khi lắng nghe request.
+- `hyperframes-cli.mjs`: `render()` thêm `timeout: 10 phút` (override qua
+  `RENDER_TIMEOUT_MS`) — chặn luôn trường hợp treo thật trong lúc server vẫn sống,
+  không chỉ trường hợp restart.
+
+### Verify thật
+
+Gọi thẳng `reconcileInterruptedSteps()` trên ĐÚNG project bị kẹt (không mock) —
+xác nhận `render` chuyển từ `"running"` (đứng từ 9:43 sáng) sang `"error"` kèm thông
+báo, tức nút Render sẽ hiện lại đúng như thiết kế UI (`renderStatus !== "running"`).
+Việc chạy lại toàn bộ render thật (để tạo `.mp4`) chưa làm ở đây — cần user tự bấm lại
+qua UI sau khi restart server.

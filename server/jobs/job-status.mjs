@@ -88,6 +88,32 @@ export function emitProgress(projectDir, event) {
  *  job-status.json and any SSE listener. Treat `ok === false` on the resolved value
  *  as an error the same way a thrown exception is treated.
  */
+/**
+ * Marks any step still "running" as "error" — called once at server startup for
+ * every known project. State lives entirely on disk (job-status.json), but a
+ * "running" entry is really just "a task was in flight in SOME earlier process" —
+ * if that process is gone (crashed, or the user restarted it to pick up a code
+ * change, as documented in plan.md's timeout-fix section), nothing will ever call
+ * emitProgress "done"/"error" for it again, since the in-memory work was lost with
+ * the process. Confirmed live: a render stuck "running" for hours after a restart,
+ * and the UI's own "hide the button while running" logic (Pipeline.jsx) then makes
+ * it permanently unclickable — the user has no way to recover without this.
+ */
+export function reconcileInterruptedSteps(projectDir) {
+  const current = readJobStatus(projectDir);
+  let changed = false;
+  for (const step of Object.values(current.steps ?? {})) {
+    if (step.status === "running") {
+      step.status = "error";
+      step.error = "Bị gián đoạn do server khởi động lại giữa chừng — thử chạy lại bước này.";
+      step.at = new Date().toISOString();
+      changed = true;
+    }
+  }
+  if (changed) writeJobStatusFile(projectDir, current);
+  return changed;
+}
+
 export async function runStep(projectDir, step, taskFn) {
   emitProgress(projectDir, { step, status: "running" });
   try {
