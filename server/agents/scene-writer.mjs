@@ -18,7 +18,7 @@ import { join } from "path";
 import { runAgent, CHEAP_MODEL } from "./run-agent.mjs";
 import { createFsTools } from "../tools/fs-tools.mjs";
 import { lint } from "../tools/hyperframes-cli.mjs";
-import { checkPseudoElementAnimations, checkCanvasDimensions } from "../tools/validators.mjs";
+import { checkPseudoElementAnimations, checkCanvasDimensions, checkClipClassOverride } from "../tools/validators.mjs";
 import { dimensionsForFormat } from "../lib/canvas.mjs";
 
 const SKILL_PATH = join(import.meta.dirname, "..", "..", ".agents", "skills", "hyperframes", "SKILL.md");
@@ -81,6 +81,10 @@ override bắt buộc riêng của project này (cao hơn hướng dẫn chung �
 - Class prefix cho mọi class trong scene này: \`${classPrefix}\` (ví dụ \`${classPrefix}title\`)
 - \`repeat: Math.ceil(...)\` — KHÔNG BAO GIỜ dùng \`repeat: -1\`
 - Mọi element có timing phải có \`class="clip"\`
+- TUYỆT ĐỐI KHÔNG tự viết CSS rule cho class \`.clip\` (vd \`.clip { position: absolute;
+  ... }\`) — đây là marker riêng của framework để quản lý hiện/ẩn theo thời gian, tự định
+  nghĩa CSS cho nó (nhất là \`position\`) sẽ phá cách framework mount kích thước, khiến
+  nội dung bị co lại/dồn góc. Cần định vị gì thì dùng class riêng của bạn.
 - \`data-duration\` của composition = đúng \`scene.duration\` đã cho, không tự đổi
 - Kích thước canvas của TOÀN BỘ project là \`data-width="${width}" data-height="${height}"\`
   — element gốc của sub-composition PHẢI dùng ĐÚNG 2 số này (khớp \`format\` của
@@ -139,7 +143,11 @@ xong, trả lời bằng 1 câu tóm tắt — không tool call nào nữa.`;
     // disagreeing with the project's own canvas size (see validators.mjs). Treating
     // it as a hard-fail here, not just a warning, is what actually guarantees the fix
     // instead of hoping the model follows the prompt instruction.
-    lastNewFindings = [...diffNewFindings(baseline, current), ...checkCanvasDimensions(html, width, height)];
+    lastNewFindings = [
+      ...diffNewFindings(baseline, current),
+      ...checkCanvasDimensions(html, width, height),
+      ...checkClipClassOverride(html),
+    ];
     onEvent?.({ type: "lint", attempt, newFindingCount: lastNewFindings.length });
 
     if (lastNewFindings.length === 0) {

@@ -89,3 +89,30 @@ export function checkAllCanvasDimensions(html, expectedWidth, expectedHeight) {
   }
   return findings;
 }
+
+// Root cause of the "content bunched in the top corner, text overlapping" bug the
+// user reported on every scene of a real project. Bisected by hand: took the exact
+// broken index.html + scene_01.html into an isolated scratch project, confirmed
+// scene_01.html alone rendered PERFECTLY (proving the scene file was never the
+// problem), then re-added the real root's <style> block piece by piece. Removing
+// just this one rule — `.clip { position: absolute; width: 100%; height: 100%; ... }`,
+// which root-composer had invented on its own — fixed the render with zero other
+// changes. `class="clip"` is a framework-owned marker for timed-visibility control
+// (see hyperframes-core skill); authoring CSS for it, especially `position`, fights
+// however the framework mounts/sizes the scene-host element and collapses the
+// sub-composition's content to an auto-height box pinned near the top instead of
+// filling the intended canvas. hyperframes lint never flags this — it's valid CSS,
+// just wrong for this framework's contract.
+const CLIP_OVERRIDE_RE = /\.clip(?:[.\w-]*)\s*\{[^}]*\bposition\s*:\s*absolute[^}]*\}/gi;
+
+export function checkClipClassOverride(html) {
+  const findings = [];
+  for (const match of html.matchAll(CLIP_OVERRIDE_RE)) {
+    findings.push({
+      code: "clip-class-override",
+      message: `Composition tự định nghĩa CSS cho ".clip" có position:absolute — class "clip" do framework tự quản lý (visibility theo thời gian), KHÔNG được tự viết CSS cho nó (nhất là position). Xoá hẳn rule này; nếu cần định vị/kích thước, đặt trên class/id riêng của bạn, không phải trên ".clip".`,
+      match: match[0].slice(0, 160),
+    });
+  }
+  return findings;
+}

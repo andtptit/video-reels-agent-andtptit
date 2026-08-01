@@ -312,6 +312,81 @@ MỌI video qua nhánh DashScope):
 
 ---
 
+## ✅ ĐÃ TÌM RA + SỬA XONG (cùng phiên, ngay sau đoạn trên) — root cause thật: `root-composer` tự viết `.clip{position:absolute}` đè framework
+
+User nhấn mạnh đây là bug chặn cứng ("nếu không fix tôi sẽ không thể dùng"), yêu cầu soi
+kỹ tiếp — dùng cách bisect nhị phân đã đề xuất ở trên thay vì tiếp tục đoán CSS trên
+chính file lỗi.
+
+### Cách làm — cô lập bằng project test sạch, không đoán trên file thật nữa
+
+1. Tạo project test trắng (`hyperframes init` mới), copy NGUYÊN VĂN `scene_01.html` bị
+   lỗi vào, viết 1 root tối giản chỉ có đúng 1 scene này → `inspect`: **`ok: true, 0
+   lỗi`**. Render thật: layout đúng hoàn toàn, canh giữa đẹp. → **Xác nhận 100%: bản thân
+   file scene không có lỗi gì** — lỗi nằm ở phía ROOT, không phải scene.
+2. Thay root tối giản bằng ĐÚNG root `index.html` thật của project lỗi (giữ nguyên
+   `scene_01.html` đã xác nhận sạch) → bug **tái hiện y hệt** (`top:-14, bottom:154`,
+   khớp 100% với lỗi gốc) dù thiếu file `scene_02–05.html`. → Xác nhận lỗi nằm trong
+   chính root `index.html`, không liên quan các scene khác.
+3. Bóc từng phần của root cho tới khi tìm đúng chỗ: root thật có tự định nghĩa
+   `.clip { position: absolute; width: 100%; height: 100%; top: 0; left: 0; }` trong
+   `<style>` — **thứ mà root tự viết KHÔNG có trong bất kỳ scaffold/ví dụ nào trước đó**.
+   Xoá đúng 1 rule này (không đổi gì khác) → `inspect`: **`ok: true, 0 lỗi`** ngay lập
+   tức. Render lại đầy đủ (atmosphere + audio + crossfade thật) → layout hoàn hảo, xác
+   nhận bằng frame thật.
+
+**Nguyên nhân**: `class="clip"` là marker riêng của framework để tự quản lý hiện/ẩn
+theo thời gian (đọc kỹ `hyperframes-core` skill: *"the framework uses this for
+visibility control"*) — KHÔNG phải để author tự style. `root-composer` (dùng
+`qwen3.7-flash`) tự suy luận "thấy `class='clip'` trên nhiều element, chắc cần định
+nghĩa CSS cho nó" — hợp lý về trực giác nhưng SAI với framework này. Khi root tự gán
+`position:absolute` cho `.clip`, nó đè lên cách framework tự mount/tính kích thước cho
+scene-host (`data-composition-src`), khiến nội dung sub-composition bên trong co lại
+thành khối auto-height nhỏ rồi dồn lên góc trên — đúng cả 2 triệu chứng user báo (chữ
+dính, dồn góc). Không phải bug ở `scene-writer` (chưa từng thấy nó tự viết rule này) —
+chỉ `root-composer` mắc lỗi này.
+
+### Đã sửa
+
+- `server/tools/validators.mjs` — thêm `checkClipClassOverride(html)`: regex bắt
+  `.clip[...]{ ... position:absolute ... }`, trả finding nếu có.
+- `root-composer.mjs` — thêm dòng cấm tuyệt đối vào system prompt (giải thích rõ lý do,
+  kèm bằng chứng "đã test thật") + nối `checkClipClassOverride` vào retry gate (hard-fail,
+  cùng cấp với lint/canvas-dimension).
+- `scene-writer.mjs` — thêm phòng ngừa tương tự (chưa từng thấy nó mắc lỗi này, nhưng rẻ
+  nên thêm luôn, cùng pattern với các check khác đã áp dụng cho cả 2 agent).
+
+### Đã test lại thật qua DashScope (`qwen3.7-flash`, đúng yêu cầu user) trên chính project bị lỗi
+
+Chạy lại `test-root-composer.mjs` trên `model-kimi-ra-doi-khien-claude-de-chung`: PASS
+sau 3 attempt (149.627 token — hơi cao vì model vẫn còn thói quen gọi `list_dir` thừa ở
+2 attempt đầu, chưa sửa, xem mục "việc nhỏ" bên dưới), **root mới KHÔNG còn viết
+`.clip{position:absolute}` nữa** — mỗi atmosphere layer (`bg-dots`, `bg-glow`...) giờ có
+class riêng với `position:absolute` riêng thay vì gộp vào `.clip`. `checkClipClassOverride`
+chạy trên file mới → `0 finding`. `inspect` → lỗi của `scene_01` biến mất hoàn toàn (2 lỗi
+còn lại là của `scene_05` — nội dung tràn quá khung, vấn đề khác hẳn, không liên quan
+`.clip`, chưa xử lý). Render lại đầy đủ → `ffprobe` xác nhận `1080×1920`, trích frame
+scene 1 xác nhận layout đúng hoàn toàn — không còn dính chữ, không còn dồn góc.
+
+**Kết luận**: bug chặn cứng mà user báo đã được xác định nguyên nhân chính xác 100%
+(không phải suy đoán) và sửa tại gốc (prompt + validator, áp dụng cho MỌI video sau
+này, không phải vá riêng lẻ từng project). Đã verify bằng bisection cô lập LẪN test lại
+trên đúng project thật bị lỗi ban đầu.
+
+### Còn lại — KHÔNG thuộc scope bug này, ghi lại để không quên
+
+- `scene_05.html` của project `model-kimi-ra-doi-khien-claude-de-chung` bị tràn nội dung
+  (content cao hơn 1920px, xem lỗi `container_overflow`/`text_box_overflow` từ `inspect`)
+  — vấn đề riêng của scene đó (nội dung/font-size), không phải bug `.clip`. Chưa sửa.
+- `root-composer` vẫn còn tốn turn/token vào `list_dir` thừa dù prompt đã cấm — giống
+  đúng bug đã sửa cho `video-planner` trước đây nhưng chưa áp dụng triệt để cho
+  `root-composer`. Cân nhắc phiên sau.
+- Nhận xét "chữ quá nhỏ so với tỉ lệ khung hình" của user — có thể là vấn đề RIÊNG (model
+  chọn font-size không tính theo canvas 1080×1920 rất cao/dọc), tách biệt khỏi bug
+  `.clip` — chưa điều tra.
+
+---
+
 ## Đã làm — Phase 2 (Backend API + job queue) ✅ xong, đã test qua HTTP thật
 
 Thêm dependency `express` vào `server/package.json` (`npm install` trong `server/` cần

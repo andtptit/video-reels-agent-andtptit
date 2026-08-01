@@ -22,7 +22,7 @@ import { join } from "path";
 import { runAgent, CHEAP_MODEL } from "./run-agent.mjs";
 import { createFsTools } from "../tools/fs-tools.mjs";
 import { lint } from "../tools/hyperframes-cli.mjs";
-import { checkPseudoElementAnimations, checkAllCanvasDimensions } from "../tools/validators.mjs";
+import { checkPseudoElementAnimations, checkAllCanvasDimensions, checkClipClassOverride } from "../tools/validators.mjs";
 import { dimensionsForFormat } from "../lib/canvas.mjs";
 
 const SKILL_PATH = join(import.meta.dirname, "..", "..", ".agents", "skills", "hyperframes", "SKILL.md");
@@ -166,6 +166,14 @@ Bạn đang viết ROOT composition (\`index.html\` ở gốc project), KHÔNG p
   của nó có thể khác project này) — mọi scene đã được scene-writer viết đúng theo
   ${width}×${height}, nếu root/scene-host dùng số khác thì nội dung sẽ bị co/tràn khi
   ghép, và video render ra sẽ sai hướng (ngang/dọc) so với lựa chọn của user.
+- TUYỆT ĐỐI KHÔNG tự viết CSS rule cho class \`.clip\` (ví dụ \`.clip { position: absolute;
+  ... }\`) trong \`<style>\`. \`class="clip"\` là marker riêng của framework để tự quản lý
+  hiện/ẩn theo thời gian — tự định nghĩa CSS cho nó (nhất là \`position\`) sẽ phá cách
+  framework mount kích thước cho scene host, khiến nội dung bên trong mỗi scene bị co
+  lại thành 1 khối nhỏ và dồn lên góc trên, chữ chồng lên nhau (đã xác nhận bằng test
+  thật: chỉ cần xoá đúng rule này là hết lỗi, không cần đổi gì khác). Nếu cần định vị
+  atmosphere layers (bg-dots, bg-glow...), dùng class riêng của bạn (\`.bg-dots\`,
+  \`.corner-tl\`...) với \`position: absolute\`, KHÔNG đặt lên \`.clip\`.
 
 DESIGN.md, danh sách scene (kèm đủ \`vo_duration\`/\`scene_duration\`/đường dẫn audio), và
 tên nhạc nền ĐÃ được nhúng đầy đủ trong user message bên dưới — KHÔNG gọi \`read_file\`
@@ -230,8 +238,15 @@ trả lời bằng 1 câu tóm tắt — không tool call nào nữa.`;
     // validates each file in isolation, so it can never catch root/scene-host
     // dimensions disagreeing with the project's actual format. Hard-fail here
     // (folded into the same retry gate as lint), not just a warning, or nothing
-    // actually forces the model to fix it.
-    lastNewFindings = [...diffNewFindings(baseline, current), ...checkAllCanvasDimensions(html, width, height)];
+    // actually forces the model to fix it. checkClipClassOverride catches the
+    // confirmed real root cause of the "content bunched in a corner" bug — also a
+    // hard-fail, since a lint-clean, correctly-dimensioned file can still render
+    // broken if it has this rule.
+    lastNewFindings = [
+      ...diffNewFindings(baseline, current),
+      ...checkAllCanvasDimensions(html, width, height),
+      ...checkClipClassOverride(html),
+    ];
     onEvent?.({ type: "lint", attempt, newFindingCount: lastNewFindings.length });
 
     if (lastNewFindings.length === 0) {
