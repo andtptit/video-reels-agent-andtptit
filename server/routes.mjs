@@ -110,8 +110,9 @@ router.post("/projects/:id/audio", withProjectDir, (req, res) => {
 });
 
 router.post("/projects/:id/video-plan", withProjectDir, (req, res) => {
+  const { visualStyle } = req.body ?? {};
   runInBackground(req.projectDir, "video-plan", (onEvent) =>
-    queues.dashscope.run(() => runVideoPlanner({ projectDir: req.projectDir, onEvent }))
+    queues.dashscope.run(() => runVideoPlanner({ projectDir: req.projectDir, visualStyle, onEvent }))
   );
   res.status(202).json({ step: "video-plan", status: "running" });
 });

@@ -28,6 +28,7 @@ export function Pipeline({ id, idea, platform }) {
   const { steps, totalUsage } = useJobStatus(id);
   const [audience, setAudience] = useState("");
   const [ttsProvider, setTtsProvider] = useState("edge-tts");
+  const [visualStyle, setVisualStyle] = useState("animation");
   const [formError, setFormError] = useState(null);
 
   const planStatus = steps.plan?.status;
@@ -97,9 +98,15 @@ export function Pipeline({ id, idea, platform }) {
 
       <StepRow title="3. Video plan" status={videoPlanStatus} error={steps["video-plan"]?.error} usage={steps["video-plan"]?.usage}>
         {audioStatus === "done" && videoPlanStatus !== "done" && videoPlanStatus !== "running" && (
-          <button type="button" onClick={() => run(() => api.runVideoPlan(id))}>
-            Chạy video-planner
-          </button>
+          <div className="inline-form">
+            <select value={visualStyle} onChange={(e) => setVisualStyle(e.target.value)}>
+              <option value="animation">Animation (CSS/GSAP thuần)</option>
+              <option value="ai-image">Ảnh nền AI (wan2.6-image)</option>
+            </select>
+            <button type="button" onClick={() => run(() => api.runVideoPlan(id, { visualStyle }))}>
+              Chạy video-planner
+            </button>
+          </div>
         )}
       </StepRow>
       {videoPlanStatus === "done" && (

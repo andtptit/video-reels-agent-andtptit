@@ -278,13 +278,23 @@ kiệm 1 bước tra cứu thêm).
   trùng đúng vị trí 2 card chứa số liệu) — chất lượng vượt kỳ vọng ban đầu.
 
 **Chưa làm** (còn lại của Phase 4, không chặn việc dùng thử qua CLI/test script):
-- Chưa nối `visualStyle` qua `routes.mjs`/`createProject`/UI — hiện chỉ chọn được qua
-  tham số hàm trực tiếp (`test-video-planner.mjs <projectDir> ai-image`), user UI chưa
-  có cách chọn style "ảnh AI" khi tạo project.
 - Chưa test `root-composer` với scene có ảnh (chỉ mới test 1 scene độc lập, chưa ghép
   nhiều scene ai-image vào 1 video hoàn chỉnh qua root thật).
 - Chưa xử lý trường hợp `generateAndSaveImage` lỗi giữa chừng (API down, quota hết) —
   hiện lỗi sẽ ném thẳng ra ngoài, làm cả scene fail, chưa có fallback về animation thuần.
+
+**✅ Đã nối `visualStyle` vào UI (phiên 2026-08-01, tiếp theo)**: đặt selector ở đúng
+bước 3 "Video plan" trong `Pipeline.jsx` (không phải lúc tạo project) — vì `visualStyle`
+chỉ thực sự cần tại thời điểm gọi `runVideoPlanner`, và project hiện không có file
+meta nào sống qua nhiều bước để giữ lựa chọn từ lúc tạo tới lúc chạy video-planner (khác
+`platform`, vốn đã đi thẳng vào `hyperframes init --resolution` ngay tại bước tạo). Theo
+đúng pattern đã có sẵn của `ttsProvider` (chọn ngay tại bước Audio, không phải lúc tạo
+project). Đường đi: `Pipeline.jsx` state `visualStyle` → `api.runVideoPlan(id, {
+visualStyle })` → `POST /projects/:id/video-plan` body → `routes.mjs` destructure →
+`runVideoPlanner({ visualStyle })`. Không cần gọi DashScope thật để verify phần này —
+`runVideoPlanner`'s `visualStyle="ai-image"` logic đã verify sống ở mục trên rồi, đây
+chỉ là plumbing tham số qua HTTP; verify bằng lint (`oxlint` sạch) + `node --check
+routes.mjs`.
 
 ---
 
