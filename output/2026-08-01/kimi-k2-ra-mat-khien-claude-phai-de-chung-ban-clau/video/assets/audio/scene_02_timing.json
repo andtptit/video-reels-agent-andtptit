@@ -1,0 +1,197 @@
+[
+  {
+    "word": "Không",
+    "start": 0.125,
+    "end": 0.325
+  },
+  {
+    "word": "phải",
+    "start": 0.325,
+    "end": 0.6
+  },
+  {
+    "word": "chatbot",
+    "start": 0.6,
+    "end": 1.1125
+  },
+  {
+    "word": "thường",
+    "start": 1.1125,
+    "end": 1.45
+  },
+  {
+    "word": "Kimi",
+    "start": 2.325,
+    "end": 2.6125
+  },
+  {
+    "word": "K2",
+    "start": 2.6125,
+    "end": 3.0375
+  },
+  {
+    "word": "là",
+    "start": 3.0375,
+    "end": 3.2
+  },
+  {
+    "word": "mô",
+    "start": 3.2,
+    "end": 3.375
+  },
+  {
+    "word": "hình",
+    "start": 3.375,
+    "end": 3.575
+  },
+  {
+    "word": "một",
+    "start": 3.575,
+    "end": 3.7375
+  },
+  {
+    "word": "nghìn",
+    "start": 3.7375,
+    "end": 3.9375
+  },
+  {
+    "word": "tỷ",
+    "start": 3.9375,
+    "end": 4.125
+  },
+  {
+    "word": "tham",
+    "start": 4.125,
+    "end": 4.325
+  },
+  {
+    "word": "số",
+    "start": 4.325,
+    "end": 4.725
+  },
+  {
+    "word": "huấn",
+    "start": 4.9125,
+    "end": 5.0875
+  },
+  {
+    "word": "luyện",
+    "start": 5.0875,
+    "end": 5.3375
+  },
+  {
+    "word": "để",
+    "start": 5.3375,
+    "end": 5.4875
+  },
+  {
+    "word": "tự",
+    "start": 5.4875,
+    "end": 5.7
+  },
+  {
+    "word": "chạy",
+    "start": 5.7,
+    "end": 5.9375
+  },
+  {
+    "word": "công",
+    "start": 5.9375,
+    "end": 6.15
+  },
+  {
+    "word": "cụ",
+    "start": 6.15,
+    "end": 6.5
+  },
+  {
+    "word": "tự",
+    "start": 6.675,
+    "end": 6.8625
+  },
+  {
+    "word": "sửa",
+    "start": 6.8625,
+    "end": 7.0625
+  },
+  {
+    "word": "lỗi",
+    "start": 7.0625,
+    "end": 7.4875
+  },
+  {
+    "word": "tự",
+    "start": 7.675,
+    "end": 7.825
+  },
+  {
+    "word": "lặp",
+    "start": 7.825,
+    "end": 8
+  },
+  {
+    "word": "lại",
+    "start": 8,
+    "end": 8.225
+  },
+  {
+    "word": "cho",
+    "start": 8.225,
+    "end": 8.3875
+  },
+  {
+    "word": "tới",
+    "start": 8.3875,
+    "end": 8.65
+  },
+  {
+    "word": "khi",
+    "start": 8.65,
+    "end": 8.8125
+  },
+  {
+    "word": "code",
+    "start": 8.8125,
+    "end": 9
+  },
+  {
+    "word": "chạy",
+    "start": 9,
+    "end": 9.1875
+  },
+  {
+    "word": "đúng",
+    "start": 9.1875,
+    "end": 9.4875
+  },
+  {
+    "word": "đúng",
+    "start": 9.7125,
+    "end": 9.9125
+  },
+  {
+    "word": "thứ",
+    "start": 9.9125,
+    "end": 10.0875
+  },
+  {
+    "word": "dân",
+    "start": 10.0875,
+    "end": 10.3125
+  },
+  {
+    "word": "dev",
+    "start": 10.3125,
+    "end": 10.5125
+  },
+  {
+    "word": "cần",
+    "start": 10.5125,
+    "end": 10.725
+  },
+  {
+    "word": "nhất",
+    "start": 10.725,
+    "end": 10.9625
+  }
+]

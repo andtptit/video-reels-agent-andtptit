@@ -1,0 +1,157 @@
+<template id="scene-03-template">
+  <div id="scene-03" data-composition-id="scene-03" data-start="0" data-duration="9.16" data-width="1080" data-height="1920">
+    <style>
+      #scene-03 {
+        background-color: #060810;
+        position: relative;
+        overflow: hidden;
+      }
+      #scene-03::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background-image: radial-gradient(circle, #39FF14 1.5px, transparent 1.5px);
+        background-size: 48px 48px;
+        opacity: 0.28;
+        z-index: -2;
+      }
+      #scene-03::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: repeating-linear-gradient(0deg, transparent, transparent 1px, rgba(255,255,255,0.04) 1px, rgba(255,255,255,0.04) 2px);
+        z-index: -1;
+      }
+      #scene-03 .s3-corner {
+        position: absolute;
+        width: 56px;
+        height: 56px;
+        border: 3px solid #39FF14;
+        opacity: 0.5;
+        box-sizing: border-box;
+      }
+      #scene-03 .s3-corner-tl { top: 0; left: 0; border-right: none; border-bottom: none; }
+      #scene-03 .s3-corner-tr { top: 0; right: 0; border-left: none; border-bottom: none; }
+      #scene-03 .s3-corner-bl { bottom: 0; left: 0; border-right: none; border-top: none; }
+      #scene-03 .s3-corner-br { bottom: 0; right: 0; border-left: none; border-top: none; }
+
+      .s3-content {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        padding: 0 80px;
+        box-sizing: border-box;
+      }
+      .s3-label {
+        font-family: "Inter", sans-serif;
+        font-weight: 600;
+        font-size: 26px;
+        letter-spacing: 0.08em;
+        color: #39FF14;
+        text-shadow: 0 0 10px rgba(57,255,20,0.5);
+        margin: 0 0 96px;
+      }
+      .s3-track {
+        position: relative;
+        width: 100%;
+        height: 6px;
+        border-radius: 3px;
+        background: linear-gradient(to right, rgba(255,255,255,0.15), rgba(57,255,20,0.6));
+      }
+      .s3-track-left-label {
+        position: absolute;
+        top: -48px;
+        left: 0;
+        font-family: "Inter", sans-serif;
+        font-weight: 500;
+        font-size: 26px;
+        color: #FFFFFF;
+      }
+      .s3-marker {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+      }
+      .s3-marker-dot {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: #39FF14;
+        box-shadow: 0 0 22px rgba(57,255,20,0.9);
+      }
+      .s3-marker-label {
+        font-family: "Exo 2", sans-serif;
+        font-weight: 800;
+        font-size: 30px;
+        color: #39FF14;
+        text-shadow: 0 0 14px rgba(57,255,20,0.7);
+        white-space: nowrap;
+      }
+      .s3-price-tag {
+        margin-top: 120px;
+        font-family: "Inter", sans-serif;
+        font-style: italic;
+        font-weight: 500;
+        font-size: 28px;
+        color: rgba(255,255,255,0.55);
+      }
+    </style>
+
+    <div class="s3-corner s3-corner-tl"></div>
+    <div class="s3-corner s3-corner-tr"></div>
+    <div class="s3-corner s3-corner-bl"></div>
+    <div class="s3-corner s3-corner-br"></div>
+
+    <div class="s3-content">
+      <p id="s3-label" class="s3-label clip" data-start="0.3" data-duration="8.86" data-track-index="0">SWE-BENCH</p>
+
+      <div id="s3-track" class="s3-track clip" data-start="0.3" data-duration="8.86" data-track-index="1">
+        <span id="s3-track-left-label" class="s3-track-left-label">Claude Sonnet</span>
+        <div id="s3-marker" class="s3-marker clip" data-start="2.4" data-duration="6.76" data-track-index="3">
+          <span class="s3-marker-dot"></span>
+          <span class="s3-marker-label">Kimi K2</span>
+        </div>
+      </div>
+
+      <p id="s3-price-tag" class="s3-price-tag clip" data-start="7.3" data-duration="1.86" data-track-index="4">Giá chỉ bằng một phần nhỏ</p>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+
+      tl.from("#s3-label", { opacity: 0, x: -24, duration: 0.4, ease: "power2.out" }, 0.3);
+      tl.fromTo("#s3-track", { scaleX: 0 }, { scaleX: 1, duration: 0.5, ease: "power2.out", transformOrigin: "left" }, 0.3);
+      tl.from("#s3-track-left-label", { opacity: 0, duration: 0.4, ease: "power2.out" }, 0.5);
+
+      // Marker enters centered on the bar (xPercent/yPercent handle the
+      // centering offset; x stays 0 = "ngang hàng" with Claude Sonnet).
+      tl.fromTo(
+        "#s3-marker",
+        { xPercent: -50, yPercent: -50, x: 0, opacity: 0, scale: 0.6 },
+        { opacity: 1, scale: 1, duration: 0.4, ease: "back.out(1.6)" },
+        2.4
+      );
+      // "đạt điểm ngang" (2.84s): small pulse in place.
+      tl.to("#s3-marker", { scale: 1.1, duration: 0.2, ease: "sine.out" }, 2.84);
+      tl.to("#s3-marker", { scale: 1, duration: 0.2, ease: "sine.inOut" }, 3.04);
+
+      // FOCAL MOMENT — "vượt Claude Sonnet" (4.25s): slide right past the
+      // Claude Sonnet mark, track segment behind it brightens.
+      tl.to("#s3-marker", { x: 260, duration: 0.5, ease: "power2.inOut" }, 4.25);
+      tl.to("#s3-track", { boxShadow: "0 0 24px rgba(57,255,20,0.6)", duration: 0.3, ease: "sine.out" }, 4.25);
+
+      tl.from("#s3-price-tag", { opacity: 0, y: 16, duration: 0.4, ease: "power2.out" }, 7.3);
+
+      window.__timelines["scene-03"] = tl;
+    </script>
+  </div>
+</template>

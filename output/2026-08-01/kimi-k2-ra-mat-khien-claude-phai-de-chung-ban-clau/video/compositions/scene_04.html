@@ -1,0 +1,128 @@
+<template id="scene-04-template">
+  <div id="scene-04" data-composition-id="scene-04" data-start="0" data-duration="11.59" data-width="1080" data-height="1920">
+    <style>
+      #scene-04 {
+        background-color: #060810;
+        position: relative;
+        overflow: hidden;
+      }
+      #scene-04::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background-image: radial-gradient(circle, #39FF14 1.5px, transparent 1.5px);
+        background-size: 48px 48px;
+        opacity: 0.28;
+        z-index: -2;
+      }
+      #scene-04::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: repeating-linear-gradient(0deg, transparent, transparent 1px, rgba(255,255,255,0.04) 1px, rgba(255,255,255,0.04) 2px);
+        z-index: -1;
+      }
+      #scene-04 .s4-glow {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 900px;
+        height: 900px;
+        transform: translate(-50%, -50%);
+        background: radial-gradient(circle, rgba(57,255,20,0.16) 0%, transparent 70%);
+        z-index: -1;
+      }
+      #scene-04 .s4-corner {
+        position: absolute;
+        width: 56px;
+        height: 56px;
+        border: 3px solid #39FF14;
+        opacity: 0.5;
+        box-sizing: border-box;
+      }
+      #scene-04 .s4-corner-tl { top: 0; left: 0; border-right: none; border-bottom: none; }
+      #scene-04 .s4-corner-tr { top: 0; right: 0; border-left: none; border-bottom: none; }
+      #scene-04 .s4-corner-bl { bottom: 0; left: 0; border-right: none; border-top: none; }
+      #scene-04 .s4-corner-br { bottom: 0; right: 0; border-left: none; border-top: none; }
+
+      .s4-content {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        padding: 0 88px;
+        gap: 36px;
+        box-sizing: border-box;
+      }
+      .s4-headline {
+        font-family: "Exo 2", sans-serif;
+        font-weight: 800;
+        font-size: 46px;
+        line-height: 1.25;
+        color: #FFFFFF;
+        margin: 0;
+      }
+      .s4-subtext {
+        font-family: "Inter", sans-serif;
+        font-style: italic;
+        font-weight: 500;
+        font-size: 28px;
+        line-height: 1.4;
+        color: rgba(255,255,255,0.55);
+        margin: 0;
+      }
+      .s4-cta {
+        margin-top: 24px;
+        padding: 22px 40px;
+        border-radius: 16px;
+        background: #39FF14;
+        box-shadow: 0 0 0 rgba(57,255,20,0);
+      }
+      .s4-cta-text {
+        font-family: "Exo 2", sans-serif;
+        font-weight: 800;
+        font-size: 30px;
+        color: #060810;
+        letter-spacing: 0.02em;
+      }
+    </style>
+
+    <div class="s4-glow"></div>
+    <div class="s4-corner s4-corner-tl"></div>
+    <div class="s4-corner s4-corner-tr"></div>
+    <div class="s4-corner s4-corner-bl"></div>
+    <div class="s4-corner s4-corner-br"></div>
+
+    <div class="s4-content">
+      <h2 id="s4-headline" class="s4-headline clip" data-start="0.2" data-duration="11.39" data-track-index="0">
+        Lần đầu tiên mã nguồn mở đe dọa vị trí dẫn đầu
+      </h2>
+      <p id="s4-subtext" class="s4-subtext clip" data-start="5.7" data-duration="5.89" data-track-index="1">
+        Cuộc đua AI không còn là sân chơi riêng của Mỹ
+      </p>
+      <div id="s4-cta" class="s4-cta clip" data-start="9.16" data-duration="2.43" data-track-index="2">
+        <span class="s4-cta-text">BẠN ĐÃ THỬ KIMI K2 CHƯA?</span>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+
+      tl.from("#s4-headline", { opacity: 0, y: 20, duration: 0.7, ease: "power2.out" }, 0.2);
+      tl.from("#s4-subtext", { opacity: 0, y: 16, duration: 0.6, ease: "power2.out" }, 5.7);
+
+      // FOCAL MOMENT — CTA bloom + halo glow, held for the rest of the video
+      // (last scene: no exit needed, this is the deliberate closing frame).
+      tl.fromTo("#s4-cta", { scale: 0.7, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.5, ease: "back.out(1.8)" }, 9.16);
+      tl.to("#s4-cta", { boxShadow: "0 0 48px rgba(57,255,20,0.85)", duration: 0.5, ease: "sine.out" }, 9.16);
+      tl.to(".s4-glow", { opacity: 1.3, duration: 0.5, ease: "sine.out" }, 9.16);
+
+      window.__timelines["scene-04"] = tl;
+    </script>
+  </div>
+</template>

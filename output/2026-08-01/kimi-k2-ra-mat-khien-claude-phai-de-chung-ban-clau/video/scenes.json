@@ -1,0 +1,39 @@
+{
+  "master_content": "master_content.md",
+  "platform": "9:16",
+  "total_estimated_duration": 39,
+  "scenes": [
+    {
+      "sceneId": "scene_01",
+      "narration": "Trong khi cả thế giới đang trả tiền dùng Claude để code, Moonshot AI vừa tung ra Kimi K2 — miễn phí, mã nguồn mở, và vượt qua Claude trên nhiều benchmark lập trình.",
+      "meaning": "Hook gây sốc — đối thủ mới xuất hiện, miễn phí và mạnh hơn Claude",
+      "estimated_duration": 10,
+      "mood_hint": "explosive",
+      "is_hook": true
+    },
+    {
+      "sceneId": "scene_02",
+      "narration": "Không phải chatbot thường. Kimi K2 là mô hình một nghìn tỷ tham số, huấn luyện để tự chạy công cụ, tự sửa lỗi, tự lặp lại cho tới khi code chạy đúng — đúng thứ dân dev cần nhất.",
+      "meaning": "Giải thích Kimi K2 là gì và tại sao nó đặc biệt — agentic coding",
+      "estimated_duration": 11,
+      "mood_hint": "technical",
+      "is_hook": false
+    },
+    {
+      "sceneId": "scene_03",
+      "narration": "Trên benchmark SWE-bench, Kimi K2 đạt điểm ngang, thậm chí vượt Claude Sonnet ở một số tác vụ agentic — trong khi giá chỉ bằng một phần nhỏ.",
+      "meaning": "Bằng chứng số liệu cụ thể — so sánh benchmark và giá",
+      "estimated_duration": 8,
+      "mood_hint": "snappy",
+      "is_hook": false
+    },
+    {
+      "sceneId": "scene_04",
+      "narration": "Đây là lần đầu tiên một mô hình mã nguồn mở thực sự đe dọa vị trí dẫn đầu của Anthropic. Cuộc đua AI không còn là sân chơi riêng của Mỹ. Bạn đã thử Kimi K2 chưa?",
+      "meaning": "Kết luận tầm nhìn lớn hơn + CTA mời tương tác",
+      "estimated_duration": 10,
+      "mood_hint": "cinematic",
+      "is_hook": false
+    }
+  ]
+}

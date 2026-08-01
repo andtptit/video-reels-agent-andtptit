@@ -1,0 +1,83 @@
+{
+  "design": "DESIGN.md",
+  "format": "9:16",
+  "total_duration": 42.31,
+  "scenes": [
+    {
+      "sceneId": "scene_01",
+      "duration": 10.1,
+      "content_shape": "two-column",
+      "mood": "explosive",
+      "transition": { "type": "whoosh", "duration": 0.3 },
+      "sfx_picks": [
+        { "id": "drum-hit", "at": 0.0, "volume": 0.6 },
+        { "id": "whoosh", "at": 4.4, "volume": 0.5 }
+      ],
+      "elements": [
+        { "id": "left-header", "text": "CLAUDE", "role": "header trái — trắng, Exo 2 bold, mờ hơn (phe cũ)" },
+        { "id": "left-content", "text": "Trả phí\nđể code", "role": "label trái — rgba(255,255,255,0.55), Inter 400" },
+        { "id": "divider", "text": "", "role": "vạch dọc chia đôi — neon green mỏng, gradient mờ 2 đầu" },
+        { "id": "right-header", "text": "KIMI K2", "role": "header phải — neon green, Exo 2 bold 900, glow mạnh (kẻ thách thức)" },
+        { "id": "right-content", "text": "Miễn phí\nMã nguồn mở\nVượt benchmark", "role": "list phải — trắng, Inter 600, mỗi dòng cascade riêng" }
+      ],
+      "visual_brief": "CONTENT SHAPE: two-column — đối lập trực diện Claude (trả phí, quen thuộc) vs Kimi K2 (miễn phí, mới, mạnh hơn) ngay từ giây đầu.\n\nHERO FRAME: Hai cột cân xứng 85% canvas. Trái: 'CLAUDE' header trắng mờ + 'Trả phí / để code' — cố tình làm nhạt, tĩnh, như phe đang bị thách thức. Phải: 'KIMI K2' neon green glow mạnh + 3 dòng 'Miễn phí / Mã nguồn mở / Vượt benchmark' — sáng, động, chiếm ưu thế thị giác. Vạch dọc neon green mỏng chia đôi, dot grid + radial glow lệch về bên phải (nơi có tin tức mới).\n\nENTRANCE: 'CLAUDE' slam in nhẹ (expo.out, không bloom) tại 0.1s — cố tình kém ấn tượng hơn. Divider draw-on từ trên xuống tại 0.5s. 'KIMI K2' bloom mạnh + glow burst tại 2.9s (đúng lúc VO nói 'Moonshot AI'). 3 dòng right-content cascade snap-in lần lượt tại 5.6s, 6.4s, 7.4s.\n\nFOCAL MOMENT: Tại 7.6s (khi VO nói 'vượt qua Claude'): toàn bộ cột phải pulse + glow burst mạnh, cột trái mờ thêm 10% — khoảnh khắc cán cân nghiêng hẳn sang Kimi K2.\n\nVIEWER EMOTION: 'Chờ đã — có thứ miễn phí mà còn mạnh hơn Claude?'\n\nVO SYNC: 'Claude' (1.84s) → left-header/left-content hiện. 'Moonshot AI' (2.93s) → right-header bloom. 'miễn phí' (5.63s) → dòng 1 right-content. 'mã nguồn mở' (6.41s) → dòng 2. 'vượt qua Claude... benchmark' (7.6–9.6s) → dòng 3 + focal pulse.",
+      "subtitle": true
+    },
+    {
+      "sceneId": "scene_02",
+      "duration": 11.46,
+      "content_shape": "checklist",
+      "mood": "technical",
+      "transition": { "type": "flash-white", "duration": 0.3 },
+      "sfx_picks": [
+        { "id": "click", "at": 5.49, "volume": 0.6 },
+        { "id": "click", "at": 6.68, "volume": 0.6 },
+        { "id": "click", "at": 7.68, "volume": 0.6 }
+      ],
+      "elements": [
+        { "id": "kicker", "text": "1 NGHÌN TỶ THAM SỐ", "role": "kicker trên cùng — neon green, Inter 600 uppercase, nhỏ" },
+        { "id": "step-1", "text": "Tự chạy công cụ", "role": "checklist item — trắng, Inter 600, icon ⚙️ + số 1 neon green" },
+        { "id": "step-2", "text": "Tự sửa lỗi", "role": "checklist item — trắng, Inter 600, icon 🛠️ + số 2 neon green" },
+        { "id": "step-3", "text": "Tự lặp lại tới khi đúng", "role": "checklist item — trắng, Inter 600, icon 🔁 + số 3 neon green" }
+      ],
+      "visual_brief": "CONTENT SHAPE: checklist — 3 khả năng agentic của Kimi K2 xuất hiện lần lượt, đúng thứ tự VO nhắc, tạo cảm giác 'đây là kỹ thuật thật, không phải marketing'.\n\nHERO FRAME: Kicker '1 NGHÌN TỶ THAM SỐ' nhỏ trên cùng. Bên dưới, 3 hàng dọc căn giữa, mỗi hàng: số thứ tự neon green + icon + text trắng. Spacing đều, đủ 'thở'. Background dot grid + radial glow nhẹ tập trung giữa canvas — tông kỹ thuật, ít kịch tính hơn scene trước (mood: technical, không phải explosive).\n\nENTRANCE: Kicker fade+drift up nhẹ tại 0.2s (power2.out, chậm). Step-1 snap in tại 5.49s (đúng lúc VO nói 'tự chạy công cụ') kèm SFX click. Step-2 tại 6.68s ('tự sửa lỗi'). Step-3 tại 7.68s ('tự lặp lại'). Mỗi step có icon xoay nhẹ 10° khi vào (technical, chính xác — không bouncy).\n\nFOCAL MOMENT: Tại 9.0s (khi VO nói 'code chạy đúng'): cả 3 dòng đồng thời có gạch check ✓ mờ dần hiện lên bên phải mỗi dòng — cảm giác quy trình vừa hoàn tất một vòng lặp.\n\nVIEWER EMOTION: 'Đây không phải chatbot trả lời câu hỏi — đây là thứ tự code cho tới khi chạy được.'\n\nVO SYNC: 'tự chạy công cụ' (5.49s) → step-1. 'tự sửa lỗi' (6.68s) → step-2. 'tự lặp lại' (7.68s) → step-3. 'code chạy đúng' (9.0s) → focal checkmark.",
+      "subtitle": true
+    },
+    {
+      "sceneId": "scene_03",
+      "duration": 9.16,
+      "content_shape": "spectrum",
+      "mood": "snappy",
+      "transition": { "type": "fade", "duration": 0.3 },
+      "sfx_picks": [
+        { "id": "whoosh-soft", "at": 2.0, "volume": 0.5 },
+        { "id": "impact", "at": 4.25, "volume": 0.6 }
+      ],
+      "elements": [
+        { "id": "label", "text": "SWE-BENCH", "role": "label trên cùng — neon green, Inter 600 uppercase" },
+        { "id": "track-left", "text": "Claude Sonnet", "role": "nhãn đầu thanh spectrum — trắng, Inter 500" },
+        { "id": "marker", "text": "Kimi K2", "role": "marker neon green trượt trên thanh, glow mạnh, dừng ở vị trí 'vượt'" },
+        { "id": "price-tag", "text": "Giá chỉ bằng 1 phần nhỏ", "role": "callout nhỏ phía dưới — rgba(255,255,255,0.55), Inter 500, italic nhẹ" }
+      ],
+      "visual_brief": "CONTENT SHAPE: spectrum — thanh ngang thể hiện Kimi K2 đi từ ngang hàng tới vượt Claude Sonnet, không dùng số cụ thể (giữ đúng ngôn ngữ định tính của VO, không bịa số benchmark).\n\nHERO FRAME: Label 'SWE-BENCH' trên cùng. Giữa canvas: thanh gradient ngang mỏng (trái mờ → phải neon green sáng dần). Nhãn 'Claude Sonnet' cố định đầu trái thanh. Marker tròn neon green glow (label 'Kimi K2') nằm giữa thanh lúc đầu. Dưới thanh: callout nhỏ 'Giá chỉ bằng 1 phần nhỏ'.\n\nENTRANCE: Label + thanh sweep-in từ trái tại 0.3s. Marker 'Kimi K2' xuất hiện ở vị trí giữa thanh (ngang hàng) tại 2.4s (khi VO nói 'Kimi K2'). Tại 2.8s ('đạt điểm ngang') marker pulse nhẹ tại chỗ. Tại 4.25s ('vượt Claude Sonnet') marker slide sang phải, vượt qua mốc 'Claude Sonnet', kèm SFX impact — đây là chuyển động chính của cảnh. Price-tag drift up tại 7.3s ('giá chỉ bằng').\n\nFOCAL MOMENT: Tại 4.25s — marker vừa vượt qua mốc Claude Sonnet, glow burst + thanh sáng rực đoạn vừa vượt qua. Đây là khoảnh khắc 'vượt mặt' trực quan.\n\nVIEWER EMOTION: 'Không chỉ ngang hàng — nó còn rẻ hơn nhiều.'\n\nVO SYNC: 'Kimi K2' (2.08s) → marker xuất hiện. 'đạt điểm ngang' (2.84s) → pulse tại chỗ. 'vượt Claude Sonnet' (4.25s) → slide vượt + focal burst. 'giá chỉ bằng một phần nhỏ' (7.34–8.66s) → price-tag hiện.",
+      "subtitle": true
+    },
+    {
+      "sceneId": "scene_04",
+      "duration": 11.59,
+      "content_shape": "cta",
+      "mood": "cinematic",
+      "transition": { "type": "fade", "duration": 0.4 },
+      "sfx_picks": [
+        { "id": "chime", "at": 9.16, "volume": 0.6 }
+      ],
+      "elements": [
+        { "id": "headline", "text": "Lần đầu tiên mã nguồn mở\nđe dọa vị trí dẫn đầu", "role": "headline — trắng, Exo 2 800, 46px, center" },
+        { "id": "subtext", "text": "Cuộc đua AI không còn là sân chơi riêng của Mỹ", "role": "subtext — rgba(255,255,255,0.55), Inter 500, italic nhẹ" },
+        { "id": "cta-badge", "text": "BẠN ĐÃ THỬ KIMI K2 CHƯA?", "role": "CTA badge — nền neon green, chữ đen, bo góc, halo glow mạnh" }
+      ],
+      "visual_brief": "CONTENT SHAPE: cta — chốt lại ý nghĩa lớn (mã nguồn mở lần đầu đe dọa vị trí dẫn đầu) rồi mời tương tác trực tiếp, khép video bằng câu hỏi thay vì tuyên bố.\n\nHERO FRAME: Headline 2 dòng ở giữa-trên canvas, trắng, đậm. Subtext ngay dưới, mờ hơn, nghiêng nhẹ. Dưới cùng: CTA badge lớn nền neon green — chữ đen tương phản mạnh, halo glow rực, đây là scene cuối nên được phép nổi bật nhất toàn video. Background dot grid tĩnh, radial glow tăng dần về cuối — cảm giác 'đóng lại' có chủ đích.\n\nENTRANCE: Headline fade+drift up tại 0.2s (power2.out, chậm — mood cinematic). Subtext fade in tại 5.7s (đúng lúc VO nói 'Cuộc đua AI'). CTA badge bloom + halo glow bật mạnh tại 9.16s (khi VO nói 'Bạn đã thử'), kèm SFX chime.\n\nFOCAL MOMENT: Tại 9.16s — CTA badge vừa bloom xong, cả background radial glow tăng vọt 30% trong 0.5s rồi giữ nguyên tới hết video (đây là scene cuối, ĐƯỢC PHÉP có hold cảm xúc, không cắt vội).\n\nVIEWER EMOTION: 'Câu hỏi đó đang hỏi chính mình — mình có nên thử không?'\n\nVO SYNC: 'lần đầu tiên... dẫn đầu của Anthropic' (0–4.84s) → headline. 'Cuộc đua AI... của Mỹ' (5.71–8.29s) → subtext. 'Bạn đã thử Kimi K2 chưa' (9.16–11.09s) → CTA badge bloom.",
+      "subtitle": true
+    }
+  ]
+}

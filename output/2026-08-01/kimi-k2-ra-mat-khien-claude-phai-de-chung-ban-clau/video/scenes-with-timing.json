@@ -1,0 +1,764 @@
+{
+  "master_content": "master_content.md",
+  "platform": "9:16",
+  "total_estimated_duration": 39,
+  "scenes": [
+    {
+      "sceneId": "scene_01",
+      "narration": "Trong khi cả thế giới đang trả tiền dùng Claude để code, Moonshot AI vừa tung ra Kimi K2 — miễn phí, mã nguồn mở, và vượt qua Claude trên nhiều benchmark lập trình.",
+      "meaning": "Hook gây sốc — đối thủ mới xuất hiện, miễn phí và mạnh hơn Claude",
+      "estimated_duration": 10,
+      "mood_hint": "explosive",
+      "is_hook": true,
+      "_audio": {
+        "voiceover": "assets/audio/scene_01_vo.mp3",
+        "voiceover_start": 0,
+        "vo_duration": 9.6,
+        "scene_duration": 10.1,
+        "word_timestamps": [
+          {
+            "word": "Trong",
+            "start": 0.125,
+            "end": 0.2625
+          },
+          {
+            "word": "khi",
+            "start": 0.2625,
+            "end": 0.4375
+          },
+          {
+            "word": "cả",
+            "start": 0.4375,
+            "end": 0.6125
+          },
+          {
+            "word": "thế",
+            "start": 0.6125,
+            "end": 0.825
+          },
+          {
+            "word": "giới",
+            "start": 0.825,
+            "end": 1.0875
+          },
+          {
+            "word": "đang",
+            "start": 1.0875,
+            "end": 1.2875
+          },
+          {
+            "word": "trả",
+            "start": 1.2875,
+            "end": 1.4625
+          },
+          {
+            "word": "tiền",
+            "start": 1.4625,
+            "end": 1.65
+          },
+          {
+            "word": "dùng",
+            "start": 1.65,
+            "end": 1.8375
+          },
+          {
+            "word": "Claude",
+            "start": 1.8375,
+            "end": 2.225
+          },
+          {
+            "word": "để",
+            "start": 2.225,
+            "end": 2.375
+          },
+          {
+            "word": "code",
+            "start": 2.375,
+            "end": 2.675
+          },
+          {
+            "word": "Moonshot",
+            "start": 2.925,
+            "end": 3.5375
+          },
+          {
+            "word": "AI",
+            "start": 3.5375,
+            "end": 3.9
+          },
+          {
+            "word": "vừa",
+            "start": 3.9,
+            "end": 4.1125
+          },
+          {
+            "word": "tung",
+            "start": 4.1125,
+            "end": 4.325
+          },
+          {
+            "word": "ra",
+            "start": 4.325,
+            "end": 4.5125
+          },
+          {
+            "word": "Kimi",
+            "start": 4.5125,
+            "end": 4.875
+          },
+          {
+            "word": "K2",
+            "start": 4.875,
+            "end": 5.425
+          },
+          {
+            "word": "miễn",
+            "start": 5.625,
+            "end": 5.8375
+          },
+          {
+            "word": "phí",
+            "start": 5.8375,
+            "end": 6.2375
+          },
+          {
+            "word": "mã",
+            "start": 6.4125,
+            "end": 6.575
+          },
+          {
+            "word": "nguồn",
+            "start": 6.575,
+            "end": 6.8125
+          },
+          {
+            "word": "mở",
+            "start": 6.8125,
+            "end": 7.225
+          },
+          {
+            "word": "và",
+            "start": 7.425,
+            "end": 7.6
+          },
+          {
+            "word": "vượt",
+            "start": 7.6,
+            "end": 7.7875
+          },
+          {
+            "word": "qua",
+            "start": 7.7875,
+            "end": 7.9875
+          },
+          {
+            "word": "Claude",
+            "start": 7.9875,
+            "end": 8.35
+          },
+          {
+            "word": "trên",
+            "start": 8.35,
+            "end": 8.5
+          },
+          {
+            "word": "nhiều",
+            "start": 8.5,
+            "end": 8.7
+          },
+          {
+            "word": "benchmark",
+            "start": 8.7,
+            "end": 9.1375
+          },
+          {
+            "word": "lập",
+            "start": 9.1375,
+            "end": 9.3125
+          },
+          {
+            "word": "trình",
+            "start": 9.3125,
+            "end": 9.6
+          }
+        ],
+        "timing_anchors": {}
+      }
+    },
+    {
+      "sceneId": "scene_02",
+      "narration": "Không phải chatbot thường. Kimi K2 là mô hình một nghìn tỷ tham số, huấn luyện để tự chạy công cụ, tự sửa lỗi, tự lặp lại cho tới khi code chạy đúng — đúng thứ dân dev cần nhất.",
+      "meaning": "Giải thích Kimi K2 là gì và tại sao nó đặc biệt — agentic coding",
+      "estimated_duration": 11,
+      "mood_hint": "technical",
+      "is_hook": false,
+      "_audio": {
+        "voiceover": "assets/audio/scene_02_vo.mp3",
+        "voiceover_start": 10.1,
+        "vo_duration": 10.9625,
+        "scene_duration": 11.46,
+        "word_timestamps": [
+          {
+            "word": "Không",
+            "start": 0.125,
+            "end": 0.325
+          },
+          {
+            "word": "phải",
+            "start": 0.325,
+            "end": 0.6
+          },
+          {
+            "word": "chatbot",
+            "start": 0.6,
+            "end": 1.1125
+          },
+          {
+            "word": "thường",
+            "start": 1.1125,
+            "end": 1.45
+          },
+          {
+            "word": "Kimi",
+            "start": 2.325,
+            "end": 2.6125
+          },
+          {
+            "word": "K2",
+            "start": 2.6125,
+            "end": 3.0375
+          },
+          {
+            "word": "là",
+            "start": 3.0375,
+            "end": 3.2
+          },
+          {
+            "word": "mô",
+            "start": 3.2,
+            "end": 3.375
+          },
+          {
+            "word": "hình",
+            "start": 3.375,
+            "end": 3.575
+          },
+          {
+            "word": "một",
+            "start": 3.575,
+            "end": 3.7375
+          },
+          {
+            "word": "nghìn",
+            "start": 3.7375,
+            "end": 3.9375
+          },
+          {
+            "word": "tỷ",
+            "start": 3.9375,
+            "end": 4.125
+          },
+          {
+            "word": "tham",
+            "start": 4.125,
+            "end": 4.325
+          },
+          {
+            "word": "số",
+            "start": 4.325,
+            "end": 4.725
+          },
+          {
+            "word": "huấn",
+            "start": 4.9125,
+            "end": 5.0875
+          },
+          {
+            "word": "luyện",
+            "start": 5.0875,
+            "end": 5.3375
+          },
+          {
+            "word": "để",
+            "start": 5.3375,
+            "end": 5.4875
+          },
+          {
+            "word": "tự",
+            "start": 5.4875,
+            "end": 5.7
+          },
+          {
+            "word": "chạy",
+            "start": 5.7,
+            "end": 5.9375
+          },
+          {
+            "word": "công",
+            "start": 5.9375,
+            "end": 6.15
+          },
+          {
+            "word": "cụ",
+            "start": 6.15,
+            "end": 6.5
+          },
+          {
+            "word": "tự",
+            "start": 6.675,
+            "end": 6.8625
+          },
+          {
+            "word": "sửa",
+            "start": 6.8625,
+            "end": 7.0625
+          },
+          {
+            "word": "lỗi",
+            "start": 7.0625,
+            "end": 7.4875
+          },
+          {
+            "word": "tự",
+            "start": 7.675,
+            "end": 7.825
+          },
+          {
+            "word": "lặp",
+            "start": 7.825,
+            "end": 8
+          },
+          {
+            "word": "lại",
+            "start": 8,
+            "end": 8.225
+          },
+          {
+            "word": "cho",
+            "start": 8.225,
+            "end": 8.3875
+          },
+          {
+            "word": "tới",
+            "start": 8.3875,
+            "end": 8.65
+          },
+          {
+            "word": "khi",
+            "start": 8.65,
+            "end": 8.8125
+          },
+          {
+            "word": "code",
+            "start": 8.8125,
+            "end": 9
+          },
+          {
+            "word": "chạy",
+            "start": 9,
+            "end": 9.1875
+          },
+          {
+            "word": "đúng",
+            "start": 9.1875,
+            "end": 9.4875
+          },
+          {
+            "word": "đúng",
+            "start": 9.7125,
+            "end": 9.9125
+          },
+          {
+            "word": "thứ",
+            "start": 9.9125,
+            "end": 10.0875
+          },
+          {
+            "word": "dân",
+            "start": 10.0875,
+            "end": 10.3125
+          },
+          {
+            "word": "dev",
+            "start": 10.3125,
+            "end": 10.5125
+          },
+          {
+            "word": "cần",
+            "start": 10.5125,
+            "end": 10.725
+          },
+          {
+            "word": "nhất",
+            "start": 10.725,
+            "end": 10.9625
+          }
+        ],
+        "timing_anchors": {}
+      }
+    },
+    {
+      "sceneId": "scene_03",
+      "narration": "Trên benchmark SWE-bench, Kimi K2 đạt điểm ngang, thậm chí vượt Claude Sonnet ở một số tác vụ agentic — trong khi giá chỉ bằng một phần nhỏ.",
+      "meaning": "Bằng chứng số liệu cụ thể — so sánh benchmark và giá",
+      "estimated_duration": 8,
+      "mood_hint": "snappy",
+      "is_hook": false,
+      "_audio": {
+        "voiceover": "assets/audio/scene_03_vo.mp3",
+        "voiceover_start": 21.560000000000002,
+        "vo_duration": 8.6625,
+        "scene_duration": 9.16,
+        "word_timestamps": [
+          {
+            "word": "Trên",
+            "start": 0.125,
+            "end": 0.35
+          },
+          {
+            "word": "benchmark",
+            "start": 0.35,
+            "end": 0.8
+          },
+          {
+            "word": "SWE-bench",
+            "start": 0.8,
+            "end": 1.875
+          },
+          {
+            "word": "Kimi",
+            "start": 2.075,
+            "end": 2.4125
+          },
+          {
+            "word": "K2",
+            "start": 2.4125,
+            "end": 2.8375
+          },
+          {
+            "word": "đạt",
+            "start": 2.8375,
+            "end": 3.025
+          },
+          {
+            "word": "điểm",
+            "start": 3.025,
+            "end": 3.2125
+          },
+          {
+            "word": "ngang",
+            "start": 3.2125,
+            "end": 3.5625
+          },
+          {
+            "word": "thậm",
+            "start": 3.8125,
+            "end": 4.0125
+          },
+          {
+            "word": "chí",
+            "start": 4.0125,
+            "end": 4.25
+          },
+          {
+            "word": "vượt",
+            "start": 4.25,
+            "end": 4.4625
+          },
+          {
+            "word": "Claude",
+            "start": 4.4625,
+            "end": 4.7125
+          },
+          {
+            "word": "Sonnet",
+            "start": 4.7125,
+            "end": 5.2125
+          },
+          {
+            "word": "ở",
+            "start": 5.2125,
+            "end": 5.325
+          },
+          {
+            "word": "một",
+            "start": 5.325,
+            "end": 5.5
+          },
+          {
+            "word": "số",
+            "start": 5.5,
+            "end": 5.7125
+          },
+          {
+            "word": "tác",
+            "start": 5.7125,
+            "end": 5.9
+          },
+          {
+            "word": "vụ",
+            "start": 5.9,
+            "end": 6.1625
+          },
+          {
+            "word": "agentic",
+            "start": 6.1625,
+            "end": 6.75
+          },
+          {
+            "word": "trong",
+            "start": 7,
+            "end": 7.175
+          },
+          {
+            "word": "khi",
+            "start": 7.175,
+            "end": 7.3375
+          },
+          {
+            "word": "giá",
+            "start": 7.3375,
+            "end": 7.5625
+          },
+          {
+            "word": "chỉ",
+            "start": 7.5625,
+            "end": 7.7375
+          },
+          {
+            "word": "bằng",
+            "start": 7.7375,
+            "end": 7.9375
+          },
+          {
+            "word": "một",
+            "start": 7.9375,
+            "end": 8.1
+          },
+          {
+            "word": "phần",
+            "start": 8.1,
+            "end": 8.2875
+          },
+          {
+            "word": "nhỏ",
+            "start": 8.2875,
+            "end": 8.6625
+          }
+        ],
+        "timing_anchors": {}
+      }
+    },
+    {
+      "sceneId": "scene_04",
+      "narration": "Đây là lần đầu tiên một mô hình mã nguồn mở thực sự đe dọa vị trí dẫn đầu của Anthropic. Cuộc đua AI không còn là sân chơi riêng của Mỹ. Bạn đã thử Kimi K2 chưa?",
+      "meaning": "Kết luận tầm nhìn lớn hơn + CTA mời tương tác",
+      "estimated_duration": 10,
+      "mood_hint": "cinematic",
+      "is_hook": false,
+      "_audio": {
+        "voiceover": "assets/audio/scene_04_vo.mp3",
+        "voiceover_start": 30.720000000000002,
+        "vo_duration": 11.0875,
+        "scene_duration": 11.59,
+        "word_timestamps": [
+          {
+            "word": "Đây",
+            "start": 0.1375,
+            "end": 0.2375
+          },
+          {
+            "word": "là",
+            "start": 0.2375,
+            "end": 0.3875
+          },
+          {
+            "word": "lần",
+            "start": 0.3875,
+            "end": 0.6125
+          },
+          {
+            "word": "đầu",
+            "start": 0.6125,
+            "end": 0.8
+          },
+          {
+            "word": "tiên",
+            "start": 0.8,
+            "end": 1.025
+          },
+          {
+            "word": "một",
+            "start": 1.025,
+            "end": 1.2125
+          },
+          {
+            "word": "mô",
+            "start": 1.2125,
+            "end": 1.3625
+          },
+          {
+            "word": "hình",
+            "start": 1.3625,
+            "end": 1.5625
+          },
+          {
+            "word": "mã",
+            "start": 1.5625,
+            "end": 1.725
+          },
+          {
+            "word": "nguồn",
+            "start": 1.725,
+            "end": 1.975
+          },
+          {
+            "word": "mở",
+            "start": 1.975,
+            "end": 2.15
+          },
+          {
+            "word": "thực",
+            "start": 2.15,
+            "end": 2.3125
+          },
+          {
+            "word": "sự",
+            "start": 2.3125,
+            "end": 2.575
+          },
+          {
+            "word": "đe",
+            "start": 2.575,
+            "end": 2.75
+          },
+          {
+            "word": "dọa",
+            "start": 2.75,
+            "end": 2.9875
+          },
+          {
+            "word": "vị",
+            "start": 2.9875,
+            "end": 3.175
+          },
+          {
+            "word": "trí",
+            "start": 3.175,
+            "end": 3.475
+          },
+          {
+            "word": "dẫn",
+            "start": 3.475,
+            "end": 3.6875
+          },
+          {
+            "word": "đầu",
+            "start": 3.6875,
+            "end": 3.9125
+          },
+          {
+            "word": "của",
+            "start": 3.9125,
+            "end": 4.1875
+          },
+          {
+            "word": "Anthropic",
+            "start": 4.1875,
+            "end": 4.8375
+          },
+          {
+            "word": "Cuộc",
+            "start": 5.7125,
+            "end": 5.875
+          },
+          {
+            "word": "đua",
+            "start": 5.875,
+            "end": 6.1125
+          },
+          {
+            "word": "AI",
+            "start": 6.1125,
+            "end": 6.4875
+          },
+          {
+            "word": "không",
+            "start": 6.4875,
+            "end": 6.7
+          },
+          {
+            "word": "còn",
+            "start": 6.7,
+            "end": 6.875
+          },
+          {
+            "word": "là",
+            "start": 6.875,
+            "end": 7.0375
+          },
+          {
+            "word": "sân",
+            "start": 7.0375,
+            "end": 7.2875
+          },
+          {
+            "word": "chơi",
+            "start": 7.2875,
+            "end": 7.4875
+          },
+          {
+            "word": "riêng",
+            "start": 7.4875,
+            "end": 7.7375
+          },
+          {
+            "word": "của",
+            "start": 7.7375,
+            "end": 7.9
+          },
+          {
+            "word": "Mỹ",
+            "start": 7.9,
+            "end": 8.2875
+          },
+          {
+            "word": "Bạn",
+            "start": 9.1625,
+            "end": 9.4
+          },
+          {
+            "word": "đã",
+            "start": 9.4,
+            "end": 9.575
+          },
+          {
+            "word": "thử",
+            "start": 9.575,
+            "end": 9.85
+          },
+          {
+            "word": "Kimi",
+            "start": 9.85,
+            "end": 10.2875
+          },
+          {
+            "word": "K2",
+            "start": 10.2875,
+            "end": 10.75
+          },
+          {
+            "word": "chưa",
+            "start": 10.75,
+            "end": 11.0875
+          }
+        ],
+        "timing_anchors": {}
+      }
+    }
+  ],
+  "_audio": {
+    "music_track": "assets/music/fluid-ambient.mp3",
+    "music_volume": 0.18
+  }
+}

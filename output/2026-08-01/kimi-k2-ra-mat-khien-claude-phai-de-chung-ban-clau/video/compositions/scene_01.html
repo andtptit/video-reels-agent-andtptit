@@ -1,0 +1,140 @@
+<template id="scene-01-template">
+  <div id="scene-01" data-composition-id="scene-01" data-start="0" data-duration="10.1" data-width="1080" data-height="1920">
+    <style>
+      #scene-01 {
+        background-color: #060810;
+        position: relative;
+        overflow: hidden;
+      }
+      #scene-01::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background-image: radial-gradient(circle, #39FF14 1.5px, transparent 1.5px);
+        background-size: 48px 48px;
+        opacity: 0.28;
+        z-index: -2;
+      }
+      #scene-01::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: repeating-linear-gradient(0deg, transparent, transparent 1px, rgba(255,255,255,0.04) 1px, rgba(255,255,255,0.04) 2px);
+        z-index: -1;
+      }
+      #scene-01 .s1-corner {
+        position: absolute;
+        width: 56px;
+        height: 56px;
+        border: 3px solid #39FF14;
+        opacity: 0.5;
+        box-sizing: border-box;
+      }
+      #scene-01 .s1-corner-tl { top: 0; left: 0; border-right: none; border-bottom: none; }
+      #scene-01 .s1-corner-tr { top: 0; right: 0; border-left: none; border-bottom: none; }
+      #scene-01 .s1-corner-bl { bottom: 0; left: 0; border-right: none; border-top: none; }
+      #scene-01 .s1-corner-br { bottom: 0; right: 0; border-left: none; border-top: none; }
+
+      .s1-content {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        padding: 180px 56px;
+        gap: 40px;
+        box-sizing: border-box;
+        align-items: center;
+      }
+      .s1-column { flex: 1; display: flex; flex-direction: column; gap: 28px; min-width: 0; }
+      .s1-column--left { opacity: 0.55; }
+      .s1-column--right { align-items: flex-start; }
+
+      .s1-divider {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 2px;
+        height: 560px;
+        transform: translate(-50%, -50%);
+        background: linear-gradient(to bottom, transparent, #39FF14, transparent);
+        opacity: 0.4;
+      }
+
+      .s1-header {
+        font-family: "Exo 2", sans-serif;
+        font-weight: 700;
+        font-size: 40px;
+        line-height: 1.1;
+        color: rgba(255,255,255,0.7);
+        margin: 0;
+      }
+      .s1-column--right .s1-header {
+        font-weight: 900;
+        font-size: 52px;
+        color: #39FF14;
+        text-shadow: 0 0 20px rgba(57,255,20,0.7);
+      }
+      .s1-line {
+        font-family: "Inter", sans-serif;
+        font-weight: 400;
+        font-size: 30px;
+        line-height: 1.35;
+        color: rgba(255,255,255,0.55);
+        margin: 0;
+      }
+      .s1-item {
+        font-family: "Inter", sans-serif;
+        font-weight: 600;
+        font-size: 32px;
+        line-height: 1.3;
+        color: #FFFFFF;
+      }
+    </style>
+
+    <div class="s1-corner s1-corner-tl"></div>
+    <div class="s1-corner s1-corner-tr"></div>
+    <div class="s1-corner s1-corner-bl"></div>
+    <div class="s1-corner s1-corner-br"></div>
+    <div class="s1-divider"></div>
+
+    <div class="s1-content">
+      <div class="s1-column s1-column--left">
+        <h2 id="s1-left-header" class="s1-header clip" data-start="0.1" data-duration="10.0" data-track-index="0">CLAUDE</h2>
+        <p id="s1-left-item" class="s1-line clip" data-start="0.5" data-duration="9.6" data-track-index="1">Trả phí để code</p>
+      </div>
+      <div class="s1-column s1-column--right">
+        <h2 id="s1-right-header" class="s1-header clip" data-start="2.9" data-duration="7.2" data-track-index="3">KIMI K2</h2>
+        <p id="s1-right-item-1" class="s1-item clip" data-start="5.6" data-duration="4.5" data-track-index="4">Miễn phí</p>
+        <p id="s1-right-item-2" class="s1-item clip" data-start="6.4" data-duration="3.7" data-track-index="5">Mã nguồn mở</p>
+        <p id="s1-right-item-3" class="s1-item clip" data-start="7.4" data-duration="2.7" data-track-index="6">Vượt benchmark</p>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+
+      // Left column — deliberately understated (expo.out, no bloom/glow): the
+      // "old guard" being challenged, not the star of this scene.
+      tl.from("#s1-left-header", { opacity: 0, x: -30, duration: 0.5, ease: "expo.out" }, 0.1);
+      tl.from("#s1-left-item", { opacity: 0, x: -20, duration: 0.45, ease: "power2.out" }, 0.5);
+
+      // Divider draws on top-down.
+      tl.fromTo(".s1-divider", { scaleY: 0 }, { scaleY: 1, duration: 0.5, ease: "power2.out", transformOrigin: "top" }, 0.5);
+
+      // Right column — the challenger. Bloom + glow burst, cascading items.
+      tl.fromTo("#s1-right-header", { scale: 0.7, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.5, ease: "back.out(1.8)" }, 2.9);
+      tl.from("#s1-right-item-1", { opacity: 0, y: 24, duration: 0.4, ease: "power3.out" }, 5.6);
+      tl.from("#s1-right-item-2", { opacity: 0, y: 24, duration: 0.4, ease: "power3.out" }, 6.4);
+      tl.from("#s1-right-item-3", { opacity: 0, y: 24, duration: 0.4, ease: "power3.out" }, 7.4);
+
+      // Focal moment (7.6s, VO "vượt qua Claude"): right column asserts dominance,
+      // left column fades further into the background.
+      tl.to(".s1-column--right", { scale: 1.04, duration: 0.35, ease: "sine.out" }, 7.6);
+      tl.to(".s1-column--right", { scale: 1, duration: 0.3, ease: "sine.inOut" }, 7.95);
+      tl.to(".s1-column--left", { opacity: 0.35, duration: 0.4, ease: "power2.out" }, 7.6);
+
+      window.__timelines["scene-01"] = tl;
+    </script>
+  </div>
+</template>

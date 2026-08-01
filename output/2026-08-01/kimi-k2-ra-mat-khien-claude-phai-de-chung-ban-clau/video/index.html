@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="vi" data-resolution="portrait">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        width: 1080px;
+        height: 1920px;
+        overflow: hidden;
+        background: #060810;
+      }
+      body {
+        font-family: "Inter", sans-serif;
+      }
+
+      #root {
+        position: relative;
+        background: #060810;
+      }
+
+      /* Atmosphere — tracks 0–6, full duration, shared across every scene */
+      #bg-dots {
+        position: absolute;
+        inset: 0;
+        background-image: radial-gradient(circle, #39FF14 1.5px, transparent 1.5px);
+        background-size: 48px 48px;
+        opacity: 0;
+      }
+      #bg-glow {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 1000px;
+        height: 1000px;
+        transform: translate(-50%, -50%);
+        background: radial-gradient(circle, rgba(57,255,20,0.14) 0%, transparent 70%);
+        opacity: 0;
+      }
+      #bg-scanlines {
+        position: absolute;
+        inset: 0;
+        background: repeating-linear-gradient(0deg, transparent, transparent 1px, rgba(255,255,255,0.04) 1px, rgba(255,255,255,0.04) 2px);
+        opacity: 0;
+      }
+      .corner {
+        position: absolute;
+        width: 56px;
+        height: 56px;
+        border: 3px solid #39FF14;
+        opacity: 0;
+        box-sizing: border-box;
+      }
+      #corner-tl { top: 0; left: 0; border-right: none; border-bottom: none; }
+      #corner-tr { top: 0; right: 0; border-left: none; border-bottom: none; }
+      #corner-bl { bottom: 0; left: 0; border-right: none; border-top: none; }
+      #corner-br { bottom: 0; right: 0; border-left: none; border-top: none; }
+    </style>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="main"
+      data-start="0"
+      data-duration="41.41"
+      data-width="1080"
+      data-height="1920"
+    >
+      <!-- Atmosphere: tracks 0–6, full duration -->
+      <div id="bg-dots" class="clip" data-start="0" data-duration="41.41" data-track-index="0"></div>
+      <div id="bg-glow" class="clip" data-start="0" data-duration="41.41" data-track-index="1"></div>
+      <div id="bg-scanlines" class="clip" data-start="0" data-duration="41.41" data-track-index="2"></div>
+      <div id="corner-tl" class="clip corner" data-start="0" data-duration="41.41" data-track-index="3"></div>
+      <div id="corner-tr" class="clip corner" data-start="0" data-duration="41.41" data-track-index="4"></div>
+      <div id="corner-bl" class="clip corner" data-start="0" data-duration="41.41" data-track-index="5"></div>
+      <div id="corner-br" class="clip corner" data-start="0" data-duration="41.41" data-track-index="6"></div>
+
+      <!-- Music + SFX tracks omitted — the workspace's shared assets/music/ and
+           assets/sfx/ libraries are still empty (ElevenLabs Sound Generation has
+           been blocked all session, see plan.md Phase 0), so there's nothing to
+           reference yet. Only real audio in this project is the voiceover. -->
+
+      <!-- Voiceover: track 21, reused (no overlap). data-start matches each
+           scene's own crossfade-adjusted data-start (NOT the raw
+           _audio.voiceover_start from scenes-with-timing.json, which doesn't
+           account for the 0.3s crossfade pull-in). -->
+      <audio id="vo-01" class="clip" data-start="0"     data-duration="9.6"    data-track-index="21" data-volume="1.0" src="assets/audio/scene_01_vo.mp3"></audio>
+      <audio id="vo-02" class="clip" data-start="9.8"   data-duration="10.9625" data-track-index="21" data-volume="1.0" src="assets/audio/scene_02_vo.mp3"></audio>
+      <audio id="vo-03" class="clip" data-start="20.96" data-duration="8.6625"  data-track-index="21" data-volume="1.0" src="assets/audio/scene_03_vo.mp3"></audio>
+      <audio id="vo-04" class="clip" data-start="29.82" data-duration="11.0875" data-track-index="21" data-volume="1.0" src="assets/audio/scene_04_vo.mp3"></audio>
+
+      <!-- Scenes: tracks 10/11 alternating, data-start crossfades 0.3s into
+           the previous scene's tail. data-duration = each scene's own
+           scene_duration (already includes the 0.5s buffer), unchanged. -->
+      <div id="scene-01" class="clip" data-composition-id="scene-01" data-composition-src="compositions/scene_01.html"
+           data-start="0"     data-duration="10.1" data-track-index="10" data-width="1080" data-height="1920"></div>
+      <div id="scene-02" class="clip" data-composition-id="scene-02" data-composition-src="compositions/scene_02.html"
+           data-start="9.8"   data-duration="11.46" data-track-index="11" data-width="1080" data-height="1920"></div>
+      <div id="scene-03" class="clip" data-composition-id="scene-03" data-composition-src="compositions/scene_03.html"
+           data-start="20.96" data-duration="9.16" data-track-index="10" data-width="1080" data-height="1920"></div>
+      <div id="scene-04" class="clip" data-composition-id="scene-04" data-composition-src="compositions/scene_04.html"
+           data-start="29.82" data-duration="11.59" data-track-index="11" data-width="1080" data-height="1920"></div>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+
+      // Atmosphere fades in once at the very start, holds for the whole video.
+      tl.to("#bg-dots",      { opacity: 0.28, duration: 1.0, ease: "power2.out" }, 0);
+      tl.to("#bg-glow",      { opacity: 1,    duration: 1.2, ease: "power2.out" }, 0);
+      tl.to("#bg-scanlines", { opacity: 1,    duration: 1.0, ease: "power2.out" }, 0);
+      tl.to(".corner",       { opacity: 0.5,  duration: 0.8, ease: "power2.out" }, 0.2);
+
+      // Crossfade between scenes: 0.3s fade-out of the outgoing scene right as
+      // the next one's data-start begins, hard-killed via tl.set 0.3s later so
+      // it never lingers underneath the incoming scene. Final scene (scene-04)
+      // has no outgoing fade — it's the last thing on screen.
+      tl.to("#scene-01",  { opacity: 0, duration: 0.3, ease: "power2.inOut" }, 9.8);
+      tl.set("#scene-01", { opacity: 0 }, 10.1);
+
+      tl.to("#scene-02",  { opacity: 0, duration: 0.3, ease: "power2.inOut" }, 20.96);
+      tl.set("#scene-02", { opacity: 0 }, 21.26);
+
+      tl.to("#scene-03",  { opacity: 0, duration: 0.3, ease: "power2.inOut" }, 29.82);
+      tl.set("#scene-03", { opacity: 0 }, 30.12);
+
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>
