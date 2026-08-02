@@ -105,6 +105,72 @@ export function checkAllCanvasDimensions(html, expectedWidth, expectedHeight) {
 // just wrong for this framework's contract.
 const CLIP_OVERRIDE_RE = /\.clip(?:[.\w-]*)\s*\{[^}]*\bposition\s*:\s*absolute[^}]*\}/gi;
 
+// User-reported bug: a remixed video's voiceover cut off mid-sentence because the
+// NEXT scene's voiceover started before the CURRENT scene's had finished playing.
+// Root cause: root-composer's crossfade math is entirely LLM-authored arithmetic
+// (`data-start[i] = data-start[i-1] + scene_duration[i-1] - 0.3`, applied correctly
+// gives voiceover[i] a ~0.2s gap after voiceover[i-1] ends) — the skill's own prompt
+// explicitly warns "field voiceover_start... KHÔNG dùng thẳng field đó, phải tự tính
+// lại", meaning this exact mistake (using the raw un-adjusted cumulative timestamp
+// instead of doing the crossfade math) is a known failure mode, not hypothetical.
+// hyperframes lint has no concept of "two audio elements share track 21 and must
+// not overlap in time" — that's a project-specific convention (see CLAUDE.md), so
+// only this code check can catch it. All voiceover <audio> tags reuse
+// `data-track-index="21"` (see CLAUDE.md's "Audio tracks" convention) — this only
+// inspects those, not atmosphere/music/sfx tracks, which have no such constraint.
+const AUDIO_TAG_RE = /<audio\b[^>]*>/g;
+
+export function checkVoiceoverOverlap(html) {
+  const clips = [];
+  for (const tag of html.match(AUDIO_TAG_RE) ?? []) {
+    const id = tag.match(/id="(vo-[^"]+)"/)?.[1];
+    const start = tag.match(/data-start="([\d.]+)"/)?.[1];
+    const duration = tag.match(/data-duration="([\d.]+)"/)?.[1];
+    const track = tag.match(/data-track-index="(\d+)"/)?.[1];
+    if (!id || track !== "21" || start === undefined || duration === undefined) continue;
+    clips.push({ id, start: Number(start), duration: Number(duration) });
+  }
+  clips.sort((a, b) => a.start - b.start);
+
+  const findings = [];
+  for (let i = 1; i < clips.length; i++) {
+    const prev = clips[i - 1];
+    const cur = clips[i];
+    const prevEnd = prev.start + prev.duration;
+    if (cur.start < prevEnd - 0.01) {
+      findings.push({
+        code: "voiceover-overlap",
+        message: `Voiceover "${cur.id}" bắt đầu ở ${cur.start}s nhưng "${prev.id}" chưa dứt (kết thúc ở ${prevEnd.toFixed(3)}s) — cả 2 dùng chung track 21 (quy ước reuse, KHÔNG được overlap thời gian), giọng đọc "${prev.id}" sẽ bị cắt ngang giữa chừng. Tính lại data-start của "${cur.id}" theo đúng công thức crossfade trong hướng dẫn, không dùng thẳng field voiceover_start có sẵn trong dữ liệu.`,
+      });
+    }
+  }
+  return findings;
+}
+
+// Found live while testing checkVoiceoverOverlap on a real 6-scene remix: root-
+// composer wrote all 6 scene <div>s correctly but only 3 of 6 voiceover <audio>
+// tags — scene_01/02/06 had real narration + real audio files on disk, but NO
+// `<audio id="vo-01">`/`vo-02`/`vo-06` at all in the written index.html, so those
+// 3 scenes would render completely silent. This is a plain completeness bug (the
+// LLM just stopped partway through emitting audio tags), not a timing bug — a
+// SEPARATE failure mode from checkVoiceoverOverlap above, so it needs its own
+// check: overlap-checking 3 present tags can never notice 3 others are missing.
+export function checkVoiceoverCompleteness(html, scenesWithVoiceover) {
+  const findings = [];
+  for (const sceneId of scenesWithVoiceover) {
+    const num = sceneId.replace(/^scene_?/, "");
+    const voId = `vo-${num}`;
+    const re = new RegExp(`<audio[^>]*id="${voId}"[^>]*data-track-index="21"`);
+    if (!re.test(html)) {
+      findings.push({
+        code: "voiceover-missing",
+        message: `Thiếu thẻ <audio id="${voId}" ... data-track-index="21"> cho scene "${sceneId}" — scene này có narration/audio thật nhưng sẽ render KHÔNG CÓ VOICE vì thiếu thẻ voiceover trong index.html. Thêm đủ 1 thẻ <audio> track 21 cho MỖI scene có voiceover, đừng bỏ sót bất kỳ scene nào.`,
+      });
+    }
+  }
+  return findings;
+}
+
 export function checkClipClassOverride(html) {
   const findings = [];
   for (const match of html.matchAll(CLIP_OVERRIDE_RE)) {

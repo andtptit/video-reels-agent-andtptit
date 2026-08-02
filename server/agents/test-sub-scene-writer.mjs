@@ -36,6 +36,7 @@ const result = await runSubSceneWriter({
   sceneTiming,
   format: videoPlan.format,
   subStyle: videoPlan.subStyle,
+  fontFamily: videoPlan.fontFamily,
   onEvent: (evt) => console.log(`  ${evt.type} → ${evt.outPath}`),
 });
 

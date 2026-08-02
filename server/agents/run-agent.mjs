@@ -8,7 +8,8 @@
  * results back as role:"tool" messages → repeat until the model stops calling
  * tools or `maxTurns` is hit.
  */
-import { chatCompletion } from "../providers/llm/dashscope.mjs";
+import { chatCompletion, isQuotaOrRateLimitError } from "../providers/llm/dashscope.mjs";
+import { nextFallbackModel } from "../lib/models.mjs";
 
 // Overridable via .env (DASHSCOPE_MODEL) so switching models for a test doesn't
 // require editing code — content-planner/video-planner default to this (each runs
@@ -74,9 +75,29 @@ export async function runAgent({
   // only showing up after the fact as a surprising token total.
   const usage = { promptTokens: 0, completionTokens: 0, totalTokens: 0, apiCalls: 0 };
   let successfulWrites = 0;
+  let malformedRetries = 0;
+  // Persists across turns once a fallback succeeds — a multi-turn conversation keeps
+  // using whichever model actually worked instead of retrying the exhausted one
+  // every single turn. Fallback chain is anchored to the ORIGINAL `model` (its tier),
+  // not `currentModel`, so `triedModels` accumulates correctly across turns.
+  let currentModel = model;
+  const triedModels = [];
 
   for (let turn = 0; turn < maxTurns; turn++) {
-    const response = await chatCompletion({ model, messages, tools: tools.definitions, ...(timeoutMs ? { timeoutMs } : {}) });
+    let response;
+    for (;;) {
+      try {
+        response = await chatCompletion({ model: currentModel, messages, tools: tools.definitions, ...(timeoutMs ? { timeoutMs } : {}) });
+        break;
+      } catch (err) {
+        if (!isQuotaOrRateLimitError(err)) throw err;
+        if (!triedModels.includes(currentModel)) triedModels.push(currentModel);
+        const fallback = nextFallbackModel(model, triedModels);
+        if (!fallback) throw err;
+        onEvent({ type: "model-fallback", from: currentModel, to: fallback, reason: err.message });
+        currentModel = fallback;
+      }
+    }
     usage.apiCalls += 1;
     if (response.usage) {
       usage.promptTokens += response.usage.prompt_tokens ?? 0;
@@ -98,7 +119,45 @@ export async function runAgent({
     onEvent({ type: "assistant", turn, message });
 
     if (!message.tool_calls?.length) {
-      return { finalMessage: message.content, transcript, turns: turn + 1, messages, usage };
+      return { finalMessage: message.content, transcript, turns: turn + 1, messages, usage, finalModel: currentModel };
+    }
+
+    // Confirmed live: DashScope occasionally returns a tool_call whose
+    // `function.arguments` is itself malformed JSON (e.g. trailing garbage past a
+    // valid-looking prefix — a long-generation glitch, seen on a real project's
+    // scenes.json write). Reporting that back as a normal `{ok:false}` tool result
+    // (the old behavior) works for most providers, but here it's a dead end: the
+    // malformed string stays embedded in `messages` as the assistant's own
+    // `tool_calls[].function.arguments`, and DashScope's OWN server-side validation
+    // then rejects the ENTIRE next request with a 400 ("function.arguments...must
+    // be in JSON format") — the conversation can never recover because the poison
+    // message gets resent every turn from then on. Instead: drop the poisoned
+    // assistant message from history entirely and nudge a clean retry.
+    const malformedCall = message.tool_calls.find((call) => {
+      try {
+        JSON.parse(call.function.arguments || "{}");
+        return false;
+      } catch {
+        return true;
+      }
+    });
+    if (malformedCall) {
+      malformedRetries += 1;
+      if (malformedRetries > 2) {
+        const err = new Error(
+          `Model liên tục trả về tool_call với JSON không hợp lệ (function.arguments) sau ${malformedRetries} lần thử — không tự phục hồi được.`
+        );
+        err.usage = usage;
+        throw err;
+      }
+      messages.pop(); // drop the just-pushed poisoned assistant message
+      messages.push({
+        role: "user",
+        content:
+          "Lượt gọi tool vừa rồi có JSON không hợp lệ trong function.arguments (lỗi parse). Gọi lại ĐÚNG 1 tool call, đảm bảo arguments là JSON hợp lệ, không dư ký tự nào sau dấu đóng cuối cùng.",
+      });
+      onEvent({ type: "malformed-tool-call", turn, model: currentModel });
+      continue;
     }
 
     for (const call of message.tool_calls) {
@@ -128,6 +187,7 @@ export async function runAgent({
         messages,
         usage,
         stoppedEarly: true,
+        finalModel: currentModel,
       };
     }
   }

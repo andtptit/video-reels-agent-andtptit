@@ -60,6 +60,9 @@ function onEvent(evt) {
     case "done":
       console.log(`\nSaved: ${projectPath}/scenes-with-timing.json`);
       console.log(`Total duration: ${evt.totalDuration.toFixed(1)}s`);
+      if (evt.failedSceneIds?.length) {
+        console.error(`\nWARN: ${evt.failedSceneIds.length} scene(s) missing real audio/captions: ${evt.failedSceneIds.join(", ")} — chạy lại script này để retry (scene đã xong sẽ được bỏ qua).`);
+      }
       console.log("Next: /video-planner → đọc scenes-with-timing.json → viết video-plan.json\n");
       break;
   }

@@ -37,6 +37,7 @@ const result = await runRootComposer({
   scenesWithTiming,
   doneSceneIds,
   format: videoPlan.format,
+  template: videoPlan.template,
   onEvent: (evt) => {
     if (evt.type === "assistant" && evt.message.tool_calls) {
       for (const call of evt.message.tool_calls) console.log(`  [turn ${evt.turn}] tool_call → ${call.function.name}`);

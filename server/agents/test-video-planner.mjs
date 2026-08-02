@@ -1,15 +1,15 @@
 #!/usr/bin/env node
 /**
  * Standalone smoke test for the video-planner agent task.
- * Usage: node --env-file=.env server/agents/test-video-planner.mjs <projectDir> [visualStyle] [template] [subStyle]
+ * Usage: node --env-file=.env server/agents/test-video-planner.mjs <projectDir> [visualStyle] [template] [subStyle] [imageStylePrefix] [fontFamily]
  * visualStyle: "animation" (default) | "ai-image" — ignored when template="sub" (forced to ai-image)
  * template: "motion" (default) | "sub"
  */
 import { runVideoPlanner } from "./video-planner.mjs";
 
-const [projectDir, visualStyle = "animation", template = "motion", subStyle] = process.argv.slice(2);
+const [projectDir, visualStyle = "animation", template = "motion", subStyle, imageStylePrefix, fontFamily] = process.argv.slice(2);
 if (!projectDir) {
-  console.error("Usage: node --env-file=.env server/agents/test-video-planner.mjs <projectDir> [visualStyle] [template] [subStyle]");
+  console.error("Usage: node --env-file=.env server/agents/test-video-planner.mjs <projectDir> [visualStyle] [template] [subStyle] [imageStylePrefix] [fontFamily]");
   process.exit(1);
 }
 
@@ -20,6 +20,8 @@ const result = await runVideoPlanner({
   visualStyle,
   template,
   ...(subStyle ? { subStyle } : {}),
+  ...(imageStylePrefix ? { imageStylePrefix } : {}),
+  ...(fontFamily ? { fontFamily } : {}),
   onEvent: (evt) => {
     if (evt.type === "assistant" && evt.message.tool_calls) {
       for (const call of evt.message.tool_calls) console.log(`  [turn ${evt.turn}] tool_call → ${call.function.name}`);

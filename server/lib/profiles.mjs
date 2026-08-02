@@ -1,0 +1,87 @@
+/**
+ * "Channel profiles" — a named bundle of the pipeline's manual setup choices (TTS
+ * rate, template/style, font, image style prefix, which models to use) that a user
+ * running multiple channels wants to reuse across projects instead of re-picking
+ * every time. Deliberately excludes `audience` — that's per-video, not per-channel
+ * (confirmed with user: audience changes with each project's actual target, while
+ * everything else here is closer to a channel's fixed "house style").
+ *
+ * Stored as flat JSON files under server/profiles/ (not per-project — profiles are
+ * shared across the whole workspace, same lifetime as DESIGN.md). No auth/multi-user
+ * concept exists anywhere else in this server, so a shared flat directory matches
+ * the rest of the app instead of over-engineering scoping that nothing else has.
+ */
+import { existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync, unlinkSync } from "fs";
+import { join, resolve } from "path";
+
+const PROFILES_DIR = resolve(import.meta.dirname, "..", "profiles");
+
+function ensureDir() {
+  if (!existsSync(PROFILES_DIR)) mkdirSync(PROFILES_DIR, { recursive: true });
+}
+
+// Filenames are derived from user-typed profile names, which are untrusted input —
+// slugify instead of using the raw string as a path segment (same reasoning as
+// project-id.mjs sandboxing project ids, just simpler since there's no directory
+// nesting to escape here).
+function slugify(name) {
+  return String(name ?? "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-+|-+$)/g, "")
+    .slice(0, 60);
+}
+
+const PROFILE_FIELDS = [
+  "ttsProvider",
+  "ttsRate",
+  "ttsVoice",
+  "musicTrack",
+  "musicVolume",
+  "template",
+  "visualStyle",
+  "subStyle",
+  "fontFamily",
+  "imageStylePrefix",
+  "kenBurns",
+  "grain",
+  "plannerModel",
+  "cheapModel",
+  "imgModel",
+];
+
+export function listProfiles() {
+  ensureDir();
+  return readdirSync(PROFILES_DIR)
+    .filter((f) => f.endsWith(".json") && !f.startsWith("._"))
+    .map((f) => {
+      try {
+        return JSON.parse(readFileSync(join(PROFILES_DIR, f), "utf-8"));
+      } catch {
+        return null;
+      }
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export function saveProfile(name, data) {
+  const slug = slugify(name);
+  if (!slug) throw new Error("Tên profile không hợp lệ (cần ít nhất 1 ký tự chữ/số)");
+  ensureDir();
+  const payload = { name: String(name).trim(), slug, updatedAt: new Date().toISOString() };
+  for (const field of PROFILE_FIELDS) {
+    if (data?.[field] !== undefined) payload[field] = data[field];
+  }
+  writeFileSync(join(PROFILES_DIR, `${slug}.json`), JSON.stringify(payload, null, 2));
+  return payload;
+}
+
+export function deleteProfile(slug) {
+  const safeSlug = slugify(slug);
+  const file = join(PROFILES_DIR, `${safeSlug}.json`);
+  if (existsSync(file)) unlinkSync(file);
+}

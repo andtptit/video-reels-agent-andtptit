@@ -19,6 +19,11 @@ node_modules/
 # Phase 2 runtime job progress — ephemeral, regenerated per pipeline run
 job-status.json
 
+# Generated video projects — output/ holds real render artifacts (images, HTML,
+# hundreds of MB per project), not source. Only *.mp4/*.mp3 were excluded before,
+# leaving PNG/HTML/JSON untracked-but-visible; excluding the whole tree instead.
+output/
+
 # macOS AppleDouble sidecar files — this workspace runs on an external volume
 # without native xattr support, so every file write leaves a "._filename" twin.
 # hyperframes lint has been observed scanning these as bogus composition files.

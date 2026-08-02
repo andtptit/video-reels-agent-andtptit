@@ -14,11 +14,12 @@
  *   here (confirmed with `file` on the downloaded image) — so treat it as "W*H" in
  *   practice, not the documented "H*W".
  * - Total pixels must be within [589824, 1638400] when enable_interleave is true.
- *   SIZE_FOR_FORMAT below hits that budget at exact 9:16 / 16:9 ratios.
+ *   SIZE_TABLES below hits that budget at exact 9:16 / 16:9 ratios — but the allowed
+ *   values are PER MODEL FAMILY, not universal (see SIZE_TABLES' own comment).
  * - Returned image URLs are OSS-signed and expire in 24h — download into the
  *   project's assets/ immediately; never persist the URL itself.
  */
-import { writeFileSync } from "fs";
+import { writeFileSync, existsSync, statSync } from "fs";
 
 const ENDPOINT = "https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation";
 
@@ -27,10 +28,20 @@ const ENDPOINT = "https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/multi
 // swapped in for testing without editing code.
 const DEFAULT_IMAGE_MODEL = process.env.DASHSCOPE_MODEL_IMAGE || "wan2.6-image";
 
-const SIZE_FOR_FORMAT = {
-  "9:16": "864*1536",
-  "16:9": "1536*864",
+// Each model family enforces its OWN fixed set of allowed `size` values — confirmed
+// live: wan2.6-image accepts arbitrary sizes within a pixel-count budget, but
+// requesting a wan2.6-image-shaped size ("864*1536") against qwen-image failed with
+// "The size does not match the allowed size 1664*928,1472*1104,1328*1328,1104*1472,928*1664".
+// z-image-turbo and qwen-image-2.0 were confirmed live to accept qwen-image's 9:16/16:9
+// values too, so they share qwen-image's table rather than each getting probed
+// separately — narrow the assumption if a future model in this family rejects it.
+const SIZE_TABLES = {
+  "wan2.6-image": { "9:16": "864*1536", "16:9": "1536*864" },
+  "qwen-image": { "9:16": "928*1664", "16:9": "1664*928" },
+  "qwen-image-2.0": { "9:16": "928*1664", "16:9": "1664*928" },
+  "z-image-turbo": { "9:16": "928*1664", "16:9": "1664*928" },
 };
+const DEFAULT_SIZE_TABLE = SIZE_TABLES["wan2.6-image"];
 
 // Confirmed live: the positive prompt saying "no watermark, no text" is not reliably
 // enough on its own — a real generation still had a small stock-photo-style watermark
@@ -48,7 +59,8 @@ export async function generateImage({
   model = DEFAULT_IMAGE_MODEL,
 }) {
   if (!apiKey) throw new Error("Missing DASHSCOPE_API_KEY");
-  const size = SIZE_FOR_FORMAT[format] ?? SIZE_FOR_FORMAT["9:16"];
+  const sizeTable = SIZE_TABLES[model] ?? DEFAULT_SIZE_TABLE;
+  const size = sizeTable[format] ?? sizeTable["9:16"];
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -108,7 +120,11 @@ export async function generateImage({
       const content = parsed.output?.choices?.[0]?.message?.content;
       if (Array.isArray(content)) {
         for (const part of content) {
-          if (part.type === "image" && part.image) imageUrl = part.image;
+          // wan2.6-image's stream parts carry `type:"image"`; confirmed live that
+          // qwen-image/qwen-image-2.0/z-image-turbo omit `type` entirely on their
+          // image part — requiring it here silently dropped a real, successful
+          // image URL and made those 3 models look broken when they weren't.
+          if (part.image) imageUrl = part.image;
         }
       }
     }
@@ -120,12 +136,23 @@ export async function generateImage({
   return { imageUrl };
 }
 
-/** Generates + immediately downloads into destPath (URL expires in 24h). */
+/**
+ * Generates + immediately downloads into destPath (URL expires in 24h).
+ *
+ * Skips generation entirely if `destPath` already exists — same "already have it,
+ * don't pay for it again" pattern generate-audio.mjs uses for TTS. Missing here
+ * before was a real cost bug: re-running sub-scene-writer for one scene (e.g. just to
+ * pick up an unrelated caption/font fix) silently re-billed a fresh wan2.6-image call
+ * even though the existing image was still perfectly usable.
+ */
 export async function generateAndSaveImage({ prompt, format, negativePrompt, destPath, apiKey, model }) {
+  if (existsSync(destPath)) {
+    return { destPath, bytes: statSync(destPath).size, skipped: true };
+  }
   const { imageUrl } = await generateImage({ prompt, format, negativePrompt, apiKey, ...(model ? { model } : {}) });
   const res = await fetch(imageUrl);
   if (!res.ok) throw new Error(`Failed to download generated image (${res.status})`);
   const buf = Buffer.from(await res.arrayBuffer());
   writeFileSync(destPath, buf);
-  return { destPath, bytes: buf.length };
+  return { destPath, bytes: buf.length, skipped: false };
 }

@@ -2,6 +2,8 @@ import { useState } from "react";
 import { ProjectForm } from "./components/ProjectForm.jsx";
 import { ProjectPicker } from "./components/ProjectPicker.jsx";
 import { Pipeline } from "./components/Pipeline.jsx";
+import { History } from "./components/History.jsx";
+import { RunningBanner } from "./components/RunningBanner.jsx";
 import "./App.css";
 
 const STORAGE_KEY = "video-reels-agent:lastProject";
@@ -16,11 +18,13 @@ function loadStored() {
 
 export default function App() {
   const [project, setProject] = useState(loadStored);
+  const [tab, setTab] = useState("pipeline"); // "pipeline" | "history"
 
   function handleCreated(id, idea, platform) {
     const next = { id, idea, platform };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
     setProject(next);
+    setTab("pipeline");
   }
 
   function handleSelect(id, ideaGuess) {
@@ -35,23 +39,38 @@ export default function App() {
     setProject(null);
   }
 
+  function handleProjectDeletedInHistory(id) {
+    if (project?.id === id) handleReset();
+  }
+
   return (
     <div className="app">
       <header>
         <h1>Video Reels Agent</h1>
-        {project && (
+        <nav className="app-tabs">
+          <button type="button" className={tab === "pipeline" ? "active" : ""} onClick={() => setTab("pipeline")}>
+            Pipeline
+          </button>
+          <button type="button" className={tab === "history" ? "active" : ""} onClick={() => setTab("history")}>
+            History
+          </button>
+        </nav>
+        {project && tab === "pipeline" && (
           <button type="button" className="linklike" onClick={handleReset}>
             + Project mới
           </button>
         )}
       </header>
-      {!project ? (
+      <RunningBanner currentProjectId={project?.id} onJump={handleSelect} />
+      {tab === "history" ? (
+        <History onProjectDeleted={handleProjectDeletedInHistory} />
+      ) : !project ? (
         <>
           <ProjectForm onCreated={handleCreated} />
           <ProjectPicker onSelect={handleSelect} />
         </>
       ) : (
-        <Pipeline id={project.id} idea={project.idea} platform={project.platform} />
+        <Pipeline id={project.id} idea={project.idea} platform={project.platform} onProjectCreated={handleCreated} />
       )}
     </div>
   );

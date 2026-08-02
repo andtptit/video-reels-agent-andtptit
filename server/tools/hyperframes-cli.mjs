@@ -109,10 +109,25 @@ export function validate(projectDir, { contrast = false } = {}) {
 // still a hard ceiling — override via env for unusually long/complex projects.
 const RENDER_TIMEOUT_MS = Number(process.env.RENDER_TIMEOUT_MS) || 10 * 60 * 1000;
 
+/**
+ * `--no-experimental-fast-capture` disables hyperframes' default macOS fast-capture
+ * path (reads DOM paint records directly instead of Page.captureScreenshot). Found
+ * live via a user-reported screenshot: a 2-3 frame flash of raw peach background
+ * poking through the bottom caption gradient (`.s?-shade`), always landing inside a
+ * caption chunk's visible window (i.e. right after a DOM mutation from HyperFrames'
+ * clip-visibility toggle) — a paint-record read racing an in-flight reflow. Confirmed
+ * via ffmpeg per-frame pixel sampling: the fast-capture render showed 1/287 bad
+ * frames; disabling it and re-rendering the same scene showed 0/287. Non-deterministic
+ * (a same-settings retry can also come back clean), so this is a mitigation for a race
+ * condition, not a proven root-cause fix — revert if it turns out to cost too much
+ * render time and the artifact stays rare enough to ignore.
+ */
+const RENDER_ARGS = ["render", "--no-experimental-fast-capture"];
+
 /** Render doesn't support --json; resolve/reject on process exit and surface stderr on failure. */
 export async function render(projectDir) {
   try {
-    const { stdout } = await execHyperframes(["render"], {
+    const { stdout } = await execHyperframes(RENDER_ARGS, {
       cwd: projectDir,
       maxBuffer: 1024 * 1024 * 50,
       timeout: RENDER_TIMEOUT_MS,

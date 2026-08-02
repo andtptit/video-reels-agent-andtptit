@@ -1,5 +1,170 @@
 # Plan: Web UI fallback (DashScope + Edge TTS) khi hết credit Claude
 
+## Mới — Banner "Đang chạy nền" trên UI (phiên 2026-08-02)
+
+User hỏi Q&A: chạy xong video này muốn chạy luôn video khác trong lúc chờ thì sao.
+Trả lời: backend đã hỗ trợ sẵn (mỗi step chạy `runInBackground` trên server, không
+phụ thuộc browser có mở hay không; `queues.dashscope`/`queues.tts` giới hạn
+concurrency DÙNG CHUNG toàn server nên nhiều project chạy cùng lúc tự xếp hàng an
+toàn) — chỉ thiếu chỗ NHÌN THẤY project nào đang chạy khi không đứng nhìn nó. User
+đồng ý làm thêm.
+
+- `server/jobs/job-status.mjs` — `summarizeProjectStatus()` thêm field `isRunning`
+  (boolean độc lập với `label`, vì thứ tự ưu tiên của label — lỗi > đã render > N/M
+  scene > ... — có thể che mất trạng thái "đang chạy" thật, ví dụ 1 scene đang chạy
+  vẫn hiện label "3/6 scene xong" chứ không phải "đang chạy").
+- `web/src/components/RunningBanner.jsx` (mới) — poll `GET /projects` mỗi 6s (không
+  dùng SSE vì `/events` chỉ scope theo 1 project, banner cần nhìn xuyên toàn bộ),
+  lọc `isRunning === true` và khác project đang mở, hiện dải chip có thể bấm để nhảy
+  sang project đó ngay (dùng lại `handleSelect` có sẵn trong `App.jsx`).
+- Gắn `<RunningBanner>` ngay dưới header trong `App.jsx`, luôn hiện bất kể đang ở
+  tab/project nào.
+- Verify thật: gọi `/audio` lại trên 1 project đã render xong (`moi-tinh-dau-thoi-
+  cap-3`) — confirm `GET /projects` trả đúng `isRunning: true` trong lúc chạy, quay
+  về `false` sau khi xong. Xác nhận KHÔNG ảnh hưởng dữ liệu thật (audio step tự skip
+  vì file đã tồn tại — convention có sẵn, `root`/`render` timestamp không đổi).
+
+## Mới — Effect "Ken Burns" (zoom nhẹ ảnh nền, phiên 2026-08-02)
+
+User hỏi khả thi zoom out 1 → 1.1 trên ảnh nền mỗi scene, không ảnh hưởng text/sub —
+đã làm thành option trên UI, mặc định TẮT.
+
+- `server/agents/video-planner.mjs` — param `kenBurns` (default `false`), ghi vào
+  `plan.kenBurns` trong `video-plan.json` (chỉ khi `template === "sub"`, giống
+  `imageLibrary`).
+- `server/templates/sub-styles/image-full-focus.mjs` — `render({ kenBurns })` thêm
+  1 dòng GSAP `tl.fromTo("#{prefix}-bg-image", {scale:1}, {scale:1.1, duration:
+  sceneDuration, ease:"none"}, 0)` khi bật. Ảnh nền (`#{p}-bg-image`) là layer riêng,
+  tách biệt hoàn toàn với `.{p}-shade`/`.{p}-text` (subtitle) nên 2 lớp đó không bị
+  scale theo — đúng yêu cầu.
+- `server/agents/sub-scene-writer.mjs`, `server/routes.mjs` — truyền `kenBurns` từ
+  request → video-plan.json → style.render() theo đúng pattern đã có của
+  `imageLibrary`/`fontFamily`.
+- `server/lib/profiles.mjs` — thêm `kenBurns` vào `PROFILE_FIELDS` (lưu được theo
+  channel profile).
+- `web/src/components/Pipeline.jsx` — dropdown "Effect" (chỉ hiện khi `template ===
+  "sub"`): "Không áp dụng (mặc định)" / "Ken Burns (zoom nhẹ 1 → 1.1)".
+- Verify thật: bật `kenBurns=true`, regenerate `scene_01.html` của project thật
+  (`tinh-yeu-tuoi-hoc-tro-that-trong-sang`) → confirm đúng dòng
+  `tl.fromTo("#s1-bg-image", { scale: 1 }, { scale: 1.1, duration: 9.55, ease: "none" }, 0);`
+  trong file, các tween chữ (`#s1-w0`...) không đổi. `npx hyperframes lint` không có
+  lỗi mới phát sinh từ thay đổi này (1 lỗi `invalid_parent_traversal_in_asset_path`
+  đang tồn tại từ trước, thuộc phần font `../assets/fonts/...`, không liên quan). Sau
+  test đã revert lại project thật về đúng trạng thái ban đầu (xoá `kenBurns` khỏi
+  `video-plan.json`, regenerate lại `scene_01.html` không có tween).
+- Remix: `createRemixProject` copy nguyên `video-plan.json` nên `kenBurns` tự động
+  giữ nguyên theo project gốc khi remix, không cần sửa thêm.
+
+**Áp dụng cho video ĐÃ render xong trước đó** (user hỏi tiếp): route
+`POST /projects/:id/video-plan/effects { kenBurns?, grain? }` — patch thẳng field(s)
+vào `video-plan.json` đã có sẵn, KHÔNG gọi lại LLM (khác với bấm lại "Chạy
+video-planner" sẽ tốn phí và có rủi ro model viết lại `visual_brief`/`image_tags`
+khác đi). Chỉ patch field nào có mặt trong body — gọi riêng lẻ từng effect không cần
+biết/gửi lại các field khác. UI: nút "Áp dụng vào video-plan đã có" cạnh 2 checkbox
+Effect, chỉ hiện khi video-plan đã done. Sau khi bấm, user cần tự bấm "Generate" lại
+từng scene trong SceneGrid (ảnh giữ nguyên nhờ skip-if-exists, chỉ HTML composition
+được viết lại) rồi chạy lại Root + Render.
+
+## Mới — Effect "Grain" (vết xước film nhẹ, phiên 2026-08-02)
+
+User hỏi thêm về hiệu ứng tuyết rơi / vết xước nhẹ. Đề xuất: grain làm trước (rẻ,
+universal, hợp mood hoài niệm của DESIGN.md), tuyết rơi để sau (nặng hơn — nhiều
+particle động dễ đụng lint `timeline_track_too_dense` + tăng tải render, lại kén nội
+dung theo mùa/mood) — user đồng ý chỉ làm grain trước.
+
+- Đổi model effect từ 1 dropdown (chọn 1-trong-nhiều) sang **2 checkbox độc lập**
+  (`kenBurns`, `grain`) vì 2 lớp không loại trừ nhau — có thể bật cả 2 cùng lúc.
+- `image-full-focus.mjs` — `render({ grain })` thêm `<div class="{p}-grain">` (chỉ
+  render khi bật) + CSS: SVG `feTurbulence` noise lặp lại (`background-repeat:
+  repeat`), `mix-blend-mode: overlay`, `opacity: 0.12`, `z-index: 3` (trên cả
+  subtitle), `pointer-events: none`. TĨNH (không animate) — không tốn gì thêm ở bước
+  render capture, không cần asset/PNG texture ngoài, không đụng lớp ảnh/text.
+- Wiring giống hệt pattern `kenBurns` xuyên suốt: `video-planner.mjs` (param `grain`
+  → `plan.grain`), `sub-scene-writer.mjs`, `routes.mjs` (`/video-plan`,
+  `/scenes/:id/generate`), `profiles.mjs` (`PROFILE_FIELDS`).
+- Route patch-không-LLM đổi từ `/video-plan/ken-burns` → `/video-plan/effects` (nhận
+  `{kenBurns?, grain?}`, generalize để chỉ cần 1 endpoint cho mọi effect tương lai
+  thay vì thêm route riêng mỗi lần).
+- Verify thật trên `tinh-yeu-tuoi-hoc-tro-that-trong-sang`: patch `grain:true` +
+  regenerate scene_01 → xác nhận đúng `<div class="s1-grain">` xuất hiện trong HTML,
+  CSS đúng noise/opacity. Patch lại `kenBurns:false, grain:false` + regenerate →
+  confirm cả div lẫn tween zoom đều KHÔNG xuất hiện (chỉ còn CSS rule `.s1-grain`
+  không dùng tới, vô hại — cùng kiểu với các class CSS luôn có sẵn khác trong style
+  này). Project thật đã revert về đúng trạng thái sạch ban đầu sau test.
+
+**BUG phát hiện sau khi user tự render thật** (phiên tiếp theo cùng ngày): user báo
+render xong nhưng không thấy grain đâu cả. Root cause thật (verify bằng Playwright +
+numpy pixel stats, KHÔNG phải do thiếu tải asset gì — grain là SVG data URI inline,
+không phụ thuộc file/network):
+
+- `mix-blend-mode: overlay` mà bản đầu dùng **gần như vô hiệu về toán học** trên nền
+  rất sáng (pastel) hoặc rất tối — đúng chất liệu màu chủ đạo của DESIGN.md này (nền
+  hồng nhạt phía trên, shade gần đen ở đáy). Verify: chụp screenshot layer grain qua
+  Playwright trên nền đen thuần, đo bằng numpy — sau boost contrast 10x vẫn hoàn toàn
+  đen, đúng công thức overlay (kết quả không đổi khi base gần 0 hoặc gần 1).
+- **Fix**: bỏ hẳn `mix-blend-mode`, dùng alpha-blend thuần (`opacity: 0.08`, không
+  blend-mode) — công thức này LUÔN có tác dụng bất kể độ sáng nền, vì nó chỉ là phép
+  cộng tuyến tính `result = (1-α)×base + α×noise`.
+- Verify lại bằng numpy đo std độ lệch pixel thật trên vùng nền pastel của frame đã
+  render (qua nén H.264 thật, không phải screenshot tĩnh): std ≈ 17.5/255 — texture
+  còn sống sót qua nén, không bị codec xoá mất (grain tần số cao thường bị H.264 làm
+  mượt nếu quá yếu).
+- Regenerate cả 6 scene + render lại toàn bộ (`video_2026-08-02_15-37-53.mp4`) —
+  video thật của user giờ có grain hoạt động đúng, đã để nguyên state này (grain:
+  true) vì đây chính là điều user đang cố làm, không phải dữ liệu test cần dọn.
+- Bài học: mọi effect thị giác mới PHẢI verify bằng ảnh/video thật đã qua render +
+  nén, không chỉ verify code có đúng cấu trúc HTML/CSS — 1 giá trị CSS hợp lệ về cú
+  pháp vẫn có thể vô hiệu về mặt hiệu ứng thị giác tuỳ nền màu.
+
+**BUG THỨ 2, nghiêm trọng hơn** (user báo tiếp: tích cả 2 checkbox, bấm "Lưu effect",
+render lại vẫn "không thấy grain nào ?????"): std đo qua `hyperframes snapshot` (đúng
+engine capture mà `render` dùng) cho thấy bật/tắt grain KHÔNG đổi gì cả (~17 cả 2
+trường hợp) — số std ~17-18 đo được ở các lần verify TRƯỚC ĐÓ chỉ là nhiễu gradient tự
+nhiên của chính ảnh AI, KHÔNG phải overlay CSS của tôi. Kết luận: bản đầu (bug #1
+"overlay blend mode vô hiệu") che khuất 1 bug SÂU HƠN — **root cause thật**: HyperFrames'
+compiler âm thầm bỏ qua `data:image/svg+xml` URI trong `background-image` hoàn toàn
+(không lỗi, không cảnh báo). Verify bằng thử nghiệm đối chứng: inject cùng 1 CSS,
+1 lần trỏ `data:` URI (std không đổi so với baseline), 1 lần trỏ 1 file PNG thật
+(std tăng rõ 17→25, xác nhận bằng mắt qua `hyperframes snapshot`).
+
+**Fix triệt để**: bỏ hẳn `data:` URI, tạo file texture noise thật (`assets/grain/
+grain-texture.png`, PNG xám 256×256, sinh 1 lần bằng PIL, seed cố định — cùng
+convention với `assets/fonts/`, `assets/music/`). `server/lib/grain.mjs` —
+`ensureGrainCopied(projectDir)` copy file này vào `projectDir/assets/grain-texture.png`
+(idempotent, giống `ensureFontCopied`). `sub-scene-writer.mjs` gọi hàm này khi
+`grain: true`. `image-full-focus.mjs` CSS đổi sang `background-image: url("../assets/
+grain-texture.png")`, bỏ `mix-blend-mode`, opacity 0.15 (alpha blend thuần).
+
+Verify cuối: regenerate cả 6 scene + render toàn bộ thật
+(`video_2026-08-02_16-02-42.mp4`) → xác nhận bằng ảnh (không chỉ số liệu) grain hiện
+rõ mắt thường, đúng mức "nhẹ", sống sót qua nén H.264. Dọn AppleDouble junk sau test.
+
+**Bài học quan trọng nhất rút ra từ 2 lần fix liên tiếp**: đo pixel std KHÔNG đủ để
+verify 1 effect CSS có thật sự đến từ layer mình thêm — PHẢI có phép đối chứng ON/OFF
+(bật/tắt effect, so sánh CÙNG vùng ảnh CÙNG composition) thay vì chỉ đo 1 lần rồi suy
+diễn "có variance = effect hoạt động". Lần đầu tôi đo std=17.5 và kết luận nhầm là
+"grain hoạt động, chỉ hơi yếu" — thực ra đó là nhiễu nền, effect chưa hề chạy.
+
+## Mới — Grain CHUYỂN ĐỘNG (trôi + nhấp nháy, phiên 2026-08-02)
+
+User hỏi tiếp (Q&A) nếu làm grain chuyển động (kiểu vết xước phim cũ) thì sao — đề
+xuất 3 mức độ (trôi background-position / flicker opacity / vết xước dọc animate
+riêng), user chọn làm 2 cái đầu (rẻ, không cần asset mới). Đã làm:
+
+- `image-full-focus.mjs` — grain div giờ có `id="{p}-grain"`, 2 GSAP tween mới:
+  1. `backgroundPosition` trôi từ `0px 0px` → `256px 256px` (đúng 1 chu kỳ tile,
+     texture repeat nên trôi liền mạch không đứt đoạn) suốt `sceneDuration`, `ease:
+     "none"`.
+  2. Opacity nhấp nháy nhanh giữa base 0.15 và 0.20, `ease: "steps(1)"` (không mượt —
+     đúng cảm giác "rung sáng" phim cũ), `yoyo: true`, `repeat: Math.ceil(sceneDuration
+     / 0.14)` (tuân thủ quy tắc không dùng `repeat: -1`).
+- Verify thật: regenerate cả 6 scene, xác nhận đúng 2 dòng tween trong composition;
+  render toàn bộ (`video_2026-08-02_19-38-18.mp4`); trích 2 frame cách nhau 0.3s, so
+  sánh pixel-diff bằng numpy → mean diff 4.76/255, max 32 trong vùng lấy mẫu — xác
+  nhận grain THẬT SỰ đổi giữa các frame (trước đây static, diff sẽ ~0 nếu không đổi).
+
+---
+
 ## Bối cảnh — vì sao có nhánh việc này
 
 Repo gốc chạy pipeline hoàn toàn qua Claude Code (xem `CLAUDE.md`). User muốn **giữ
@@ -1267,3 +1432,1047 @@ bản — có nên mang hết sang không? Đã đọc thật `pixelle_video/con
 
 UI: cả 2 field mới nên là input text tùy chọn (không bắt buộc), đặt cạnh dropdown
 template/visualStyle tương ứng ở Pipeline.jsx bước 1 và bước 3.
+
+---
+
+## Đã làm — 4 fix theo yêu cầu user (phiên 2026-08-01, sau khi user gửi screenshot bug thật)
+
+User gửi screenshot 1 video "sub" đã render: caption hiện **3 dòng cùng lúc** (dồn hết
+narration vào 1 khối), yêu cầu 4 việc. Có tham khảo thật `Pixelle-Video-andtptit` (repo
+đã có sẵn local ở `/Volumes/New Volume/GITHUB/Pixelle-Video-andtptit`) theo đúng yêu cầu.
+
+### 1. `imageStylePrefix` — mặc định "minimal" theo đúng Pixelle-Video
+
+Đọc thật `pixelle_video/config/schema.py` — lấy đúng nguyên văn default gốc:
+`"Minimalist black-and-white matchstick figure style illustration, clean lines, simple
+sketch style"`. `video-planner.mjs` giờ nhận `imageStylePrefix` (default = chuỗi trên),
+BẮT BUỘC model dùng ĐÚNG NGUYÊN VĂN cụm này ở cuối mọi `image_prompt` (thay vì để model
+tự nghĩ 1 cụm và tự nhớ giữ nhất quán — đúng bài học cũ "đừng tin LLM giữ đúng 1 giá trị
+cấu trúc xuyên suốt"). **Đã test thật qua DashScope**: tạo project scratch, chạy
+`test-video-planner.mjs` với `imageStylePrefix` tuỳ chỉnh — xác nhận cả 4 scene đều kết
+thúc `image_prompt` bằng ĐÚNG NGUYÊN VĂN cụm truyền vào, chỉ phần composition đổi theo
+scene. Route `/video-plan` + UI (ô input cạnh dropdown template/visualStyle) đã nối dây.
+
+### 2. Font viết tay hỗ trợ tiếng Việt — xác nhận thật qua Google Fonts API, không đoán
+
+Kiểm tra hàng loạt ứng viên qua `fonts.google.com/metadata/fonts/<tên>` (field
+`coverage.vietnamese`), TỪNG FONT MỘT (batch request đầu bị rate-limit cho kết quả sai,
+đã phát hiện và làm lại cẩn thận). Kết quả:
+- **CÓ** tiếng Việt: Itim, Mali (đã có từ trước), + phát hiện thêm Sriracha, Charm,
+  Pacifico, Amatic SC, Baloo 2, Be Vietnam Pro (2 cái sau không phải kiểu viết tay)
+- **KHÔNG** có tiếng Việt (dù rất phổ biến, dễ bị chọn nhầm nếu không kiểm tra thật):
+  Caveat, Kalam, Patrick Hand, Permanent Marker, Gochi Hand, Indie Flower, Dekko,
+  Shadows Into Light, Coming Soon, Neucha, Nanum Pen Script, và nhiều font khác
+
+Cập nhật `DESIGN-healing.md` với 6 lựa chọn đã xác nhận (Itim mặc định). Quan trọng
+hơn: phát hiện **`image-full-focus.mjs` đang hardcode "Baloo 2"/"Be Vietnam Pro"** —
+2 font này (giờ xác nhận) THỰC RA có hỗ trợ tiếng Việt nên không phải bug hiển thị, NHƯNG
+không phải font viết tay, không khớp mood ảnh mẫu user gửi. Đã sửa thành field
+`fontFamily` cấu hình được (mặc định `Itim`), đăng ký trong `FONT_WEIGHTS` map — thêm
+font mới chỉ cần 1 dòng.
+
+### 3. Tách phụ đề thành từng câu ngắn — bug thật đã sửa, phát hiện thêm 1 bug khi test
+
+`server/lib/caption-chunks.mjs` (mới) — `chunkWords(words, narration, {maxWordsPerChunk})`:
+ưu tiên tách theo ranh giới CÂU thật lấy từ `narration` (có dấu câu; `word_timestamps`
+thì không — xác nhận qua đọc dữ liệu thật), nếu tổng số từ theo câu KHỚP số lượng
+`word_timestamps` thì dùng cách này; nếu không khớp (fallback an toàn) thì chia đều theo
+`maxWordsPerChunk` (mặc định 6 từ/chunk). Câu dài không dấu câu vẫn bị chia nhỏ tiếp.
+
+`image-full-focus.mjs` giờ render NHIỀU `<div class="clip">` (1 mỗi chunk) thay vì 1 khối
+chứa hết mọi từ — mỗi chunk có `data-start`/`data-duration` đúng khung [từ đầu bắt đầu,
+từ cuối kết thúc], cơ chế `class="clip"` của HyperFrames tự ẩn/hiện đúng lúc, không cần
+thêm GSAP cho phần hiện/ẩn (chỉ còn cần cho tween đổi màu karaoke như cũ).
+
+**Bug phát hiện khi test bằng dữ liệu thật** (narration nhiều câu sát nhau): buffer
++0.3s cộng vào cuối mỗi chunk để "không biến mất ngay khi dứt lời" đôi khi VƯỢT QUA thời
+điểm chunk kế tiếp bắt đầu → 2 chunk hiện chồng lên nhau — đúng lại y hệt vấn đề đang
+sửa. Đã vá: cap buffer tại `min(chunk.end + 0.3, nextChunk.start - 0.05)`.
+
+**Verify bằng render thật** (không chỉ đọc code): ghi đè `scene_01.html` của project
+thật `su-im-lang-doc-hai-se-giet-chet-dan-moi-quan-he` (đúng project tạo ra screenshot
+bug gốc), lint 0 lỗi (1 warning không đáng ngại), render ra `.mp4` thật, trích 2 frame
+bằng `ffmpeg` ở t=0.5s và t=3.5s — xác nhận: chỉ 1 dòng caption hiện tại 1 thời điểm
+(trước đó là 3 dòng), karaoke highlight đúng từ, dấu tiếng Việt hiển thị đầy đủ với font
+Itim mới.
+
+### 4. Tốc độ Edge TTS — mặc định 1.1, xác nhận thật bằng đo thời lượng file
+
+`msedge-tts`'s `ProsodyOptions.rate` nhận number tương đối trực tiếp (xác nhận qua đọc
+`.d.ts` của thư viện) — không cần convert sang chuỗi `"+10%"`. `edge-tts.mjs` thêm param
+`rate` (default `EDGE_TTS_RATE` env hoặc 1.1), truyền vào `tts.toStream(text, {rate})`.
+**Test thật**: tổng hợp cùng 1 câu ở rate 1.0/1.1/1.3 → thời lượng 2.85s/2.60s/2.20s,
+giảm đúng tỉ lệ nghịch với rate — xác nhận hoạt động, không chỉ tin theo doc thư viện.
+Nối qua `generate-audio.mjs` (`ttsRate` option, chỉ ảnh hưởng edge-tts — truyền vào
+elevenlabs.mjs vô hại vì hàm đó không có param này) → `routes.mjs` (`POST /audio`) →
+UI (ô số cạnh dropdown provider, chỉ hiện khi chọn edge-tts, mặc định 1.1).
+
+### Việc phụ (đồng bộ theo convention đã có)
+
+- `plan.template = template` pattern (code ghi, không tin model) áp dụng luôn cho
+  `fontFamily` — ghi vào `video-plan.json` ở bước video-plan, đọc lại ở bước generate
+  scene, để mọi scene trong cùng video dùng nhất quán 1 font không cần truyền lại mỗi lần.
+- Cập nhật đồng bộ 2 CLI test script (`test-video-planner.mjs`, `test-sub-scene-writer.mjs`)
+  theo tham số mới, giữ đúng thói quen đã có từ đầu dự án.
+
+### Chưa làm / biết trước
+- Chưa test `imageStylePrefix` + `fontFamily` cùng lúc qua route thật (`POST
+  /video-plan` qua HTTP) — mới test trực tiếp qua `runVideoPlanner()`/CLI, cơ chế
+  route chỉ là truyền tham số qua nên rủi ro thấp nhưng chưa có bằng chứng trực tiếp.
+- Chưa test Edge TTS rate khác 1.1 kết hợp với "sub" template's chunking timing thật
+  (rate nhanh hơn → word_timestamps khít hơn → chunk có thể ngắn hơn 6 từ tự nhiên) —
+  về lý thuyết không ảnh hưởng vì chunking chạy trên word_timestamps THẬT bất kể rate
+  nào tạo ra chúng, nhưng chưa render thật để xác nhận.
+
+### Bug thật phát hiện ngay sau đó (cùng phiên, user báo lỗi thật qua UI)
+
+User báo "Lint lỗi trên compositions/scene_03.html" — kiểm tra `job-status.json` +
+chạy lại `lint()` trên đúng file thật thì thấy: **0 lỗi (error), chỉ có 1 warning**
+(`timeline_track_too_dense` — gợi ý nên tách file nhỏ hơn, không phải lỗi chặn render).
+Đọc lại `sub-scene-writer.mjs` thì lộ ra bug thật: dòng
+`if (ownFindings.length) return {ok:false,...}` coi **BẤT KỲ finding nào** (kể cả
+warning) là thất bại, không lọc theo `severity`. Đáng chú ý: warning này giờ sẽ là
+trường hợp PHỔ BIẾN cho template "sub" — vì chính tính năng chunking caption vừa thêm
+(mục 3 ở trên) cố ý đặt nhiều `class="clip"` div cùng 1 track, nên nếu không sửa thì
+gần như MỌI scene "sub" có ≥2 chunk sẽ bị báo fail sai.
+
+**Đã vá**: chỉ coi `severity === "error"` là thất bại thật; warning vẫn được ghi nhận
+qua `onEvent({type:"static-check",...})` (không im lặng bỏ qua) nhưng không chặn kết
+quả `ok:true`. Test lại bằng cách gọi thẳng logic lint/filter mới trên file thật (không
+chạy lại `runSubSceneWriter` để tránh tốn thêm 1 lần gọi DashScope image-gen vô ích, vì
+`dashscope-image.mjs` — khác `edge-tts.mjs` — chưa có cơ chế skip-nếu-đã-tồn-tại): xác
+nhận `scene_03.html` hiện tại PASS đúng (0 error, 1 warning không chặn). Đã sửa
+`job-status.json` của project thật (`su-im-lang-doc-hai-se-giet-chet-dan-moi-quan-he`)
+về đúng trạng thái `done` qua chính hàm `emitProgress()` (không hand-edit JSON) — user
+không cần bấm generate lại, không tốn thêm quota.
+
+**Việc phụ phát hiện, chưa làm** (ghi lại để không quên): `dashscope-image.mjs` không
+có cơ chế skip-nếu-ảnh-đã-tồn-tại như `edge-tts.mjs` có cho audio — mỗi lần
+`runSubSceneWriter` chạy lại (kể cả chỉ để sửa lỗi caption) đều tốn 1 lần gọi sinh ảnh
+mới, dù ảnh cũ vẫn còn dùng được. Nên thêm `existsSync` check tương tự TTS.
+
+**✅ Đã sửa (cùng phiên, ngay sau khi user xác nhận)**: `generateAndSaveImage()` giờ
+check `existsSync(destPath)` trước, skip hoàn toàn (không gọi API) nếu ảnh đã có —
+trả thêm field `skipped: true|false`. `sub-scene-writer.mjs` bắn event `"image-skip"`
+thay vì `"image"` khi skip, để onEvent/UI phân biệt được. **Test thật bằng cách chạy
+lại `test-sub-scene-writer.mjs` trên đúng `scene_03`** (chính scene vừa gặp bug lint ở
+trên, đã có sẵn ảnh từ lần chạy trước) — log xác nhận `image-skip` (không tốn tiền) rồi
+`PASS` thật (không phải sửa tay `job-status.json` như lần trước) — 2 bug (lint
+severity + image skip) giờ đã verify cùng lúc trên cùng 1 scene thật.
+
+---
+
+## Đã làm — Chọn model runtime + preview ảnh + prompt prefix dạng textarea (phiên 2026-08-01)
+
+User cho danh sách 15 model DashScope (3 nhóm: đắt/rẻ/ảnh) muốn chọn được qua UI thay
+vì cố định trong `.env`, + nút xem ảnh AI đã sinh, + nâng cấp `imageStylePrefix` theo
+đúng Pixelle-Video.
+
+### Verify từng model thật trước khi đưa vào UI — không tin tên gọi
+
+Gọi thật (chat completion rẻ nhất + thử `tool_calls` bằng tool giả `write_file`) cho
+7 model nhóm đắt/rẻ, và gọi thật `generateImage()` cho 6 model nhóm ảnh:
+
+| Nhóm | Model | Kết quả thật |
+|---|---|---|
+| Đắt | `qwen3.5-plus` | ✅ OK, có tool_calls |
+| Đắt | `qwen-plus-2025-04-28` | ✅ OK, có tool_calls |
+| Đắt | `qwen-vl-ocr` | ❌ Lỗi 400 — cần ẢNH đầu vào, không phải model chat thường (tên có "ocr" là đúng nghĩa đen) |
+| Rẻ | `qwen-mt-flash` | ❌ Lỗi 400 khi thử tool_calls — chỉ là model DỊCH THUẬT (mt = machine translation), không hỗ trợ function calling |
+| Rẻ | `deepseek-v4-flash` | ✅ OK, có tool_calls |
+| Rẻ | `qwen3.6-flash` | ✅ OK, có tool_calls |
+| Rẻ | `qwen-flash` | ✅ OK, có tool_calls |
+| Rẻ | `qwen3-vl-flash` | ✅ OK, có tool_calls |
+| Ảnh | `wan2.1-kf2v-plus`, `wan2.7-i2v`, `wan2.6-t2v` | ❌ Lỗi "url error" — đây là model SINH VIDEO (keyframe-to-video/image-to-video/text-to-video), cần input ảnh/endpoint hoàn toàn khác, KHÔNG tương thích code sinh ảnh tĩnh hiện tại |
+| Ảnh | `qwen-image` | ⚠️→✅ Lần đầu lỗi "size không hợp lệ" — model này có bộ size riêng khác `wan2.6-image` |
+| Ảnh | `qwen-image-2.0`, `z-image-turbo` | ⚠️→✅ Lần đầu "no image (unknown reason)" — hoá ra do bug parse (xem dưới), không phải model lỗi |
+
+### 2 bug thật phát hiện trong lúc verify model ảnh — đã sửa `dashscope-image.mjs`
+
+1. **Size hợp lệ khác nhau theo từng model family** — `wan2.6-image` chấp nhận size tự
+   do trong ngân sách pixel, nhưng `qwen-image` (và họ hàng) chỉ chấp nhận 1 tập cố
+   định (`1664*928, 1472*1104, 1328*1328, 1104*1472, 928*1664`). Đã thêm `SIZE_TABLES`
+   theo từng model thay vì 1 bảng `SIZE_FOR_FORMAT` chung.
+2. **Bug parse bỏ sót ảnh thật** — code cũ chỉ nhận diện phần tử ảnh trong response
+   stream khi có `part.type === "image"`. Đọc raw response thật của `qwen-image` mới
+   phát hiện: model này KHÔNG trả field `type`, chỉ có `part.image` — code cũ coi đây
+   là "không có ảnh" dù request đã thành công 100% (có URL ảnh thật trong response).
+   Sửa: chỉ cần `part.image` tồn tại, không đòi `type` nữa.
+
+Sau khi vá cả 2, **test lại thật cả 4 model ảnh qua đúng `generateImage()`** (không
+phải raw fetch nữa): `wan2.6-image`, `qwen-image`, `qwen-image-2.0`, `z-image-turbo`
+đều trả về URL ảnh thật thành công.
+
+### Model chọn runtime — theo đúng pattern `fontFamily`/`template` đã có
+
+`video-planner.mjs` nhận thêm `cheapModel`/`imageModel`, ghi vào `video-plan.json`
+(code ghi, không tin model LLM tự nhớ) — mọi bước sau (`scene-writer`,
+`sub-scene-writer`, `root-composer`) đọc lại từ đó, đảm bảo nhất quán 1 model cho toàn
+bộ video dù người dùng chỉ chọn 1 lần ở bước video-plan. `content-planner`/
+`video-planner` tự nhận `model` riêng (không cần persist vì chỉ gọi 1 lần/video).
+UI (`Pipeline.jsx`) thêm `ModelSelect` — dropdown "Model mặc định (.env)" + danh sách
+đã verify, đặt ở bước 1 (content-planner) và bước 3 (video-planner + cheap + ảnh).
+
+**Bug thật phát hiện khi test qua HTTP** (không phải do code model-selection): sau khi
+gửi `cheapModel`/`imageModel` qua `curl`, `video-plan.json` ghi `undefined` cho 2 field
+này dù `fontFamily`/`imageStylePrefix` vẫn đúng — nghi code sai, nhưng hoá ra là do
+**có 1 tiến trình server CŨ sống sót từ rất lâu trước** (khởi động qua `npm start`,
+command line `node --env-file=../.env index.mjs` khác hẳn cách mình vẫn dùng
+`node --env-file=.env server/index.mjs`) vẫn đang giữ port 3001 — lệnh `pkill -f
+"server/index.mjs"` không khớp được command line đó nên không kill được, và server
+MỚI của mình fail âm thầm bind port trong khi server CŨ (code chưa có cheapModel/
+imageModel) vẫn phục vụ request. Đã `kill` đúng PID, xác nhận qua `ps` chỉ còn 1
+process, test lại — `cheapModel`/`imageModel` ghi đúng, và `scene_01.png` sinh ra thật
+đúng kích thước `928x1664` của `qwen-image` (khác `864x1536` mặc định của
+`wan2.6-image`) — xác nhận model được dùng thật, không chỉ đọc field.
+
+### Preview ảnh AI trên UI
+
+`GET /projects/:id/images/:name` (route mới, cùng pattern an toàn với `/renders/:name`
+— `res.sendFile` + chặn path traversal). `SceneGrid.jsx` thêm nút "Xem ảnh"/"Ẩn ảnh"
+mỗi scene đã generate — tự ẩn kèm thông báo nếu scene đó không có ảnh (style thuần
+CSS/GSAP, `onError` trên `<img>`). Test thật qua `curl`: `HTTP 200`, đúng file PNG thật
+928×1664.
+
+### `imageStylePrefix` → textarea (đối chiếu đúng Pixelle-Video theo yêu cầu)
+
+Đọc `web/components/style_config.py` của Pixelle: field `prompt_prefix` dùng
+`st.text_area` (nhiều dòng), không phải `st.text_input` (1 dòng) như mình đang làm.
+Sửa `<input>` thành `<textarea rows={2}>` cho khớp UX gốc.
+
+### Chưa làm / biết trước
+- Chưa tích hợp model SINH VIDEO (`wan2.1-kf2v-plus`/`wan2.7-i2v`/`wan2.6-t2v`) — cần
+  endpoint + luồng khác hẳn (khả năng là async task-submit-rồi-poll, chưa xác minh),
+  ngoài phạm vi yêu cầu lần này (user chỉ liệt kê tên, không yêu cầu tích hợp video-gen
+  đầy đủ). Nếu sau này cần, phải research riêng endpoint DashScope video generation.
+- ~~Chưa test `ModelSelect` dropdown thật qua trình duyệt~~ — **đã test xong cùng
+  phiên**: Playwright thật, tạo project → dropdown model hiện đúng ở bước 1, chọn được
+  `qwen3.5-plus`, 0 lỗi console, screenshot xác nhận UI đúng.
+
+## Đã sửa — flash sáng vài frame ở đáy scene "sub" (phiên 2026-08-01, user gửi screenshot bug thật)
+
+User báo: video render ra tốt, nhưng thỉnh thoảng 2-3 frame trong 1 scene bị 1 dải sáng
+màu (giống màu nền ảnh) chèn vào đáy khung hình, ngay dưới phụ đề — gửi kèm screenshot
+đúng lúc caption "đó mẩu giấy nhỏ trong giờ" (scene_01 của project
+`tinh-yeu-tuoi-hoc-tro-that-trong-sang`, chunk2, data-start=2.288625).
+
+**Điều tra (real evidence, không đoán):**
+- Grep narration → xác định đúng scene/project/chunk khớp screenshot.
+- Dùng Playwright mở thẳng `compositions/scene_01.html`, đo `getBoundingClientRect()`
+  của `.s1-shade` → `bottom: 1920` khớp chính xác đáy khung hình 1080×1920. Vậy CSS/
+  hình học trong composition **không sai**.
+- Crop bottom 100px của `assets/images/scene_01.png` (ảnh AI nguồn) → chỉ là màu nền
+  peach phẳng, không có artifact — ảnh nguồn cũng không sai.
+- Dùng `ffmpeg` trích **toàn bộ frame gốc 30fps** (không downsample) từ
+  `renders/video_2026-08-01_21-44-20.mp4` trong đúng cửa sổ chunk2 (2.0–4.0s), rồi
+  `python3`/PIL sample màu pixel ở hàng gần đáy (h-3) mỗi frame → phát hiện đúng
+  **1/60 frame** (frame `g_037`) có màu sáng bất thường (avgR 244 so với ~70-90 các
+  frame khác). Crop trực tiếp frame đó → thấy rõ: gradient tối `.s?-shade` bị **cắt cụt
+  giữa chừng** (hard edge), để lộ 1 dải màu nền phẳng bên dưới — đúng là artifact thật,
+  không phải mắt nhìn nhầm.
+- Vì hình học composition đã verify đúng và chỉ 1/60 frame bị lỗi (không phải toàn bộ
+  scene), đây là dấu hiệu **race condition ở tầng capture frame**, không phải bug logic
+  trong HTML/CSS composition.
+
+**Nguyên nhân nghi ngờ + verify:** `npx hyperframes render --help` cho thấy cờ
+`--experimental-fast-capture` — mặc định BẬT trên macOS (đọc DOM paint record trực tiếp
+qua `drawElementImage` thay vì `Page.captureScreenshot`, nhanh hơn ~2x nhưng dễ đọc
+trúng khung hình giữa lúc DOM đang mutate). Frame lỗi rơi đúng vào cửa sổ hiển thị của
+1 caption chunk — đúng lúc HyperFrames toggle `class="clip"` cho chunk mới (DOM mutate).
+
+**Verify fix:** render lại cùng scene với `--no-experimental-fast-capture` → quét toàn
+bộ 60 frame trong cùng cửa sổ 2.0-4.0s bằng script pixel-sampling y hệt → **0 frame
+lỗi**. Render lại lần 2 (default, KHÔNG tắt cờ) để kiểm tra bug có tái lập không → cũng
+**0/287 frame lỗi** — nghĩa là bug này **không deterministic** (không phải cứ bật cờ là
+chắc chắn lỗi), đúng bản chất race condition. Không chứng minh được nhân-quả tuyệt đối,
+nhưng tắt fast-capture loại bỏ hẳn code path dễ gây race này, và render vẫn nhanh (~12s
+cho 1 scene 9.5s), nên giữ làm mitigation mặc định thay vì chờ user báo lại nhiều lần.
+
+**Đã áp dụng cờ vào cả 2 nơi gọi render:**
+- `server/tools/hyperframes-cli.mjs` — `RENDER_ARGS = ["render", "--no-experimental-fast-capture"]`,
+  dùng cho nhánh Web UI (DashScope).
+- `CLAUDE.md` + `AGENTS.md` bước [8] — cập nhật lệnh mẫu cho luồng Claude Code chính
+  thành `npx hyperframes render --no-experimental-fast-capture`, kèm giải thích ngắn.
+
+Dọn file render test (`test-nofastcapture.mp4`, `test-default-retry.mp4`) khỏi
+`output/2026-08-01/tinh-yeu-tuoi-hoc-tro-that-trong-sang/video/renders/` sau khi verify
+xong, chỉ giữ lại render thật của user.
+
+### Chưa làm / theo dõi tiếp
+- Chưa có cách chứng minh 100% root cause (nondeterministic) — nếu user còn gặp lại
+  artifact này sau khi có `--no-experimental-fast-capture`, cần điều tra hướng khác
+  (có thể là timing giữa `class="clip"` toggle và animation-frame capture nói chung,
+  không riêng gì fast-capture path).
+
+## Đã sửa — UI "3. Video plan" tràn ra ngoài card (phiên 2026-08-01)
+
+User gửi screenshot: hàng control ở bước 3 (7 dropdown/textarea/button) tràn ra ngoài
+viewport. Nguyên nhân: `.card select`/`.card textarea` có `width: 100%`, nhưng
+`.inline-form` không có `flex-wrap` — mỗi control đòi 100% chiều rộng dòng, ép cả hàng
+vượt khung. Fix: `.inline-form { flex-wrap: wrap }` + override `width: auto` (kèm
+min/max hợp lý) riêng cho `select`/`textarea` bên trong `.inline-form`. Verify bằng
+Playwright dựng lại đúng markup+CSS của form này (không chạy pipeline thật, tốn API) ở
+viewport 1200px → trước đây tràn, giờ dư ~546px và tự wrap 3 hàng gọn.
+
+## Đã sửa — atmosphere neon-green đè lên scene "sub" ấm áp (phiên 2026-08-01, user gửi screenshot bug thật)
+
+User báo: video "sub karaoke" (ảnh AI full-bleed, tông ấm/peach) vẫn dính viền góc màu
+xanh neon (`#39FF14`) — rõ ràng lạc tông.
+
+**Root cause**: `runRootComposer` LUÔN nhận `DESIGN.md` gốc của workspace (palette
+neon-green "dark tech", dùng cho style "motion" mặc định) làm ngữ cảnh, kể cả khi
+`template === "sub"`. Scene "sub" (`image_full_focus.mjs`) là ảnh AI full-bleed tự
+authored HOÀN TOÀN ngoài LLM (đã ghi rõ trong comment file đó), không liên quan gì đến
+DESIGN.md — nhưng root-composer's system prompt yêu cầu atmosphere layer (bg-dots/
+bg-glow/scanlines/4 góc) VÔ ĐIỀU KIỆN, nên model vẫn vẽ atmosphere theo màu neon của
+DESIGN.md, đè lên ảnh ấm.
+
+**Fix**: `root-composer.mjs` nhận thêm param `template`; khi `template === "sub"`, thay
+bullet atmosphere bằng chỉ dẫn **bỏ hẳn** atmosphere layer (chỉ còn scene clips + music
++ voiceover). `routes.mjs` (`POST /projects/:id/root`) và `test-root-composer.mjs` đều
+truyền `template: videoPlan.template` vào.
+
+**Verify thật**: chạy lại `test-root-composer.mjs` trên project
+`tinh-yeu-tuoi-hoc-tro-that-trong-sang` (template="sub" có sẵn) → PASS sau 2 attempt,
+grep `index.html` mới không còn `corner`/`bg-dots`/`bg-glow`/`scanline` nào. Render lại
+thật (`--no-experimental-fast-capture`), trích frame ở t=1.5s → xác nhận bằng mắt: hết
+sạch viền neon góc, chỉ còn ảnh AI + phụ đề. Dọn file render test sau khi verify.
+
+## Mới — "Chạy toàn bộ pipeline" + channel profile (phiên 2026-08-01)
+
+User yêu cầu 3 việc liên quan: (1) gom hết input thủ công (audience, TTS, template/
+style/font/image-prefix, chọn model) lên 1 form duy nhất ở đầu trang thay vì rải rác
+theo từng bước, (2) 1 nút "Chạy toàn bộ pipeline" chạy nối tiếp content-plan → audio →
+video-plan → generate mọi scene → root → render, mặc định DỪNG lại sau khi có
+`scenes.json` (bước rẻ) để xác nhận trước khi chạy phần tốn phí, có checkbox để bỏ qua
+dừng và chạy 1 mạch, (3) lưu/nạp lại "profile kênh" (model, TTS rate, template/style,
+font, image style prefix) để tái dùng giữa các project của cùng 1 kênh — **không gồm
+audience**, vì đó là input theo từng video cụ thể, không phải theo kênh (thống nhất
+với user trước khi code).
+
+### Backend
+- `server/lib/profiles.mjs` (mới) — lưu profile dạng file JSON phẳng ở
+  `server/profiles/<slug>.json`, không theo project (dùng lại xuyên suốt workspace,
+  giống cách `DESIGN.md` không thuộc riêng project nào). Tên profile do user gõ →
+  `slugify()` (bỏ dấu, lowercase, chỉ giữ a-z0-9-) làm tên file, tránh path traversal
+  từ input không tin cậy — cùng logic phòng thủ như `project-id.mjs` nhưng đơn giản
+  hơn vì không có cấu trúc thư mục lồng nhau để escape.
+- `routes.mjs` — `GET /profiles`, `PUT /profiles/:name` (tạo/cập nhật), `DELETE
+  /profiles/:slug`.
+- `web/src/api.js` — `listProfiles`, `saveProfile`, `deleteProfile`.
+
+### Frontend (`Pipeline.jsx`, viết lại toàn bộ)
+- Card "Cấu hình pipeline" ở đầu trang, gồm: dropdown chọn profile (áp dụng ngay khi
+  chọn) + ô tên + nút lưu/cập nhật, rồi đến audience (không thuộc profile), TTS
+  provider/rate, template/style/font/image-prefix/3 model select — đúng các field
+  trước đây nằm rải rác trong `inline-form` của bước 1 và bước 3. Các bước 1–5 vẫn giữ
+  nguyên nút bấm tay riêng (theo đúng yêu cầu "vẫn giữ"), chỉ bớt phần input trùng lặp
+  — bấm nút vẫn dùng chung state đã gom lên trên.
+- `runAllPipeline({skipPause})` — dùng `stepsRef` (mirror `steps` từ `useJobStatus` qua
+  `useEffect`) + `waitForStep()` (poll `stepsRef` tới khi `status==="done"/"error"`) để
+  chờ tuần tự từng bước, và `ensureStepDone()` để bỏ qua bước nào đã `"done"` sẵn — cho
+  phép bấm "Chạy toàn bộ" giữa chừng sau khi đã tự chạy tay vài bước mà không chạy lại
+  từ đầu. Mặc định dừng lại sau bước `plan` (hiện banner "Tiếp tục pipeline"); checkbox
+  "Chạy 1 mạch" bỏ qua điểm dừng này.
+
+### Verify thật (Playwright + backend thật, không giả định)
+- Phát hiện lại đúng bug "stale server process" đã gặp trước đây trong phiên này (PID
+  cũ 7205 vẫn phục vụ code trước khi thêm route `/profiles` → 3 lỗi 404 khi test) —
+  kill đúng PID, khởi động lại từ đúng cwd (repo root, không phải `server/`, vì
+  `--env-file=.env` cần `.env` ở gốc) → xác nhận qua `ps`/`lsof` chỉ còn 1 process đúng.
+- Test layout: tạo project thật qua UI → không có phần tử nào overflow viewport
+  (`scrollWidth` check), screenshot xác nhận card gọn 2 hàng.
+- Test lưu profile: điền `cheapModel=qwen-flash`, đặt tên "Test Channel Profile", bấm
+  lưu → gọi API thật, backend ghi file JSON thật, dropdown tự chọn đúng profile vừa
+  lưu, nút đổi label "Lưu thành profile mới" → "Cập nhật profile".
+- Test nạp lại cross-project (đúng mục đích chính của tính năng): tạo project THỨ HAI
+  hoàn toàn khác, chọn lại đúng profile vừa lưu ở project đầu → `cheapModel` tự điền
+  đúng `qwen-flash` — xác nhận profile persist qua project, không phải chỉ trong 1
+  session/component state.
+- Dọn toàn bộ project test (`output/2026-08-01/{overflow-ui-check,
+  setup-card-overflow-check, setup-card-overflow-profile-check, profile-save-check-v2,
+  load-profile-check-v2-fresh-project, debug-run2, ui-model-dropdown-check}`) và file
+  profile test (`server/profiles/test-channel-profile.json`) sau khi verify xong.
+
+### Cập nhật — nút Xoá profile (cùng phiên, user yêu cầu thêm ngay sau)
+Sửa profile không cần code riêng — chọn profile, đổi field, bấm "Cập nhật profile" là
+ghi đè đúng file cũ (cùng `slugify(profileName)`). Thêm nút "Xoá profile" (chỉ hiện khi
+đã chọn 1 profile), có `window.confirm` trước khi gọi `DELETE /profiles/:slug`.
+
+Verify thật qua Playwright + gọi thẳng API kiểm tra persisted state (không chỉ tin UI):
+lưu profile → đổi `cheapModel` → "Cập nhật profile" → `GET /profiles` xác nhận giá trị
+mới đã ghi đè đúng file cũ (không tạo file trùng) → bấm "Xoá profile" → `GET /profiles`
+xác nhận profile biến mất thật khỏi backend, không chỉ ẩn trên UI.
+
+### Chưa làm / theo dõi tiếp
+- `runAllPipeline` sinh scene TUẦN TỰ (từng scene chờ xong mới sang scene tiếp), không
+  chạy song song nhiều scene cùng lúc — an toàn/dễ debug hơn cho v1, nhưng chậm hơn
+  nếu video có nhiều scene. Có thể đổi sang `Promise.all` sau nếu cần nhanh hơn.
+
+## Đã sửa — 2 scene cuối render ra không có voice/không có sub (phiên 2026-08-01, user báo bug thật trên video mới nhất)
+
+User báo: video mới nhất (`tinh-yeu-tuoi-hoc-tro-that-trong-sang`), scene 5 và 6 render
+ra không có voice và không có phụ đề.
+
+**Điều tra**: `scenes-with-timing.json` cho thấy scene_05/06 có `narration` thật nhưng
+`word_timestamps: []` và KHÔNG có file `assets/audio/scene_05_vo.mp3`/`scene_06_vo.mp3`
+trên đĩa — TTS chưa bao giờ thực sự chạy cho 2 scene này dù `job-status.json` ghi bước
+"audio" là `"done"`. `index.html` (root) cũng thiếu hẳn 2 thẻ `<audio id="vo-05">`/
+`<audio id="vo-06">`.
+
+**Root cause — 2 bug thật, không phải 1**:
+1. `server/routes.mjs`'s `/audio` route gọi
+   `runInBackground(req.projectDir, "audio", () => queues.tts.run(() =>
+   runGenerateAudio(req.projectDir, {ttsProvider, ttsRate})))` — `taskFn` khai báo
+   KHÔNG nhận tham số `onEvent` mà `runStep()` truyền vào, nên `onEvent` bị rớt hoàn
+   toàn, không bao giờ đến được `runGenerateAudio`. Mọi route khác (`/plan`,
+   `/video-plan`, `/scenes/:id/generate`, `/root`) đều đúng dạng `(onEvent) => ...` —
+   chỉ riêng `/audio` bị quên.
+2. `generate-audio.mjs`'s `generateVoiceover()` bắt lỗi TTS từng scene và trả `null`
+   (để 1 scene lỗi không làm hỏng cả batch) — nhưng lỗi đó chỉ được báo qua `onEvent`
+   (vốn đã rớt vì bug 1), và vòng lặp chính vẫn tiếp tục dùng
+   `voDuration = ... ?? scene.estimated_duration ?? 5` làm fallback, ghi
+   `word_timestamps: []`, rồi TOÀN BỘ hàm vẫn `return output` bình thường (không có
+   field `ok`) → `runStep()` luôn coi là thành công. Kết quả: 1 scene TTS lỗi biến mất
+   không dấu vết, bước "audio" vẫn báo "done".
+
+**Fix**:
+- `routes.mjs` — sửa `/audio` thành `(onEvent) => queues.tts.run(() =>
+  runGenerateAudio(req.projectDir, {ttsProvider, ttsRate, onEvent}))`.
+- `generate-audio.mjs` — thu thập `failedSceneIds` (scene có `narration` nhưng
+  `generateVoiceover()` trả `null`); nếu có, trả về `{...output, ok:false, error, 
+  failedSceneIds}` — `runStep()` đã có sẵn quy ước coi `ok:false` như throw (cùng cách
+  `scene-writer`/`render` báo lỗi), nên bước "audio" giờ hiện đúng "error" thay vì
+  "done" giả. File `scenes-with-timing.json` vẫn được ghi trước đó nên chạy lại
+  `/audio` là rẻ — scene đã có audio thật được skip (`existsSync` check có sẵn), chỉ
+  retry đúng scene lỗi.
+- `scripts/generate-audio.mjs` (CLI, luồng Claude Code chính) — vốn đã truyền
+  `onEvent` đúng từ đầu nên không bị bug 1, nhưng thêm dòng cảnh báo khi
+  `failedSceneIds` không rỗng ở event `"done"`, khớp với field mới.
+
+**Verify + fix thật cho video của user** (không chỉ sửa code, còn sửa luôn video đang
+lỗi): restart backend → gọi lại `POST /audio` qua API thật → 4 scene đầu skip (đã có
+audio), scene_05/06 chạy TTS thật, `failedSceneIds: []`, sinh đúng
+`scene_05_vo.mp3`/`scene_06_vo.mp3` (43KB/36KB) + `word_timestamps` 30/22 từ. Gọi lại
+`/scenes/scene_05/generate` + `/scenes/scene_06/generate` để viết lại phụ đề thật từ
+timestamps mới (ảnh AI cũ được skip, không tốn thêm phí). Gọi lại `/root` → `index.html`
+mới có đủ `vo-05`/`vo-06`. Render lại thật → trích frame ở scene 5 (~t=29.5s): phụ đề
+"Tuổi học trò qua đi nhưng..." hiện đúng; trích riêng đoạn audio scene 5 ra file mp3
+riêng (80KB, không rỗng) xác nhận có tiếng nói thật, không phải track câm.
+
+### Chưa làm / theo dõi tiếp
+- Chưa xác định được TẠI SAO TTS ban đầu lỗi cho đúng 2 scene cuối (gọi lại y hệt
+  narration đó ở lần test thì thành công, mất ~30-50s — nghi ngờ edge-tts/WebSocket bị
+  chậm/timeout thoáng qua do mạng, không phải lỗi cố định theo nội dung text). Bug 1+2
+  ở trên là cái khiến lỗi tạm thời đó biến thành "mất vĩnh viễn không dấu vết" — đã sửa
+  xong phần đó; bản thân độ ổn định của edge-tts dưới tải/mạng chậm vẫn có thể tái diễn,
+  giờ sẽ được báo lỗi rõ ràng thay vì im lặng.
+
+## Mới — Remix video (chỉ style "sub") (phiên 2026-08-01)
+
+User muốn remix lại narration của 1 video "sub" đã render (đổi văn phong/đối tượng) mà
+KHÔNG sinh ảnh AI lại (tốn token nhất trong pipeline) — vì `generateAndSaveImage()` đã
+skip-if-exists theo đúng `sceneId` (không theo nội dung prompt), reuse ảnh cũ 100% miễn
+là giữ đúng danh sách `sceneId`. Quyết định trước khi code (Q&A với user): remix tạo
+**project MỚI** (copy ảnh sang, giữ project gốc nguyên vẹn để so sánh/rollback), có
+input: project gốc, 1 custom prompt bắt buộc (yêu cầu remix tự do, không dropdown dựng
+sẵn — nhu cầu quá đa dạng để cố định), và font chữ tuỳ chọn (mặc định giữ font gốc).
+
+### Kiến trúc
+- `server/pipeline/remix-project.mjs` (mới, KHÔNG gọi LLM) — `createRemixProject()`:
+  validate project gốc phải `template==="sub"` (chặn từ đầu, không phải style "sub" thì
+  không có gì để tái dùng theo đúng cách này), gọi `createProject()` có sẵn để scaffold
+  project mới, copy `assets/images` + `assets/music` + `assets/sfx` + `DESIGN.md` bằng
+  `cpSync(..., {recursive:true, filter: bỏ qua "._*"})`. **CỐ Ý KHÔNG COPY
+  `assets/audio`** — đó là giọng đọc theo narration CŨ; nếu copy sang, bug y hệt vừa sửa
+  ở trên sẽ tái diễn kiểu ngược: `generate-audio.mjs`'s `existsSync(dest)` sẽ tưởng đã
+  có audio nên SKIP luôn, giữ nhầm giọng đọc cũ đọc script cũ. Ghi `video-plan.json`
+  bằng cách copy nguyên object từ project gốc (giữ `image_prompt`/`template`/`subStyle`/
+  model...), chỉ patch `fontFamily` nếu user chọn đổi.
+- `server/agents/remix-scenes.mjs` (mới, có gọi LLM) — nhận scene gốc (chỉ
+  `sceneId`/`narration`/`meaning`/`mood_hint`/`is_hook`/`estimated_duration`, cắt bỏ
+  `_audio` cũ và mọi field ảnh — không đưa cho model thứ có thể khiến nó tưởng cần đổi
+  ảnh/scene). Prompt bắt buộc: giữ NGUYÊN số scene/thứ tự/`sceneId`, chỉ viết lại
+  `narration`/`meaning`, không lái ý nghĩa hình ảnh quá xa (ảnh đã cố định, câu mới vẫn
+  phải hợp lý khi đặt lên đúng ảnh cũ). Sau khi ghi `scenes.json`, tự so `sceneId` nhận
+  được với danh sách gốc — lệch (thêm/bớt/đổi tên scene) thì throw lỗi rõ ràng thay vì
+  để lọt xuống bước audio rồi mới vỡ lẽ ảnh không khớp.
+- `routes.mjs` — `POST /projects/:id/remix` (id = project GỐC trong URL): validate
+  `remixPrompt` bắt buộc, gọi `createRemixProject()` (sync, nhanh) → `emitProgress`
+  đánh dấu bước `"video-plan"` là `"done"` NGAY (đã copy sẵn, hợp lệ) → chạy
+  `runRemixScenes()` ở background dưới step `"plan"` (đúng tên step "plan" vì đây chính
+  là bước tương đương content-planner, chỉ khác input). Response trả `id` của project
+  MỚI ngay lập tức (201) — không đợi LLM xong, giống pattern các step khác.
+- Frontend: `Pipeline.jsx` fetch `video-plan.json` của project hiện tại (chỉ khi
+  `videoPlanStatus==="done"`) để đọc `.template` — card "Remix video này" chỉ hiện khi
+  `template==="sub"`. Nút bấm gọi `api.runRemix()`, thành công thì gọi
+  `onProjectCreated(newId, remixPrompt, platform)` — prop mới truyền từ `App.jsx`
+  (dùng lại đúng `handleCreated`, giống hệt cách tạo project thường) để tự động chuyển
+  sang xem project remix mới, không cần user tự tìm trong `ProjectPicker`.
+
+### Verify thật (không giả định)
+- Gọi thật `POST /remix` trên project `tinh-yeu-tuoi-hoc-tro-that-trong-sang` (6 scene,
+  đã render) → project mới tạo ngay, `ls assets/images` có đủ 6 file, **`assets/audio`
+  không tồn tại** (đúng thiết kế), `video-plan.json.fontFamily` đổi đúng theo yêu cầu,
+  `job-status.json`'s `video-plan` step là `"done"` ngay lập tức không cần chờ.
+  - Lần test đầu tiên (không chỉ định `model`) → DashScope trả 403
+    `AllocationQuota.FreeTierOnly` (hết quota free tier THẬT của tài khoản, không phải
+    bug) — job-status ghi đúng `"error"` với message rõ ràng, `scenes.json` KHÔNG bị
+    ghi dở dang. Xác nhận cơ chế báo lỗi hoạt động đúng (không giống bug audio ở trên).
+  - Đổi sang `model: "qwen-plus-2025-04-28"` (1 trong các model đã khai báo sẵn trong
+    `EXPENSIVE_MODELS`) → thành công, `scenes.json` sinh ra đúng 6 sceneId (không
+    thêm/bớt), narration mới đổi đúng văn phong yêu cầu (vd scene_01: "ai đó" → "crush",
+    dí dỏm hơn) mà vẫn giữ đúng ý nghĩa cảnh gốc.
+- Playwright thật trên UI: trỏ `localStorage` thẳng vào project sub thật (không cần
+  chạy lại từ đầu) → card "Remix video này" hiện đúng, dropdown font hiện đúng
+  "Giữ font gốc (Itim)" (đọc đúng từ `video-plan.json` thật), không tràn layout
+  (`scrollWidth` check), 0 lỗi console, nút bấm enable đúng khi có nhập prompt.
+- Dọn project test (`output/2026-08-01/doi-van-phong-sang-hai-huoc-di-dom-hon-giu-nguyen-`)
+  sau khi verify xong.
+
+### Chưa làm / theo dõi tiếp
+- Chưa có UI hiện lại danh sách các project đã "remix từ" project nào (không lưu quan
+  hệ cha-con giữa project gốc và project remix ở đâu cả — nếu cần, có thể thêm 1 field
+  `remixedFrom: <sourceId>` vào `video-plan.json` hoặc `job-status.json` của project
+  remix).
+- Chưa test full end-to-end remix → audio → scene → root → render (chỉ verify tới bước
+  `scenes.json` do quota LLM lần đầu bị chặn, và không muốn tốn thêm phí TTS/render chỉ
+  để test UI text) — nhưng audio/scene/root/render đều dùng lại đúng route/hàm đã verify
+  kỹ ở các phiên trước, rủi ro thấp.
+
+### Cập nhật — Remix card thiếu ô chọn model (user báo lỗi thật ngay sau khi dùng)
+User bấm Remix qua UI → lỗi `403 AllocationQuota.FreeTierOnly` y hệt bug quota gặp lúc
+test — nguyên nhân: card Remix quên thêm `ModelSelect`, luôn dùng `DEFAULT_MODEL` từ
+`.env` (`qwen3.6-plus`, đã hết quota) không cho đổi. Thêm `ModelSelect` (dùng lại đúng
+`EXPENSIVE_MODELS`) vào card, wire `model` vào `api.runRemix()`. Verify thật qua
+Playwright: chọn `qwen-plus-2025-04-28` trong dropdown mới, bấm remix → thành công,
+điều hướng đúng sang project mới, `job-status` step "plan" báo "done".
+
+## Mới — Live log (SSE events) + nghe thử voice trước khi generate scene (phiên 2026-08-02)
+
+User chọn đào sâu hướng UX, chốt 2 việc: (1) hiện log chi tiết trong lúc chờ 1 bước
+chạy thay vì chỉ có badge "Đang chạy" tĩnh — dữ liệu SSE (`onEvent`) đã có sẵn đầy đủ từ
+lâu nhưng chưa từng hiển thị ở đâu trong UI; (2) nghe thử voice của từng scene NGAY
+trong `SceneGrid` trước khi bấm Generate — vì đúng bug scene 5/6 vừa sửa (audio lỗi im
+lặng) đáng lẽ phát hiện được sớm hơn nhiều nếu nghe thử trước khi tốn tiếp tiền ảnh/scene.
+
+### Live log
+- `web/src/components/LiveLog.jsx` (mới) — `formatEvent(e)` map từng `type` sự kiện
+  (khác nhau tuỳ nguồn: `run-agent.mjs`'s `assistant`/`tool`, `generate-audio.mjs`'s
+  `scene-start`/`scene-tts-done`/`scene-error`..., `sub-scene-writer.mjs`'s
+  `image`/`image-skip`/`write`, `lint`/`static-check` chung) thành 1 dòng tiếng Việt dễ
+  đọc; type lạ/không quan trọng trả `null` và bị lọc bỏ thay vì dump JSON thô.
+  `<LiveLog events step maxLines>` chỉ lọc đúng `event.step === step`, hiện tối đa N
+  dòng gần nhất.
+- `useJobStatus.js` đã có sẵn `events` (mảng SSE full trace, cap 500) nhưng
+  `Pipeline.jsx` trước giờ chỉ destructure `steps`/`totalUsage`, bỏ qua — giờ lấy thêm
+  `events`, truyền `<LiveLog>` vào StepRow của "plan"/"audio"/"video-plan"/"root" (chỉ
+  hiện khi `status==="running"`), và truyền tiếp `events` xuống `SceneGrid` để hiện log
+  riêng từng scene-card khi scene đó đang generate.
+- CSS `.live-log` — box nhỏ nền `--code-bg`, monospace, `max-height:140px` tự cuộn,
+  dòng cuối in đậm (dòng mới nhất) để dễ theo dõi tiến trình bằng mắt.
+
+### Nghe thử voice trước khi generate
+- Route mới `GET /projects/:id/audio/:name` (`server/routes.mjs`) — serve
+  `assets/audio/<sceneId>_vo.mp3`, cùng pattern path-traversal-safety với route
+  `/images/:name` đã có (`resolve`/`relative`/`isAbsolute` check, chỉ nhận `.mp3`).
+- `api.js` thêm `audioUrl(id, sceneId)`.
+- `SceneGrid.jsx` — `<SceneAudioPreview>` (audio player HTML5 gọn, `preload="none"`)
+  hiện trong MỖI scene-card khi audio đã sinh (`audioReady` prop truyền từ
+  `Pipeline.jsx` = `audioStatus==="done"`), đặt TRƯỚC nút Generate — nghe được giọng
+  đọc trước khi bấm tốn tiền ảnh/scene. `onError` ẩn player nếu scene không có audio
+  (không có narration) thay vì hiện player lỗi trống.
+
+### Verify thật (Playwright + fetch trực tiếp, không giả định)
+- Audio player: mở project sub thật (6 scene, đã có audio) → 6 audio player render
+  đúng, `src` đúng URL, `fetch()` trực tiếp URL đó trả **HTTP 200** (không phải chỉ
+  render `<audio>` tag suông — xác nhận file thật phát được).
+- Live log: trigger lại `scene:scene_03` (style "sub", KHÔNG dùng LLM — code-only) →
+  chạy xong trong **~0.6s**, quá nhanh để bắt live log kịp (đúng thiết kế, không phải
+  bug — đã đối chiếu timestamp thật trong `job-status.json`'s `events` để xác nhận).
+  Trigger lại bước "root" (CÓ LLM thật, nhiều lượt) → live log hiện đúng, cập nhật theo
+  thời gian thực: `[lượt 3] gọi list_dir, list_dir` → `list_dir → ok` → `[lượt 4] gọi
+  write_file` → `write_file → ok` → `Lint lần 2: 0 lỗi mới`. Regression check sau khi
+  test lại root-composer trên project thật: `index.html` vẫn 0 atmosphere neon (không
+  regress bug đã sửa trước đó), vẫn còn đủ `vo-05`/`vo-06`.
+- Dọn AppleDouble junk sau khi test xong; không tạo project test mới lần này (test trực
+  tiếp trên project sub thật đã có sẵn, chỉ trigger lại các bước vô hại/idempotent).
+
+## Mới — 3 đề xuất: tự chuyển model khi hết quota, ProjectPicker hiện tiến độ, remixedFrom (phiên 2026-08-02)
+
+User đồng ý làm cả 3 đề xuất cùng lúc.
+
+### 1. Tự động chuyển model khi hết quota/rate-limit
+- `server/lib/models.mjs` (mới) — khai báo tier `EXPENSIVE_MODELS`/`CHEAP_MODELS` phía
+  SERVER (mirror thủ công với list phía UI trong `Pipeline.jsx` — 2 nơi khác mục đích:
+  UI list cho dropdown chọn tay, list này cho fallback tự động). `nextFallbackModel(model,
+  excluded)` chỉ trả model CÙNG TIER (không bao giờ tự rớt từ đắt xuống rẻ — sẽ hạ chất
+  lượng output mà user không đồng ý).
+- `dashscope.mjs` — `isQuotaOrRateLimitError(err)` nhận diện `(429)` hoặc message chứa
+  "quota"/"throttl" (khớp đúng format lỗi thật đã gặp: `403 AllocationQuota.FreeTierOnly`).
+- `run-agent.mjs` — bọc `chatCompletion()` trong vòng lặp riêng: gặp lỗi quota/rate-limit
+  → thử `nextFallbackModel()` (tính theo tier của model GỐC, không phải model hiện tại,
+  để `triedModels` tích luỹ đúng qua nhiều lượt), phát `onEvent({type:"model-fallback"})`,
+  đổi `currentModel` — model mới dùng xuyên suốt các lượt còn lại trong cùng lần chạy,
+  không phải thử lại mỗi lượt. Hết model trong tier thì mới throw lỗi gốc.
+- `LiveLog.jsx` thêm case `model-fallback` → `⚠ Model "X" hết quota/rate-limit — tự
+  chuyển sang "Y"`.
+- **Verify thật**: gọi `/remix` KHÔNG truyền `model` (mặc định `qwen3.6-plus`, biết chắc
+  đang hết quota từ trước) → job-status event thật ghi
+  `{type:"model-fallback", from:"qwen3.6-plus", to:"qwen3.5-plus"}`, step "plan" chạy
+  tiếp bình thường và xong — không cần user can thiệp tay như 2 lần trước.
+
+### 2. ProjectPicker hiện trạng thái tiến độ
+- `job-status.mjs`'s `summarizeProjectStatus(projectDir)` (mới) — đọc `job-status.json`
+  + (nếu có) `video-plan.json` để lấy tổng số scene chính xác, trả `{label, hasError}`.
+  Ưu tiên: có step lỗi → "Lỗi ở …" ; render xong → "Đã render" ; root xong → "Đã ghép,
+  chưa render" ; có scene → "N/M scene xong" ; ... ; không có step nào → "Chưa bắt đầu".
+- `project-id.mjs`'s `listProjects()` gọi thêm hàm này + đọc riêng `remixedFrom` từ
+  `video-plan.json`, trả kèm trong mỗi project entry.
+- `ProjectPicker.jsx` — hiện badge tròn (đỏ nếu `hasError`) bên phải mỗi project, thêm
+  dòng "remix từ X" nếu có `remixedFrom`.
+- **Verify thật**: gọi `GET /projects` thật trên toàn bộ 12 project có sẵn trong
+  workspace (KHÔNG phải project test dựng riêng) → phát hiện sống 1 project thật
+  (`ai-trong-marketing`) đang lỗi thật ở `scene:scene_04` mà trước giờ không hiện ở đâu
+  cả — xác nhận tính năng có giá trị thật ngay lần đầu bật, không chỉ là demo.
+  Playwright screenshot xác nhận badge lỗi màu đỏ nổi bật, không tràn layout.
+
+### 3. Ghi quan hệ remix (`remixedFrom`)
+- `remix-project.mjs`'s `createRemixProject()` ghi thêm field
+  `remixedFrom: toProjectId(sourceProjectDir)` vào `video-plan.json` của project remix
+  (thuần thông tin, không có step nào đọc lại field này để chạy logic).
+  `Pipeline.jsx` hiện dòng "remix từ …" ngay dưới tên project khi mở đúng project remix
+  (đọc từ `sourceVideoPlan.remixedFrom` đã fetch sẵn cho card Remix).
+- **Verify thật**: remix lại chính project `tinh-yeu-tuoi-hoc-tro-that-trong-sang` →
+  `video-plan.json` mới có đúng `remixedFrom` trỏ về project gốc; `GET /projects` trả
+  đúng field này; `ProjectPicker` hiện đúng "remix từ tinh-yeu-tuoi-hoc-tro-that-trong-sang".
+
+Dọn toàn bộ project test tạo ra trong lúc verify 3 tính năng này.
+
+## Mới — Tab History + xác nhận trước "Generate lại" + sticky nav (phiên 2026-08-02)
+
+User yêu cầu làm cả 3 cùng lúc: tab History (xem video đã render + Mở thư mục + Xoá
+project), xác nhận trước khi bấm "Generate lại" (đã đề xuất ở lượt trước), và thanh
+điều hướng dính (đã đề xuất ở lượt trước).
+
+### Tab History
+- `job-status.mjs`'s `summarizeProjectStatus()` trả thêm field ổn định
+  `renderDone: boolean` (tách riêng khỏi `label` — không match chuỗi tiếng Việt "Đã
+  render" vì label có thể đổi chữ sau này).
+- `routes.mjs` — 2 route mới:
+  - `POST /projects/:id/open-folder` — mở Finder/Explorer đúng thư mục project bằng
+    `execFile("open"|"explorer"|"xdg-open", [projectDir])` (không phải `exec` với
+    string nối — `projectDir` đã qua `resolveProjectDir()` validate, truyền thẳng làm
+    1 phần tử argv, không có bề mặt injection dù có spawn process thật). Chỉ có ý
+    nghĩa vì server + trình duyệt chạy cùng máy (tool cá nhân, không multi-tenant).
+  - `DELETE /projects/:id` — `rmSync(projectDir, {recursive:true, force:true})`, dọn
+    thêm 2 thư mục cha rỗng (`<slug>/`, `<date>/`) để không để lại vỏ rỗng trong
+    `output/` và tránh đụng guard "thư mục đã tồn tại" của `new-project.mjs` nếu tạo
+    lại project cùng idea/ngày.
+- `web/src/components/History.jsx` (mới) — lọc `listProjects()` theo `renderDone`,
+  mỗi item: `<video>` phát bản render mới nhất (`listRenders()` đã sort mới nhất
+  trước), nút "Mở thư mục output", nút "Xoá project" (⚠ `window.confirm` với nội dung
+  liệt kê rõ mất gì — ảnh AI đã tốn phí, audio, render — KHÔNG THỂ HOÀN TÁC, cùng
+  pattern với xoá profile đã làm trước đó).
+- `App.jsx` thêm tab switcher (`Pipeline` / `History`) ở header; xoá project trong
+  History mà trùng đúng project đang mở ở tab Pipeline thì tự reset về màn hình tạo
+  project mới (tránh Pipeline trỏ vào project đã không còn tồn tại).
+
+### Xác nhận trước khi "Generate lại"
+- `SceneGrid.jsx` — chỉ hiện `window.confirm()` khi bấm lại trên scene đã `"done"`
+  (regenerate thật sự tốn phí tiềm năng nếu `image_prompt` đã đổi); lần "Generate" đầu
+  tiên không hỏi gì (không có gì để mất).
+
+### Sticky mini-nav
+- `Pipeline.jsx`'s `<PipelineNav>` — thanh nút tròn dính đầu trang (dưới header, trên
+  nội dung), mỗi nút có chấm màu trạng thái (giống palette `StatusBadge`) + nhảy tới
+  đúng section bằng `scrollIntoView({behavior:"smooth"})`. Thêm `id` vào từng
+  `StepRow`/card tương ứng (`step-config`, `step-plan`, `step-audio`,
+  `step-video-plan`, `step-scenes`, `step-root`, `step-render`, `step-remix`) — mục
+  "Scenes"/"Remix" chỉ hiện khi phần đó đang thực sự render trên trang (tránh nhảy vào
+  chỗ trống).
+
+### Verify thật (API + Playwright, không giả định)
+- `POST /open-folder` gọi thật trên project `tinh-yeu-tuoi-hoc-tro-that-trong-sang` →
+  `{ok:true}`, không lỗi (mở đúng Finder thật trên máy đang chạy server).
+- Tạo project throwaway rẻ qua `/remix` (chỉ 1 lệnh LLM, không sinh ảnh) → gọi
+  `DELETE /projects/:id` thật → xác nhận bằng `ls` cả thư mục `video/` VÀ thư mục
+  `slug/` cha đều biến mất thật khỏi đĩa (không chỉ trả 204 suông).
+- Playwright thật: mở tab History → 4 video render thật hiển thị, không tràn layout;
+  chuyển sang Pipeline, bấm nút nav "5. Render" → `window.scrollY` đổi thật (1900px,
+  xác nhận cuộn thật chứ không phải nút chết); bấm "Generate lại" trên scene đã xong →
+  dialog `confirm` hiện đúng nội dung cảnh báo tốn phí, tự accept qua Playwright's
+  dialog handler.
+- Phát hiện thêm (không phải bug): `ai-trong-marketing` vẫn xuất hiện trong History dù
+  đang lỗi ở `scene:scene_04` — đúng vì `renderDone` độc lập với `hasError` (video đã
+  render TRƯỚC khi lỗi phát sinh ở lần chạy sau) — hành vi đúng theo thiết kế, không
+  phải mâu thuẫn dữ liệu.
+- Dọn hết project test + AppleDouble junk sau khi verify.
+
+## Đã sửa — "voice cũ bị thiếu khi ghép scene mới" khi remix — hoá ra là 3 bug thật (phiên 2026-08-02)
+
+User báo remix bị lỗi: scene chưa hết voice thì đã ghép scene mới, voice cũ bị thiếu.
+Điều tra bằng cách tạo lại đúng kịch bản (remix → audio → generate scene → root) trên
+project thật, KHÔNG đoán — phát hiện đây thực ra là 3 bug độc lập, không phải 1:
+
+### Bug 1+2: root-composer không đáng tin khi tự liệt kê thẻ voiceover
+Test lần đầu: root-composer chỉ viết ĐÚNG 3/6 thẻ `<audio data-track-index="21">`
+(thiếu vo-01, vo-02, vo-06) dù cả 6 scene div đều đúng. Thử thêm checklist tường minh
+vào prompt (liệt kê đúng id bắt buộc) — KHÔNG đủ: qua 8 lần retry, model liên tục đổi
+bộ id bị thiếu khác nhau mỗi lần sửa (whack-a-mole — sửa đúng lỗi vừa báo thì làm hỏng
+cái đã đúng trước đó), không bao giờ hội tụ trong `maxFixAttempts`.
+
+**Fix theo đúng nguyên tắc đã dùng trong dự án ("code viết field cấu trúc, không tin
+LLM tự liệt kê")**:
+- `validators.mjs` — 2 check mới: `checkVoiceoverOverlap` (2 voiceover cùng track 21
+  không được chồng thời gian) và `checkVoiceoverCompleteness` (đủ N thẻ đúng scene có
+  voiceover thật) — bắt được bug ngay từ lần test đầu.
+- `root-composer.mjs` — `enforceVoiceoverTags()`: sau khi LLM viết `index.html`, CODE
+  tự tính lại toàn bộ khối `<audio>` track 21 (cùng công thức crossfade
+  `data-start[i] = data-start[i-1] + scene_duration[i-1] - 0.3`) và GHI ĐÈ, không quan
+  tâm LLM viết gì. Áp dụng ở MỌI attempt (không chỉ lần cuối), nên lint/check sau đó
+  luôn thấy bản đã đúng. 2 check mới giờ chỉ còn vai trò defense-in-depth (không bao
+  giờ nên fire nữa).
+
+### Bug 3: field `_audio.voiceover` nói dối khi TTS lỗi
+Trong lúc test bug 1, phát hiện thêm: `hyperframes lint` báo lỗi thật
+`audio_src_not_found` cho 3 file mp3 — vì `generate-audio.mjs` set
+`voiceover: scene.narration ? path : null` (dựa vào CÓ narration hay không) thay vì
+dựa vào TTS có THỰC SỰ thành công hay không. Khi TTS lỗi thoáng qua (đúng bug edge-tts
+"Stream closed" đã sửa ở phiên trước — bước "audio" đã báo lỗi ĐÚNG, nhưng lúc test tôi
+bỏ qua lỗi đó và generate tiếp), field vẫn trỏ tới file không hề tồn tại, khiến
+root-composer (và cả `enforceVoiceoverTags`) tin có audio thật cho scene không hề có.
+**Fix**: `voiceover: scene.narration && result ? path : null` — chỉ set path khi
+`generateVoiceover()` thực sự trả về kết quả (thành công hoặc reuse file cũ).
+
+### Bug 4 (phát hiện thêm khi verify lại bug 3): skip-branch trả sai shape
+Khi retry `/audio` sau khi sửa bug 3, phát hiện tiếp: 3 scene ĐÃ ĐÚNG trước đó
+(scene_03/04/05) bị mất sạch `word_timestamps` sau khi chạy lại — dù file mp3+timing
+trên đĩa vẫn nguyên vẹn, đúng dữ liệu. Nguyên nhân: nhánh "skip" (file đã tồn tại) của
+`generateVoiceover()` `return existsSync(timingFile) ? JSON.parse(...) : null` — trả
+thẳng ARRAY word-timestamps thô (đúng những gì được ghi vào file), nhưng caller luôn
+kỳ vọng object `{wordTimestamps, voDuration}`. `array.wordTimestamps` là `undefined`
+→ mọi lần retry `/audio` trên project có sẵn vài scene xong đều âm thầm làm hỏng dữ
+liệu của NHỮNG SCENE ĐÃ ĐÚNG — bug tồn tại từ lâu, không liên quan riêng gì remix,
+chỉ vô tình bị "chạy lại /audio nhiều lần" (chính là hành vi khuyến khích bởi tính
+năng retry-rẻ mới làm) phơi ra.
+**Fix**: nhánh skip giờ đọc lại đúng array, tự tính `voDuration` từ `Math.max(...end)`
+của các từ, trả đúng shape `{wordTimestamps, voDuration}`.
+
+### Verify thật — dựng lại đúng kịch bản lỗi từ đầu đến cuối, không giả lập
+Remix thật → audio thật (2 scene TTS lỗi thoáng qua thật, bug 3 khiến root-composer
+sau đó nhận nhầm data) → generate 6 scene thật → root thật → phát hiện đủ cả 4 bug nói
+trên theo đúng thứ tự bị vấp phải. Sau khi vá xong cả 4: audio → generate lại 3 scene
+bị hỏng → root → **`npx hyperframes lint` 0 lỗi thật (không còn `audio_src_not_found`),
+`checkVoiceoverOverlap`/`checkVoiceoverCompleteness` đều rỗng**. Dọn project test.
+
+### Chưa làm / theo dõi tiếp
+- Mỗi attempt retry của root-composer giờ gọi `runAgent()` mới, tự bắt đầu lại từ
+  `model` gốc — nếu model đó đang hết quota, MỖI attempt tốn thêm 1 lệnh gọi lãng phí
+  trước khi tự fallback (thấy live: 1 lần root-composer test tốn ~180k token/8 lệnh gọi
+  vì lặp lại việc hết-quota-rồi-fallback qua nhiều attempt). Có thể tối ưu bằng cách
+  nhớ lại model đã fallback thành công giữa các attempt trong cùng 1 lần chạy
+  `runRootComposer`, không bắt đầu lại từ model gốc mỗi attempt.
+
+## Đã sửa — remix lỗi "function.arguments...phải là JSON" không tự phục hồi được (phiên 2026-08-02)
+
+User báo remix (chọn model `qwen-plus-2025-04-28` tường minh, không phải do auto-
+fallback) vẫn lỗi `400 InternalError.Algo.InvalidParameter: function.arguments... phải
+là JSON`. Tìm đúng project thật của user bị lỗi (`output/2026-08-02/doi-van-phong-hai-
+huoc`), đọc `job-status.json`'s events thay vì đoán.
+
+**Root cause thật (chuỗi 3 bước)**:
+1. Model tự sinh `function.arguments` bị lỗi JSON thật (dư ký tự sau vị trí 2361 — lỗi
+   generate JSON dài, ngẫu nhiên, không phải do chọn sai model).
+2. `run-agent.mjs` bắt đúng lỗi `JSON.parse` đó, báo `{ok:false, error:...}` lại cho
+   model — ĐÚNG theo thiết kế cũ, nhưng tin nhắn assistant chứa `tool_calls[].function.
+   arguments` bị lỗi đó vẫn nằm trong `messages` để gửi lại ở lượt sau (giữ ngữ cảnh).
+3. Lượt gọi TIẾP THEO, DashScope tự validate lại toàn bộ lịch sử gửi lên, phát hiện
+   field đó không phải JSON hợp lệ → từ chối thẳng cả request bằng lỗi 400 nói trên.
+   Vì tin nhắn lỗi vẫn kẹt trong `messages` mãi mãi, MỌI lượt gọi sau đều bị chặn y hệt
+   — hội thoại "chết cứng", không có cách nào tự phục hồi trong thiết kế cũ.
+
+**Fix**: `run-agent.mjs` — trước khi xử lý tool result như bình thường, kiểm tra riêng
+xem có `tool_call` nào có `function.arguments` không parse được không. Nếu có: **xoá
+hẳn** tin nhắn assistant vừa lỗi khỏi `messages` (không gửi lại lần nữa), chèn 1 tin
+nhắn `user` ngắn yêu cầu model gọi lại đúng 1 tool call với JSON hợp lệ, rồi tiếp tục
+vòng lặp — hội thoại giờ sạch, không còn field lỗi nào để DashScope từ chối. Giới hạn
+tối đa 2 lần retry kiểu này trước khi throw lỗi rõ ràng (tránh loop vô hạn nếu model
+liên tục lỗi).
+
+**Verify**: unit-test riêng logic phát hiện (`JSON.parse` catch) khớp đúng dạng lỗi
+thật user gặp ("Unexpected non-whitespace character after JSON"). Chạy lại đúng kịch
+bản remix thật (project gốc, model `qwen-plus-2025-04-28`) → thành công, `scenes.json`
+sinh đúng — không tái hiện glitch JSON lần này (bản chất ngẫu nhiên, không phải lỗi cố
+định lặp lại mỗi lần), nhưng logic phục hồi đã sẵn sàng cho lần sau nếu glitch tái diễn.
+Dọn project test sau khi verify. Project thật của user bị lỗi cũ
+(`output/2026-08-02/doi-van-phong-hai-huoc`) vẫn còn nguyên — user có thể remix lại từ
+đầu (project gốc không đổi) để có bản mới không lỗi.
+
+## Đã sửa — remix đổi font nhưng render ra vẫn font cũ (phiên 2026-08-02)
+
+User báo: chọn font khác lúc remix, nhưng video render ra vẫn như dùng font cũ.
+
+**Điều tra thật trên đúng project user gặp** (`output/2026-08-02/doi-van-phong-hai-
+huoc-hon`, remix từ project dùng font Charm, chọn font mới là Mali):
+- `video-plan.json` VÀ mọi `compositions/scene_XX.html` đều đúng
+  `font-family: 'Mali'` — dữ liệu/pipeline không sai chỗ nào.
+- Trích frame thật từ đúng bản render user đang xem → chữ hiện ra là 1 font sans-serif
+  chung chung, KHÔNG giống Mali (tròn, viết tay) cũng KHÔNG giống Charm (thư pháp
+  mảnh) — tức không phải "dùng nhầm font cũ" như user tưởng, mà là **không dùng được
+  font nào cả**, rơi về font dự phòng của trình duyệt.
+- Render lại độc lập lần 2 → lỗi y hệt, không phải ngẫu nhiên/mạng chập chờn.
+
+**Nghi vấn 1 (sai)**: tưởng do `hyperframes` render capture không chờ kịp
+`fonts.googleapis.com` tải xong (đúng rủi ro `hyperframes lint` cảnh báo sẵn qua
+warning `google_fonts_import`). Tải sẵn font Mali về local (`assets/fonts/`), sửa
+composition dùng `@font-face` local thay vì link Google Fonts. Render lại → **vẫn sai
+y hệt**.
+
+**Root cause thật**: Google Fonts phục vụ mỗi family/weight thành NHIỀU file theo
+`unicode-range` riêng (subset `latin`, `latin-ext`, `vietnamese`, ...). Bước tải font
+đầu tiên chỉ lấy đúng file subset **"vietnamese"** (nghĩ vậy là đủ vì cần tiếng Việt)
+— nhưng subset đó CHỈ chứa glyph cho các ký tự có dấu đặc thù tiếng Việt
+(ă, â, đ, ê, ô, ơ, ư và các dấu thanh), KHÔNG chứa chữ cái Latin thường (a-z, A-Z) —
+những chữ đó nằm ở subset "latin" riêng. Vì đa số ký tự trong 1 câu là chữ Latin
+thường, `document.fonts` báo font "loaded" đúng (file tải thành công) nhưng trình
+duyệt không tìm thấy glyph phù hợp cho phần lớn ký tự nên âm thầm rơi về font hệ
+thống — y hệt hiện tượng user thấy.
+
+Verify bằng cách dựng lại y hệt bug qua Playwright: script tự viết `@font-face` chỉ
+trỏ tới file subset "vietnamese" → chữ Latin thường ra sai (bold sans generic); thêm
+đúng cả subset "latin" (kèm `unicode-range` riêng, đúng cơ chế browser tự chọn file
+theo từng ký tự) → chữ ra ĐÚNG Mali (chấm 'i' tròn, nét chữ bo tròn đặc trưng).
+
+**Fix cuối cùng**:
+- Viết lại script tải font: lấy đủ 3 subset `latin` + `latin-ext` + `vietnamese` cho
+  mỗi family/weight, lưu kèm `unicode-range` thật (copy nguyên văn từ CSS của Google)
+  vào `assets/fonts/manifest.json`.
+- `server/lib/fonts.mjs` viết lại — `fontFaceCss()` sinh NHIỀU rule `@font-face` (1
+  rule/subset) kèm đúng `unicode-range`, đúng cơ chế Google dùng; `ensureFontCopied()`
+  copy đủ mọi file subset cần vào `assets/fonts/` của từng project (idempotent, giống
+  quy ước copy nhạc/SFX).
+- `templates/sub-styles/image-full-focus.mjs` — bỏ hẳn `<link>` Google Fonts, dùng
+  `fontFaceCss()`.
+- `sub-scene-writer.mjs` — gọi `ensureFontCopied()` trước khi viết composition.
+
+**Verify thật trên chính project user gặp lỗi**: xoá `assets/fonts/` cũ (thiếu subset),
+generate lại cả 6 scene (ảnh skip, không tốn phí), ghép root, render thật → trích
+frame → **xác nhận đúng font Mali (tròn, viết tay)**, khớp hệt mẫu tham chiếu đã verify
+riêng. Dọn file render test, giữ nguyên 2 bản render cũ (lỗi font) của user trong
+`renders/` — user có thể tự xoá qua tab History hoặc render lại để có bản đúng.
+
+### Chưa làm / theo dõi tiếp
+- Chưa cập nhật các project CŨ khác (không phải project user vừa báo) — chúng vẫn
+  dùng `<link>` Google Fonts trong `compositions/*.html` đã sinh sẵn, chỉ project nào
+  generate/regenerate scene SAU thời điểm fix này mới tự động dùng font local. Muốn
+  sửa toàn bộ project cũ thì cần chạy lại generate cho từng scene (ảnh vẫn skip, không
+  tốn phí, chỉ tốn thời gian).
+- Danh sách 6 font (`Itim`, `Mali`, `Pacifico`, `Charm`, `Sriracha`, `Amatic SC`) đã
+  tải đủ. Nếu sau này thêm font mới vào `FONT_OPTIONS` (Pipeline.jsx) thì phải tải
+  thủ công 3 subset + cập nhật `manifest.json` trước, không tự động.
+
+## Mới — chọn voice edge-tts (giữ voice cũ, thêm voice nam) (phiên 2026-08-02)
+
+User chê giọng edge-tts hiện tại chưa hay, hỏi gợi ý provider khác. Đề xuất: thử đổi
+voice ID miễn phí trước (rẻ nhất, không cần code mới), gợi ý thêm FPT.AI/DashScope
+TTS/ElevenLabs nếu cần chất lượng cao hơn sau này. User chọn phương án 1: thêm
+`vi-VN-NamMinhNeural` (giọng nam), **giữ nguyên** `vi-VN-HoaiMyNeural` (giọng nữ, mặc
+định cũ) làm 1 option để chọn, không thay hẳn.
+
+- `edge-tts.mjs`'s `synthesize()` **đã sẵn** tham số `voiceId` từ trước — chỉ thiếu
+  chỗ nào truyền nó xuống. Thêm `ttsVoice` xuyên suốt: `generate-audio.mjs` (param mới,
+  chỉ set `voiceId` khi có giá trị) → `routes.mjs`'s `POST /audio` → `Pipeline.jsx`
+  (dropdown mới `EDGE_TTS_VOICES`, chỉ hiện khi `ttsProvider==="edge-tts"`) →
+  `profiles.mjs`'s `PROFILE_FIELDS` (thêm `"ttsVoice"` để lưu/nạp lại theo profile
+  kênh, giống các field khác).
+- **Verify thật**: gọi thẳng `edge-tts.mjs`'s `synthesize()` với
+  `voiceId: "vi-VN-NamMinhNeural"` → thành công, sinh audio thật (2.3s, 9 từ) —
+  xác nhận voice ID hợp lệ trước khi tin vào UI. Playwright thật: dropdown hiện đúng 2
+  lựa chọn ("HoaiMy (nữ) — mặc định", "NamMinh (nam)"), chọn được NamMinh, 0 lỗi.
+- Dọn project test sau khi verify.
+
+### Chưa làm / theo dõi tiếp
+- Chưa tích hợp provider TTS chất lượng cao hơn (FPT.AI/DashScope CosyVoice/
+  ElevenLabs trả phí) — chỉ mới đổi voice trong edge-tts (free). Nếu sau khi thử
+  NamMinh vẫn chưa ưng, cân nhắc tích hợp 1 trong các provider đã gợi ý.
+
+## Mới — Thư viện ảnh AI tái dùng (image library, tag-based) (phiên 2026-08-02)
+
+User nêu: model sinh ảnh flash ~0.03$/ảnh, video 7-10 scene tốn 5-7k VNĐ, muốn giải
+pháp giảm phí khi scale. Bàn kỹ trước khi code (Q&A, chưa code):
+- Chọn hướng tag-based (không phải embedding) — rẻ hơn, đủ dùng vì style
+  matchstick-figure vốn lặp lại vài mô-típ cảm xúc quen thuộc.
+- Thêm checkbox bật/tắt + setting giới hạn số scene tái dùng tối đa.
+- Thư viện PHẢI tách nhóm theo **profile kênh** (không theo raw `imageStylePrefix`
+  text) — đổi phong cách (đổi profile) = nhóm khác hẳn, không lẫn ảnh 2 style khác
+  nhau vào cùng video. Ảnh sinh ra khi KHÔNG chọn profile (tự gõ tay) không được lưu
+  vào thư viện chung — coi là one-off.
+
+### Kiến trúc
+- `server/agents/video-planner.mjs` — thêm `IMAGE_TAG_VOCAB` (~40 tag cố định, đóng —
+  không phải tag tự do, vì mục đích là so KHỚP overlap giữa các scene/video khác
+  nhau, tag tự do gần như không bao giờ trùng chữ). Prompt yêu cầu model gán thêm
+  field `image_tags` (2-4 tag, CHỈ chọn từ danh sách này) cho mỗi scene, cùng lúc với
+  `image_prompt` (không tốn thêm lượt gọi LLM riêng). Thêm param
+  `imageLibraryEnabled`/`imageLibraryMaxReuse`/`profileSlug`, ghi vào
+  `video-plan.json.imageLibrary = {enabled, maxReuse, profileSlug}` — `enabled` chỉ
+  thật sự `true` khi CẢ checkbox bật VÀ có `profileSlug` (ép logic ở code, không tin
+  UI).
+- `server/lib/image-library.mjs` (mới) — lưu trữ phẳng
+  `assets/image-library/manifest.json` (mảng entry `{id, file, profileSlug, format,
+  tags, prompt, createdAt}`) + file ảnh `assets/image-library/<id>.png`, giống quy
+  ước `assets/music`/`assets/sfx`/`assets/fonts`.
+  - `findReusableImage({profileSlug, format, tags})` — chỉ so trong đúng nhóm
+    `profileSlug`+`format`, chọn entry có overlap tag CAO NHẤT, yêu cầu tối thiểu
+    `MIN_TAG_OVERLAP = 2` (1 tag trùng dễ là trùng hợp ngẫu nhiên, 2+ mới đáng tin).
+  - `addToLibrary(...)` — copy ảnh vừa sinh THẬT (không phải reuse/skip) vào thư
+    viện, ghi entry mới. No-op nếu không có `profileSlug`.
+  - `tryReserveReuseSlot(projectDir, maxReuse)` — đếm số lần đã tái dùng CỦA RIÊNG
+    project này (file nhỏ `image-library-state.json` trong project dir, không phải
+    thư viện chung) để tôn trọng giới hạn `maxReuse` khi bật.
+- `sub-scene-writer.mjs` — trước khi gọi `generateAndSaveImage` (tốn tiền), check
+  theo thứ tự: (1) file đã tồn tại trên đĩa → skip như cũ; (2) thư viện bật + tìm được
+  ảnh khớp + còn slot reuse → copy từ thư viện (`image-reused` event); (3) không thì
+  mới sinh ảnh thật, và nếu thư viện bật + sinh thành công thật → lưu vào thư viện
+  cho các video sau.
+- `routes.mjs` — `/video-plan` nhận thêm 3 param mới; `/scenes/:id/generate` (nhánh
+  sub) truyền `videoPlan.imageLibrary` xuống.
+- `Pipeline.jsx` — checkbox "Tìm ảnh có sẵn trong thư viện trước khi sinh mới" (disable
+  nếu chưa chọn profile) + input số tối đa tái dùng (để trống = không giới hạn), chỉ
+  hiện khi template="sub" hoặc visualStyle="ai-image". Cả 2 chỗ gọi
+  `api.runVideoPlan` (nút bấm tay + `runAllPipeline`) đều truyền
+  `imageLibraryEnabled`/`imageLibraryMaxReuse`/`profileSlug: selectedProfileSlug`.
+
+### Verify thật end-to-end (2 project thật, không giả lập)
+- Tạo profile kênh `imagelibtest` (template=sub, cùng imageStylePrefix mặc định).
+- **Project A** ("Cảm giác hồi hộp khi trao mẩu giấy..."): chạy plan → audio →
+  video-plan (imageLibraryEnabled=true, profileSlug=imagelibtest) → generate
+  scene_01 thật (sinh ảnh AI thật, tốn phí 1 lần) → xác nhận
+  `assets/image-library/manifest.json` có đúng entry mới với `profileSlug`/`tags`
+  khớp.
+- **Project B** ("Ký ức trao mẩu giấy tình yêu học trò ngày xưa" — cố ý gần nghĩa) —
+  cùng luồng, cùng profile. `scene_01`'s `image_tags` overlap đúng 2/3 tag với entry
+  của project A (`paper-note`, `memory-flashback`). Generate `scene_01` → event
+  **`image-reused`** (không phải `image`/`image-skip`) → **MD5 file `assets/images/
+  scene_01.png` khớp TUYỆT ĐỐI với file trong thư viện** — xác nhận không hề gọi
+  DashScope sinh ảnh lần 2, tiết kiệm phí thật.
+- Dọn 2 project test, thư viện test, và profile test sau khi verify.
+
+### 2 phát hiện phụ (không liên quan tính năng này, gặp trong lúc test)
+- `DASHSCOPE_MODEL=DeepSeek-V3.2` user set trong `.env` **không tồn tại thật trên
+  DashScope** (`404 model_not_found`) — và vì tên này không nằm trong
+  `EXPENSIVE_MODELS`/`CHEAP_MODELS` (lib/models.mjs) nên cơ chế tự fallback (đã làm ở
+  phiên trước) không cứu được, lỗi thẳng ngay từ đầu. Cần user tự đổi lại `.env` hoặc
+  thêm "DeepSeek-V3.2" vào danh sách fallback nếu xác nhận model đó tồn tại dưới tên
+  khác trên DashScope.
+- Gặp 1 lần (không tái diễn khi retry): model tự viết `video-plan.json` với 1 chuỗi
+  JSON dùng nháy đơn bao 1 ký tự nháy kép literal (\`'"'\` thay vì \`"\\""\`) — làm
+  hỏng cú pháp JSON của cả file. Ngẫu nhiên, không liên quan tính năng thư viện ảnh,
+  chưa có validator riêng bắt lỗi này (khác hẳn 2 lỗi voiceover đã thêm check trước
+  đó) — nếu tái diễn thường xuyên thì nên thêm 1 check tương tự.
+
+### Chưa làm / theo dõi tiếp
+- Chưa có UI xem/quản lý thư viện ảnh (bao nhiêu ảnh, xoá ảnh cũ, xem theo profile).
+- Chưa thêm validator bắt lỗi "model viết JSON dùng nháy đơn" (phát hiện phụ ở trên).
+
+## Đã sửa — phát hiện MỌI video từ trước tới giờ đều KHÔNG có nhạc nền (phiên 2026-08-02)
+
+User hỏi Q&A về cải thiện âm thanh → gợi ý "chọn/nghe thử nhạc nền" → user hỏi ngược
+"thư viện nhạc tôi phải tự thêm à?" → kiểm tra thật phát hiện `assets/music/` **hoàn
+toàn trống** (0 file) trong workspace.
+
+**Root cause (đã ghi sẵn trong `plan.md` từ Phase 0, không phải phát hiện mới)**:
+`setup-music-library.mjs` dùng ElevenLabs Sound Generation API để tự sinh 4 bài nhạc
+theo mood — nhưng gói ElevenLabs Free của user chặn tính năng này (401
+`missing_permissions`), nên script chưa từng chạy thành công, thư viện chưa từng có
+file nào.
+
+**Hậu quả thật, xác nhận bằng dữ liệu**: `scenes-with-timing.json` mọi project vẫn ghi
+`music_track: "assets/music/<mood>.mp3"` (tưởng có), nhưng
+`generate-audio.mjs`'s bước copy chỉ copy khi `existsSync(musicSrc)` — file nguồn
+không tồn tại nên không copy, project không có nhạc, và root-composer nhận ra thiếu
+file nên tự bỏ hẳn track nhạc khỏi `index.html` — không có cảnh báo/lỗi nào ở bất kỳ
+đâu trong suốt pipeline. **Kiểm tra thật trên project đã render trước đó xác nhận
+đúng: 0 file trong `assets/music/` của project, `index.html` không có
+`data-track-index="20"` nào cả** — mọi video render ra từ trước tới giờ chỉ có
+voice + SFX, không hề có nhạc nền.
+
+User tự thêm 1 file `assets/music/default.mp3` (1 bài chung, không phải đúng 4 tên
+mood-specific hệ thống đang tìm) làm giải pháp tạm.
+
+**Fix**: `generate-audio.mjs`'s bước chọn nhạc — nếu file mood-specific không tồn tại
+nhưng `assets/music/default.mp3` có, tự fallback dùng `default.mp3` thay vì im lặng bỏ
+qua như cũ. Phát `onEvent({type:"music-fallback"})` để hiện rõ trong live log
+("Nhạc 'X' chưa có trong thư viện — dùng tạm 'default'"), không còn âm thầm mất nhạc.
+
+**Verify thật trên project thật đã render trước đó** (`tinh-yeu-tuoi-hoc-tro-that-
+trong-sang`): chạy lại `/audio` → event `music-fallback` đúng (`fluid-ambient` →
+`default`), `default.mp3` copy đúng vào project. Chạy lại `/root` → `index.html` có
+đúng `<audio data-track-index="20" src="assets/music/default.mp3">`. Render lại thật
+→ `ffprobe` xác nhận stream audio AAC 43.4s (khớp đúng tổng thời lượng video),
+`ffmpeg volumedetect` xác nhận **mean -18.3dB, max -2.6dB** — âm thanh thật, không
+phải track câm. Dọn file render test.
+
+### Chưa làm / theo dõi tiếp
+- Chỉ mới có 1 bài nhạc chung (`default.mp3`) cho MỌI mood — mất đi sự đa dạng nhạc
+  theo cảm xúc scene (vốn là mục đích của `MOOD_TO_MUSIC`). User cần tự thêm thêm bài
+  cho từng mood (`upbeat-tech`, `cinematic-dark`, `fluid-ambient`, `technical-pulse`),
+  hoặc dùng nguồn nhạc free-license khác, hoặc nâng cấp ElevenLabs.
+- Các project ĐàCÓ SẴN trước fix này (render trước phiên này) vẫn không có nhạc trong
+  bản render cũ — chỉ project nào chạy lại `/audio` + `/root` + render SAU fix mới có
+  nhạc. Muốn sửa các video cũ thì cần chạy lại đúng 3 bước đó (không tốn phí, chỉ tốn
+  thời gian).
+- Đề xuất UI "chọn/nghe thử nhạc nền trước khi generate-audio" (gợi ý ban đầu của
+  phiên này) — chưa làm, có thể làm sau nếu cần.
+
+## Ghi chú — thư viện SFX cũng trống, KHÔNG ưu tiên sửa ngay (phiên 2026-08-02)
+
+Cùng lúc phát hiện nhạc nền trống, kiểm tra luôn SFX: `assets/sfx/` **cũng hoàn toàn
+trống** (thư mục còn chưa tồn tại) — cùng nguyên nhân với nhạc nền (ElevenLabs Free
+chặn Sound Generation, `setup-sfx-library.mjs` chưa từng chạy thành công). Mọi video
+từ trước tới giờ không có SFX nào cả (`sfx-missing` event đã có sẵn từ lâu trong
+`generate-audio.mjs`, giờ hiện được trong live log, nhưng chưa ai để ý vì UI live log
+mới thêm gần đây).
+
+**Quan trọng — hệ thống chỉ nhận đúng 8 tên SFX cố định** (viết chết trong
+`.agents/skills/video-planner/SKILL.md`'s bảng "SFX Timing"): \`drum-hit\`, \`whoosh\`,
+\`whoosh-soft\`, \`ding\`, \`click\`, \`impact\`, \`chime\`, \`count-up-end\`. LLM CHỈ được
+chọn từ đúng 8 tên này khi lên `sfx_picks` — không tự quét thư mục để biết file nào có
+sẵn. Nên:
+- Tải SFX từ Pixabay (hay nguồn free-license khác) rồi đặt tên **đúng y hệt** 1 trong
+  8 tên trên (vd lưu thành `whoosh.mp3`, `click.mp3`...) bỏ vào `assets/sfx/` →
+  hoạt động ngay, không cần sửa code.
+  Muốn thêm loại SFX MỚI ngoài 8 tên này thì phải sửa `SKILL.md` để LLM biết tên mới
+  tồn tại và khi nào nên dùng, không chỉ thêm file là đủ.
+
+**User quyết định: KHÔNG ưu tiên sửa ngay** — sẽ tự tải/đặt tên SFX theo đúng 8 tên
+trên sau, và cân nhắc nâng cấp ElevenLabs sau này (sẽ giải quyết cả nhạc lẫn SFX cùng
+lúc nếu nâng cấp, vì cùng 1 API). Không cần code gì thêm cho việc này trừ khi user
+quay lại yêu cầu.
+
+## Mới — chọn nhạc nền + % âm lượng trên UI (phiên 2026-08-02)
+
+User yêu cầu thêm option chọn nhạc (mặc định "default") + chọn % âm lượng nền (mặc
+định 20%) ở bước Audio, tiếp nối trực tiếp việc vừa sửa bug "không có nhạc nền".
+
+- `generate-audio.mjs` — thêm param `musicTrack` (override hẳn auto-pick theo mood
+  khi có) và `musicVolume` (0-1, override `music_volume` mặc định — đổi mặc định
+  cứng từ `0.18` lên `0.2` khớp đúng yêu cầu user).
+- `routes.mjs` — route mới `GET /music-library` (liệt kê `assets/music/*.mp3` dùng
+  chung, không theo project) cho UI biết có bài nào để chọn; `/audio` nhận thêm
+  `musicTrack`/`musicVolume`, tự đổi % (0-100 từ UI) sang 0-1 trước khi gọi
+  `runGenerateAudio` (giữ đúng quy ước `data-volume` 0-1 đã dùng khắp index.html).
+- `Pipeline.jsx` — dropdown "Nhạc nền" (option đầu "Tự động theo mood", còn lại liệt
+  kê đúng file thật trong thư viện) + input số "% âm lượng nền" (mặc định 20, min 0
+  max 100), đặt ngay dưới hàng TTS trong card "Cấu hình pipeline". Thêm vào
+  `profiles.mjs`'s `PROFILE_FIELDS` để lưu/nạp lại theo profile kênh.
+
+**Verify thật**: gọi `/audio` với `musicTrack: "default"`, `musicVolume: 35` trên
+project thật → `scenes-with-timing.json` ghi đúng `music_volume: 0.35`. Ghép lại root
+→ `index.html` có đúng `data-volume="0.35"`. Playwright thật: dropdown hiện đúng
+"default" + label dự phòng, input mặc định đúng 20.
+
+### Chưa làm / theo dõi tiếp
+- Chưa có nút "nghe thử nhạc trước khi chạy audio" (đã gợi ý trước đó, chưa làm —
+  có thể ghép chung với dropdown này sau, giống cách đã làm với "nghe thử voice").

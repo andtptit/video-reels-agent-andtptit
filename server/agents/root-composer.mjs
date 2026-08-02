@@ -17,12 +17,12 @@
  * findings after each attempt, feed them back for up to maxFixAttempts auto-fix
  * rounds.
  */
-import { readFileSync } from "fs";
+import { readFileSync, writeFileSync } from "fs";
 import { join } from "path";
 import { runAgent, CHEAP_MODEL } from "./run-agent.mjs";
 import { createFsTools } from "../tools/fs-tools.mjs";
 import { lint } from "../tools/hyperframes-cli.mjs";
-import { checkPseudoElementAnimations, checkAllCanvasDimensions, checkClipClassOverride } from "../tools/validators.mjs";
+import { checkPseudoElementAnimations, checkAllCanvasDimensions, checkClipClassOverride, checkVoiceoverOverlap, checkVoiceoverCompleteness } from "../tools/validators.mjs";
 import { dimensionsForFormat } from "../lib/canvas.mjs";
 
 const SKILL_PATH = join(import.meta.dirname, "..", "..", ".agents", "skills", "hyperframes", "SKILL.md");
@@ -79,6 +79,51 @@ function diffNewFindings(baseline, current) {
   return (current.findings ?? []).filter((f) => !baseKeys.has(findingKey(f)));
 }
 
+/** Same crossfade formula the prompt asks the LLM to compute
+ *  (`data-start[i] = data-start[i-1] + scene_duration[i-1] - 0.3`), done once in code
+ *  as ground truth — `doneScenes` must be in the same order the LLM was told to
+ *  use them (narrative order, per scenesWithTiming.scenes). */
+function crossfadeStarts(doneScenes) {
+  const starts = [0];
+  for (let i = 1; i < doneScenes.length; i++) {
+    starts.push(Math.round((starts[i - 1] + doneScenes[i - 1]._audio.scene_duration - 0.3) * 1000) / 1000);
+  }
+  return starts;
+}
+
+function buildVoiceoverBlock(doneScenes) {
+  const starts = crossfadeStarts(doneScenes);
+  return doneScenes
+    .map((s, i) => {
+      if (!s._audio?.voiceover) return null;
+      const num = s.sceneId.replace(/^scene_?/, "");
+      return `    <audio id="vo-${num}" class="clip" data-start="${starts[i]}" data-duration="${s._audio.vo_duration}" data-track-index="21" data-volume="1.0" src="${s._audio.voiceover}"></audio>`;
+    })
+    .filter(Boolean)
+    .join("\n");
+}
+
+/**
+ * Strips whatever track-21 `<audio>` tags the LLM wrote and replaces them with the
+ * code-computed ground truth in one deterministic pass — same "code writes
+ * structural fields, never trust the LLM to echo them" pattern already used for
+ * `template`/`subStyle` elsewhere in this codebase (see video-planner.mjs). Added
+ * after confirming live that even an explicit checklist in the prompt (listing
+ * every required `vo-XX` id) didn't reliably work: across repeated retries the
+ * model kept dropping a DIFFERENT subset of voiceover tags each time — a
+ * whack-a-mole pattern where fixing the reported findings broke previously-correct
+ * ones, never converging within maxFixAttempts on a real 6-scene project. Voiceover
+ * data-start/data-duration/src are 100% deterministic from `doneScenes`, so there's
+ * no reason to keep gambling on the LLM getting the enumeration right.
+ */
+function enforceVoiceoverTags(html, doneScenes) {
+  const correctBlock = buildVoiceoverBlock(doneScenes);
+  const withoutOldVo = html.replace(/[ \t]*<audio\b[^>]*data-track-index="21"[^>]*>\s*<\/audio>\n?/g, "");
+  const marker = withoutOldVo.search(/<div[^>]*data-composition-src=/);
+  if (marker === -1 || !correctBlock) return withoutOldVo;
+  return withoutOldVo.slice(0, marker) + correctBlock + "\n\n    " + withoutOldVo.slice(marker);
+}
+
 /**
  * @param {object} params
  * @param {string} params.projectDir
@@ -94,6 +139,15 @@ function diffNewFindings(baseline, current) {
  *   squeezing correctly-authored 1080x1920 scenes into a landscape host — content
  *   bunched in a corner, text overlapping, and the final render came out landscape
  *   even though the project was created as portrait.
+ * @param {string} [params.template] - video-plan.json's `template` ("motion" | "sub").
+ *   Root-composer always receives the WORKSPACE's own DESIGN.md, which is the
+ *   neon-green dark-tech palette for the default "motion" style — it has nothing to
+ *   do with "sub" (image_full_focus) scenes, which are warm full-bleed AI images
+ *   authored entirely outside the LLM (see templates/sub-styles/image-full-focus.mjs).
+ *   Confirmed live via user screenshot: without this override the model still drew
+ *   DESIGN.md's neon-green corner brackets/dots/scanlines on top of a warm peach
+ *   "sub" scene, clashing badly. When template is "sub", tell it to skip the
+ *   atmosphere layer entirely instead of trying to reconcile two unrelated palettes.
  */
 export async function runRootComposer({
   projectDir,
@@ -101,6 +155,7 @@ export async function runRootComposer({
   scenesWithTiming,
   doneSceneIds,
   format,
+  template,
   model = CHEAP_MODEL,
   // Was 8 — confirmed live that's too tight: the model spent 6 of 8 turns re-reading
   // index.html/compositions/*.html/assets/* via read_file/list_dir even though all
@@ -121,6 +176,24 @@ export async function runRootComposer({
   const { width, height } = dimensionsForFormat(format);
 
   const doneScenes = (scenesWithTiming.scenes ?? []).filter((s) => doneSceneIds.includes(s.sceneId));
+  const scenesWithVoiceover = doneScenes.filter((s) => s._audio?.voiceover).map((s) => s.sceneId);
+
+  // "sub" scenes (image_full_focus) are warm full-bleed AI images with their own
+  // gradient/shade, hardcoded outside the LLM — they have nothing to do with the
+  // workspace's own DESIGN.md (neon-green dark-tech, meant for "motion" scenes).
+  // Confirmed live via screenshot: leaving the atmosphere bullet unconditional made
+  // the model still draw DESIGN.md's neon corner brackets/dots on top of a "sub"
+  // scene. Skip the whole atmosphere layer for "sub" instead of asking the model to
+  // reconcile two unrelated palettes.
+  const atmosphereInstruction =
+    template === "sub"
+      ? `- KHÔNG thêm atmosphere layer (bg-dots, bg-glow, scanlines, 4 góc...). DESIGN.md
+  bên dưới là palette neon-green mặc định của workspace, dùng cho style "motion" —
+  KHÔNG áp dụng cho scene "sub" (ảnh AI full-bleed đã có gradient/shade riêng, tự
+  authored ngoài LLM). Root composition chỉ cần: scene clips + music + voiceover.`
+      : `- Atmosphere (bg-dots, bg-glow, scanlines, 4 góc...) — \`data-track-index\` 0–6,
+  \`data-start="0"\`, \`data-duration\` = tổng thời lượng toàn video (tổng \`scene_duration\`
+  của các scene được ghép, tính crossfade — xem cách tính bên dưới)`;
 
   const systemPrompt = `${skill}
 
@@ -130,9 +203,7 @@ Bạn đang viết ROOT composition (\`index.html\` ở gốc project), KHÔNG p
 Đây là override bắt buộc riêng của project này (cao hơn hướng dẫn chung ở trên), theo
 đúng "Conventions Bắt Buộc" trong CLAUDE.md:
 
-- Atmosphere (bg-dots, bg-glow, scanlines, 4 góc...) — \`data-track-index\` 0–6,
-  \`data-start="0"\`, \`data-duration\` = tổng thời lượng toàn video (tổng \`scene_duration\`
-  của các scene được ghép, tính crossfade — xem cách tính bên dưới)
+${atmosphereInstruction}
 - Background music — \`data-track-index="20"\`, thẻ \`<audio>\`, \`data-volume\` lấy từ
   \`music_volume\` cho sẵn trong dữ liệu
 - Voiceover mỗi scene — \`data-track-index="21"\` (dùng lại track, KHÔNG overlap thời
@@ -141,6 +212,11 @@ Bạn đang viết ROOT composition (\`index.html\` ở gốc project), KHÔNG p
   0.5s). LƯU Ý: field \`voiceover_start\` trong dữ liệu scenes-with-timing.json là mốc
   tích luỹ CHƯA áp dụng crossfade — không dùng thẳng field đó, phải tự tính lại theo
   quy tắc crossfade bên dưới.
+- BẮT BUỘC viết ĐỦ ĐÚNG ${scenesWithVoiceover.length} thẻ \`<audio>\` track 21, đúng
+  danh sách id sau, KHÔNG được thiếu bất kỳ cái nào (đã xác nhận thật: model hay bỏ sót
+  1 vài id giữa chừng khi có nhiều scene, nhất là khi sửa lại theo lỗi lint — mỗi lần
+  sửa phải kiểm tra lại ĐỦ cả danh sách này, không chỉ sửa đúng cái lỗi vừa báo rồi bỏ
+  quên cái khác đã đúng trước đó): ${scenesWithVoiceover.map((s) => `vo-${s.replace(/^scene_?/, "")}`).join(", ")}
 - Scene clips — \`<div class="clip" data-composition-id="scene-NN" data-composition-src="compositions/scene_NN.html">\`,
   xen kẽ \`data-track-index\` 10/11, \`data-duration\` = đúng \`scene_duration\` cho sẵn (đã
   gồm buffer 0.5s, KHÔNG tự đổi)
@@ -232,8 +308,18 @@ trả lời bằng 1 câu tóm tắt — không tool call nào nữa.`;
     priorMessages = agentResult.messages;
     addUsage(agentResult.usage);
 
+    const indexPath = join(projectDir, "index.html");
+    const rawHtml = readFileSync(indexPath, "utf-8");
+    // Force-correct the voiceover block before validating anything else — see
+    // enforceVoiceoverTags' doc comment for why this isn't left to the retry loop.
+    // Applied (and re-written to disk) on EVERY attempt, not just the last, so lint
+    // and the other checks below always see the corrected version, and a project
+    // that fails for some OTHER reason still ends up with correct audio in the
+    // partially-failed file on disk.
+    const html = enforceVoiceoverTags(rawHtml, doneScenes);
+    if (html !== rawHtml) writeFileSync(indexPath, html);
+
     const current = await lint(projectDir);
-    const html = readFileSync(join(projectDir, "index.html"), "utf-8");
     // Same reasoning as scene-writer.mjs's dimension check: hyperframes lint
     // validates each file in isolation, so it can never catch root/scene-host
     // dimensions disagreeing with the project's actual format. Hard-fail here
@@ -241,11 +327,15 @@ trả lời bằng 1 câu tóm tắt — không tool call nào nữa.`;
     // actually forces the model to fix it. checkClipClassOverride catches the
     // confirmed real root cause of the "content bunched in a corner" bug — also a
     // hard-fail, since a lint-clean, correctly-dimensioned file can still render
-    // broken if it has this rule.
+    // broken if it has this rule. checkVoiceoverOverlap/Completeness should now
+    // never actually fire (enforceVoiceoverTags guarantees both), kept as a
+    // defense-in-depth assertion rather than removed.
     lastNewFindings = [
       ...diffNewFindings(baseline, current),
       ...checkAllCanvasDimensions(html, width, height),
       ...checkClipClassOverride(html),
+      ...checkVoiceoverOverlap(html),
+      ...checkVoiceoverCompleteness(html, scenesWithVoiceover),
     ];
     onEvent?.({ type: "lint", attempt, newFindingCount: lastNewFindings.length });
 

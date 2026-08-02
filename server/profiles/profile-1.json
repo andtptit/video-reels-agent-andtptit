@@ -1,0 +1,15 @@
+{
+  "name": "Profile 1",
+  "slug": "profile-1",
+  "updatedAt": "2026-08-01T16:03:17.262Z",
+  "ttsProvider": "edge-tts",
+  "ttsRate": 1.1,
+  "template": "sub",
+  "visualStyle": "animation",
+  "subStyle": "image_full_focus",
+  "fontFamily": "Itim",
+  "imageStylePrefix": "Flat illustration, soft pastel color palette, minimalist line art, warm and gentle mood, simple shapes, plain solid background, no text, no watermark",
+  "plannerModel": "qwen-plus-2025-04-28",
+  "cheapModel": "qwen-flash",
+  "imgModel": "z-image-turbo"
+}

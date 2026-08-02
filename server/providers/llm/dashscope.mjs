@@ -17,6 +17,19 @@ function isTransient(err) {
   return err.name === "AbortError" || ["UND_ERR_HEADERS_TIMEOUT", "ECONNRESET", "ETIMEDOUT"].includes(err.cause?.code);
 }
 
+// Confirmed live (twice, same session): a model's free-tier quota runs out mid-work
+// with a 403 `AllocationQuota.FreeTierOnly` (message body embeds the real DashScope
+// error JSON, quoted inside our own Error's message — see the throw below), and
+// separately DashScope can 429 on burst rate limits. Both are per-MODEL, not
+// account-wide — confirmed by observation: switching qwen3.6-plus -> qwen-plus-2025-
+// 04-28 immediately worked with zero other changes. NOT retryable by waiting
+// (isTransient's job); the fix is picking a different model, see
+// lib/models.mjs's nextFallbackModel, used by run-agent.mjs.
+export function isQuotaOrRateLimitError(err) {
+  const msg = err?.message ?? "";
+  return /\(429\)/.test(msg) || /quota|throttl/i.test(msg);
+}
+
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /**

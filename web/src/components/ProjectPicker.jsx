@@ -23,8 +23,12 @@ export function ProjectPicker({ onSelect }) {
       <div className="project-list">
         {projects.map((p) => (
           <button key={p.id} type="button" className="project-item" onClick={() => onSelect(p.id, p.slug.replace(/-/g, " "))}>
-            <strong>{p.slug}</strong>
-            <span className="muted">{p.date} · {formatDate(p.mtime)}</span>
+            <span>
+              <strong>{p.slug}</strong>
+              <span className="muted"> · {p.date} · {formatDate(p.mtime)}</span>
+              {p.remixedFrom && <span className="muted"> · remix từ {p.remixedFrom.split("/")[1]}</span>}
+            </span>
+            {p.label && <span className={p.hasError ? "project-status-error" : "project-status"}>{p.label}</span>}
           </button>
         ))}
       </div>

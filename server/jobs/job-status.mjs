@@ -28,6 +28,57 @@ function writeJobStatusFile(projectDir, status) {
   writeFileSync(statusPath(projectDir), JSON.stringify(status, null, 2));
 }
 
+/**
+ * Compact 1-line status summary for a project — used by ProjectPicker so the user
+ * can see which project is mid-pipeline/errored/rendered WITHOUT opening each one
+ * to check (confirmed as a real friction point: with several projects accumulated
+ * this session, re-checking each one's Pipeline view just to find "which one had
+ * the audio error" was tedious). Reads job-status.json + (if present)
+ * video-plan.json's scene count for an accurate "N/M scene" fraction — cheap for a
+ * personal-scale tool with a handful of projects, not worth caching.
+ */
+export function summarizeProjectStatus(projectDir) {
+  const status = readJobStatus(projectDir);
+  const steps = status.steps ?? {};
+  // `renderDone` is a separate stable boolean (not just `label === "Đã render"") so
+  // callers like the History tab can filter reliably without string-matching a
+  // Vietnamese label that's free to reword later.
+  const renderDone = steps.render?.status === "done";
+  // Separate boolean from `label` — label's priority order (errored > rendered >
+  // scene-count > ...) can put a project mid-run behind a stabler-looking label like
+  // "3/6 scene xong" even while a scene is actively running, so callers that need to
+  // know "is ANYTHING running right now" (the header's running-projects banner)
+  // can't just string-match `label`.
+  const isRunning = Object.values(steps).some((s) => s.status === "running");
+  if (!Object.keys(steps).length) return { label: "Chưa bắt đầu", hasError: false, renderDone: false, isRunning: false };
+
+  const erroredStep = Object.values(steps).find((s) => s.status === "error");
+  const sceneEntries = Object.entries(steps).filter(([k]) => k.startsWith("scene:"));
+  const sceneDone = sceneEntries.filter(([, s]) => s.status === "done").length;
+
+  let sceneTotal = sceneEntries.length;
+  const videoPlanFile = join(projectDir, "video-plan.json");
+  if (existsSync(videoPlanFile)) {
+    try {
+      const plan = JSON.parse(readFileSync(videoPlanFile, "utf-8"));
+      if (plan.scenes?.length) sceneTotal = plan.scenes.length;
+    } catch {
+      /* malformed file — fall back to attempted-scene count above */
+    }
+  }
+
+  if (erroredStep) return { label: `Lỗi ở "${erroredStep.step}"`, hasError: true, renderDone, isRunning };
+  if (renderDone) return { label: "Đã render", hasError: false, renderDone, isRunning };
+  if (steps.root?.status === "done") return { label: "Đã ghép, chưa render", hasError: false, renderDone, isRunning };
+  if (sceneTotal > 0) return { label: `${sceneDone}/${sceneTotal} scene xong`, hasError: false, renderDone, isRunning };
+  if (steps["video-plan"]?.status === "done") return { label: "Đã có video-plan", hasError: false, renderDone, isRunning };
+  if (steps.audio?.status === "done") return { label: "Đã có audio", hasError: false, renderDone, isRunning };
+  if (steps.plan?.status === "done") return { label: "Đã có content-plan", hasError: false, renderDone, isRunning };
+  const running = Object.values(steps).find((s) => s.status === "running");
+  if (running) return { label: `Đang chạy "${running.step}"`, hasError: false, renderDone, isRunning };
+  return { label: "Chưa bắt đầu", hasError: false, renderDone, isRunning };
+}
+
 export function getEmitter(projectDir) {
   if (!emitters.has(projectDir)) emitters.set(projectDir, new EventEmitter().setMaxListeners(50));
   return emitters.get(projectDir);

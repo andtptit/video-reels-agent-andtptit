@@ -8,7 +8,8 @@
  * rejecting ".." traversal.
  */
 import { resolve, relative, isAbsolute, sep, join } from "path";
-import { readdirSync, existsSync, statSync } from "fs";
+import { readdirSync, existsSync, statSync, readFileSync } from "fs";
+import { summarizeProjectStatus } from "../jobs/job-status.mjs";
 
 const ROOT = resolve(import.meta.dirname, "..", "..");
 const OUTPUT_ROOT = resolve(ROOT, "output");
@@ -54,7 +55,23 @@ export function listProjects() {
       const projectDir = join(dateAbs, slugDir.name, "video");
       if (!existsSync(join(projectDir, "index.html"))) continue;
       const mtime = statSync(projectDir).mtimeMs;
-      projects.push({ id: toProjectId(projectDir), slug: slugDir.name, date: dateDir.name, mtime });
+      let remixedFrom;
+      const videoPlanFile = join(projectDir, "video-plan.json");
+      if (existsSync(videoPlanFile)) {
+        try {
+          remixedFrom = JSON.parse(readFileSync(videoPlanFile, "utf-8")).remixedFrom;
+        } catch {
+          /* malformed video-plan.json — just omit remixedFrom */
+        }
+      }
+      projects.push({
+        id: toProjectId(projectDir),
+        slug: slugDir.name,
+        date: dateDir.name,
+        mtime,
+        ...(remixedFrom ? { remixedFrom } : {}),
+        ...summarizeProjectStatus(projectDir),
+      });
     }
   }
   projects.sort((a, b) => b.mtime - a.mtime);

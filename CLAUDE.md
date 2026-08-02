@@ -56,8 +56,13 @@ Workspace tạo short-form video tự động bằng AI. Stack: ElevenLabs (TTS 
       → Fix errors trước khi render
   │
   ▼
-[8] npx hyperframes render
+[8] npx hyperframes render --no-experimental-fast-capture
       → Output: renders/*.mp4
+      → Cờ --no-experimental-fast-capture: tránh 1 lỗi hiếm gặp (~1/287 frame) — mảng
+        sáng chèn vào lớp shade tối dưới đáy scene "sub", trùng đúng lúc chunk phụ đề
+        đổi (DOM vừa mutate) → race condition trong capture mode mặc định của macOS
+        (đọc DOM paint record thay vì chụp screenshot). Đã verify: bật cờ này lint lại
+        287 frame, 0 lỗi so với 1 lỗi khi không tắt (xem plan.md).
 ```
 
 ---

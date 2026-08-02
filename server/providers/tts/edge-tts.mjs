@@ -14,14 +14,18 @@ export const id = "edge-tts";
 
 const TICKS_PER_SECOND = 1e7;
 const DEFAULT_VOICE = process.env.EDGE_TTS_VOICE || "vi-VN-HoaiMyNeural";
+// 1.1 = 10% faster than natural — user's requested default for short-form video
+// pacing. msedge-tts's ProsodyOptions.rate accepts a plain relative number like this
+// directly (confirmed via server/node_modules/msedge-tts/dist/Prosody.d.ts).
+const DEFAULT_RATE = Number(process.env.EDGE_TTS_RATE) || 1.1;
 
-export async function synthesize({ text, destPath, voiceId = DEFAULT_VOICE }) {
+export async function synthesize({ text, destPath, voiceId = DEFAULT_VOICE, rate = DEFAULT_RATE }) {
   const tts = new MsEdgeTTS();
   await tts.setMetadata(voiceId, OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3, {
     wordBoundaryEnabled: true,
   });
 
-  const { audioStream, metadataStream } = tts.toStream(text);
+  const { audioStream, metadataStream } = tts.toStream(text, { rate });
 
   const audioChunks = [];
   const metadataItems = [];

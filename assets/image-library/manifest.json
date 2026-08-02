@@ -1,0 +1,83 @@
+[
+  {
+    "id": "e4407c9e-9d6c-40ee-be79-c2692fac2221",
+    "file": "e4407c9e-9d6c-40ee-be79-c2692fac2221.png",
+    "profileSlug": "profile-1",
+    "format": "9:16",
+    "tags": [
+      "classroom",
+      "heart",
+      "sunlight",
+      "memory-flashback"
+    ],
+    "prompt": "Retro classroom desk with afternoon sunlight, empty chair, notebook with heart doodles, soft pastel color palette, minimalist line art, warm and gentle mood, simple shapes, plain solid background, no text, no watermark",
+    "createdAt": "2026-08-02T06:31:03.258Z"
+  },
+  {
+    "id": "2ce48be0-9e1c-4036-8f1b-aa99bd57ef53",
+    "file": "2ce48be0-9e1c-4036-8f1b-aa99bd57ef53.png",
+    "profileSlug": "profile-1",
+    "format": "9:16",
+    "tags": [
+      "movie-ticket",
+      "chat-bubbles",
+      "graduation",
+      "heart"
+    ],
+    "prompt": "Timeline path with 3 key moments: movie ticket, chat bubbles, graduation cap, soft pastel color palette, minimalist line art, warm and gentle mood, simple shapes, plain solid background, no text, no watermark",
+    "createdAt": "2026-08-02T06:31:05.221Z"
+  },
+  {
+    "id": "57d529df-7426-4054-8372-ef9de3c0c3fb",
+    "file": "57d529df-7426-4054-8372-ef9de3c0c3fb.png",
+    "profileSlug": "profile-1",
+    "format": "9:16",
+    "tags": [
+      "movie-ticket",
+      "umbrella-rain",
+      "smile-joy",
+      "memory-flashback"
+    ],
+    "prompt": "Rainy day with umbrella, movie ticket and smiling face icon, soft pastel color palette, minimalist line art, warm and gentle mood, simple shapes, plain solid background, no text, no watermark",
+    "createdAt": "2026-08-02T06:31:10.460Z"
+  },
+  {
+    "id": "a2f09626-ccc8-41c9-b6da-bc2a6acd5644",
+    "file": "a2f09626-ccc8-41c9-b6da-bc2a6acd5644.png",
+    "profileSlug": "profile-1",
+    "format": "9:16",
+    "tags": [
+      "growth-arrow",
+      "success-achievement",
+      "motivation-determination"
+    ],
+    "prompt": "Abstract growth pattern symbolizing personal development, soft pastel color palette, minimalist line art, warm and gentle mood, simple shapes, plain solid background, no text, no watermark",
+    "createdAt": "2026-08-02T06:31:12.095Z"
+  },
+  {
+    "id": "852cd5e1-9a87-4214-a412-10af1308ffe5",
+    "file": "852cd5e1-9a87-4214-a412-10af1308ffe5.png",
+    "profileSlug": "profile-1",
+    "format": "9:16",
+    "tags": [
+      "bar-chart",
+      "success-achievement",
+      "motivation-determination"
+    ],
+    "prompt": "Two-column comparison with 85% and 100% statistics, soft pastel color palette, minimalist line art, warm and gentle mood, simple shapes, plain solid background, no text, no watermark",
+    "createdAt": "2026-08-02T06:31:17.224Z"
+  },
+  {
+    "id": "54dd64ce-e5ca-47c5-a87e-3f6f4a45f90f",
+    "file": "54dd64ce-e5ca-47c5-a87e-3f6f4a45f90f.png",
+    "profileSlug": "profile-1",
+    "format": "9:16",
+    "tags": [
+      "smile-joy",
+      "sunlight",
+      "success-achievement"
+    ],
+    "prompt": "Smiling face with sun rays and notebook, soft pastel color palette, minimalist line art, warm and gentle mood, simple shapes, plain solid background, no text, no watermark",
+    "createdAt": "2026-08-02T06:31:19.122Z"
+  }
+]

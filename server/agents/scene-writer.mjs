@@ -47,6 +47,8 @@ export async function runSceneWriter({
   // "9:16" only if the caller genuinely has no format (dimensionsForFormat's own
   // fallback), not because scenes should ever silently disagree with each other.
   model = CHEAP_MODEL,
+  imageModel, // DashScope image model id — undefined lets generateAndSaveImage fall
+  // back to its own env-configured default (DASHSCOPE_MODEL_IMAGE / "wan2.6-image")
   maxTurns = 6,
   maxFixAttempts = 3,
   onEvent,
@@ -75,6 +77,7 @@ export async function runSceneWriter({
       prompt: scene.image_prompt,
       format,
       destPath: join(projectDir, imagePath),
+      ...(imageModel ? { model: imageModel } : {}),
     });
     onEvent?.({ type: "image", outPath: imagePath });
   }
