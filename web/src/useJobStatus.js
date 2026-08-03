@@ -1,17 +1,20 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "./api.js";
 
-/** Subscribes to a project's SSE progress stream and keeps a live `{ steps, events }`
- *  snapshot in state. Falls back to whatever GET /projects/:id already had (the
- *  "snapshot" event the server sends as the first SSE message) so a page reload
- *  doesn't lose in-progress status. */
-export function useJobStatus(projectId) {
+/** Subscribes to any of this server's per-dir SSE progress streams (a project's
+ *  `/projects/:id/events` or a batch's `/batches/:id/events` — both backed by the
+ *  same generic job-status.mjs machinery server-side) and keeps a live
+ *  `{ steps, events, totalUsage }` snapshot in state. Falls back to whatever the
+ *  corresponding GET already had (the "snapshot" event the server sends as the first
+ *  SSE message) so a page reload doesn't lose in-progress status. `url` is the full
+ *  SSE endpoint URL; pass `null`/`undefined` to stay unsubscribed. */
+export function useEventStream(url) {
   const [status, setStatus] = useState({ steps: {}, events: [], totalUsage: null });
   const sourceRef = useRef(null);
 
   useEffect(() => {
-    if (!projectId) return;
-    const source = new EventSource(api.eventsUrl(projectId));
+    if (!url) return;
+    const source = new EventSource(url);
     sourceRef.current = source;
 
     source.onmessage = (msg) => {
@@ -47,7 +50,15 @@ export function useJobStatus(projectId) {
     };
 
     return () => source.close();
-  }, [projectId]);
+  }, [url]);
 
   return status;
+}
+
+export function useJobStatus(projectId) {
+  return useEventStream(projectId ? api.eventsUrl(projectId) : null);
+}
+
+export function useBatchStatus(batchId) {
+  return useEventStream(batchId ? api.batchEventsUrl(batchId) : null);
 }

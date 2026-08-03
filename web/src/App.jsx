@@ -3,6 +3,7 @@ import { ProjectForm } from "./components/ProjectForm.jsx";
 import { ProjectPicker } from "./components/ProjectPicker.jsx";
 import { Pipeline } from "./components/Pipeline.jsx";
 import { History } from "./components/History.jsx";
+import { Batch } from "./components/Batch.jsx";
 import { RunningBanner } from "./components/RunningBanner.jsx";
 import "./App.css";
 
@@ -18,7 +19,7 @@ function loadStored() {
 
 export default function App() {
   const [project, setProject] = useState(loadStored);
-  const [tab, setTab] = useState("pipeline"); // "pipeline" | "history"
+  const [tab, setTab] = useState("pipeline"); // "pipeline" | "history" | "batch"
 
   function handleCreated(id, idea, platform) {
     const next = { id, idea, platform };
@@ -54,6 +55,9 @@ export default function App() {
           <button type="button" className={tab === "history" ? "active" : ""} onClick={() => setTab("history")}>
             History
           </button>
+          <button type="button" className={tab === "batch" ? "active" : ""} onClick={() => setTab("batch")}>
+            Hàng loạt
+          </button>
         </nav>
         {project && tab === "pipeline" && (
           <button type="button" className="linklike" onClick={handleReset}>
@@ -64,6 +68,8 @@ export default function App() {
       <RunningBanner currentProjectId={project?.id} onJump={handleSelect} />
       {tab === "history" ? (
         <History onProjectDeleted={handleProjectDeletedInHistory} />
+      ) : tab === "batch" ? (
+        <Batch onProjectCreated={handleCreated} />
       ) : !project ? (
         <>
           <ProjectForm onCreated={handleCreated} />

@@ -27,6 +27,9 @@ import { readJobStatus, runStep, getEmitter, emitProgress } from "./jobs/job-sta
 import { queues } from "./jobs/queue.mjs";
 import { ensurePreview, touchPreview, startIdleSweep } from "./jobs/preview.mjs";
 import { listProfiles, saveProfile, deleteProfile } from "./lib/profiles.mjs";
+import { createBatchDir, resolveBatchDir, InvalidBatchIdError } from "./lib/batch-id.mjs";
+import { readIdeaHistory, appendIdeaHistory } from "./lib/idea-history.mjs";
+import { runIdeaGenerator } from "./agents/idea-generator.mjs";
 
 startIdleSweep();
 
@@ -98,6 +101,89 @@ router.put("/profiles/:name", (req, res) => {
 router.delete("/profiles/:slug", (req, res) => {
   deleteProfile(req.params.slug);
   res.status(204).end();
+});
+
+router.post("/profiles/:slug/idea-history", (req, res) => {
+  try {
+    res.status(201).json(appendIdeaHistory(req.params.slug, req.body ?? {}));
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// "Hàng loạt" (Batch) tab — see agents/idea-generator.mjs and web/src/components/
+// Batch.jsx. A batch dir (server/batches/{id}/) is a scratch working dir that only
+// ever holds ideas.json + job-status.json — it is NEVER a real hyperframes project
+// and is never visible to listProjects()/History. Approving ideas creates REAL
+// projects through the completely unchanged POST /projects + POST /projects/:id/plan
+// routes above, driven by the client (Batch.jsx), not by a new server-side route —
+// see plan.md's "Hàng loạt" section for the full reasoning.
+function withBatchDir(req, res, next) {
+  try {
+    req.batchDir = resolveBatchDir(req.params.id);
+  } catch (err) {
+    if (err instanceof InvalidBatchIdError) return res.status(400).json({ error: err.message });
+    return next(err);
+  }
+  if (!existsSync(req.batchDir)) return res.status(404).json({ error: `Batch not found: ${req.params.id}` });
+  next();
+}
+
+function readIdeasFile(batchDir) {
+  const file = join(batchDir, "ideas.json");
+  if (!existsSync(file)) return null;
+  return JSON.parse(readFileSync(file, "utf-8"));
+}
+
+router.post("/batches", (req, res) => {
+  const { channelTheme, audience, count, profileSlug } = req.body ?? {};
+  if (!channelTheme?.trim()) return res.status(400).json({ error: "channelTheme is required" });
+  if (!audience?.trim()) return res.status(400).json({ error: "audience is required" });
+  if (!profileSlug) return res.status(400).json({ error: "profileSlug is required — chọn 1 profile kênh trước" });
+
+  const n = Math.min(Math.max(Number(count) || 10, 1), 30);
+  const { id: batchId, dir: batchDir } = createBatchDir();
+  const avoidList = readIdeaHistory(profileSlug, { limit: 30 }).map((h) => `${h.subTopic} — ${h.idea}`);
+
+  writeFileSync(
+    join(batchDir, "ideas.json"),
+    JSON.stringify({ channelTheme, audience, requestedCount: n, profileSlug, avoidListUsed: avoidList, createdAt: new Date().toISOString(), ideas: [] }, null, 2)
+  );
+
+  runInBackground(batchDir, "ideate", (onEvent) =>
+    queues.dashscope.run(() => runIdeaGenerator({ batchDir, channelTheme, audience, count: n, avoidList, onEvent }))
+  );
+
+  res.status(202).json({ batchId, step: "ideate", status: "running" });
+});
+
+router.get("/batches/:id", withBatchDir, (req, res) => {
+  res.json({ id: req.params.id, status: readJobStatus(req.batchDir), ideas: readIdeasFile(req.batchDir) });
+});
+
+router.put("/batches/:id/ideas", withBatchDir, (req, res) => {
+  const current = readIdeasFile(req.batchDir);
+  if (!current) return res.status(400).json({ error: "ideas.json chưa tồn tại — chưa sinh ý tưởng xong" });
+  const updated = { ...current, ideas: req.body?.ideas ?? current.ideas };
+  writeFileSync(join(req.batchDir, "ideas.json"), JSON.stringify(updated, null, 2));
+  res.json(updated);
+});
+
+router.get("/batches/:id/events", withBatchDir, (req, res) => {
+  res.set({
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache",
+    Connection: "keep-alive",
+  });
+  res.flushHeaders();
+
+  const emitter = getEmitter(req.batchDir);
+  const send = (event) => res.write(`data: ${JSON.stringify(event)}\n\n`);
+
+  send({ type: "snapshot", status: readJobStatus(req.batchDir) });
+  emitter.on("event", send);
+
+  req.on("close", () => emitter.off("event", send));
 });
 
 router.post("/projects", (req, res) => {

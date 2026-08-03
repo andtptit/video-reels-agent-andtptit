@@ -37,4 +37,10 @@ export const api = {
   deleteProfile: (slug) => request(`/profiles/${encodeURIComponent(slug)}`, { method: "DELETE" }),
   openFolder: (id) => request(`/projects/${encodeURIComponent(id)}/open-folder`, { method: "POST" }),
   deleteProject: (id) => request(`/projects/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  // "Hàng loạt" (Batch) tab — see components/Batch.jsx.
+  startBatch: (params) => request("/batches", { method: "POST", body: JSON.stringify(params) }),
+  getBatch: (id) => request(`/batches/${encodeURIComponent(id)}`),
+  saveBatchIdeas: (id, ideas) => request(`/batches/${encodeURIComponent(id)}/ideas`, { method: "PUT", body: JSON.stringify({ ideas }) }),
+  batchEventsUrl: (id) => `${API_BASE}/batches/${encodeURIComponent(id)}/events`,
+  appendIdeaHistory: (slug, entry) => request(`/profiles/${encodeURIComponent(slug)}/idea-history`, { method: "POST", body: JSON.stringify(entry) }),
 };

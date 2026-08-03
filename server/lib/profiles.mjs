@@ -14,7 +14,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync, unlinkSync } from "fs";
 import { join, resolve } from "path";
 
-const PROFILES_DIR = resolve(import.meta.dirname, "..", "profiles");
+export const PROFILES_DIR = resolve(import.meta.dirname, "..", "profiles"); // exported for idea-history.mjs
 
 function ensureDir() {
   if (!existsSync(PROFILES_DIR)) mkdirSync(PROFILES_DIR, { recursive: true });
@@ -51,6 +51,13 @@ const PROFILE_FIELDS = [
   "plannerModel",
   "cheapModel",
   "imgModel",
+  // Batch idea-generation prefill only (see components/Batch.jsx) — pure convenience,
+  // never required. `defaultAudience` bends the "audience is per-video, not
+  // per-channel" rule this file's own doc comment states, but only as an editable
+  // starting value for a batch run that's explicitly scoped to one channel/profile —
+  // the single-video flow (Pipeline.jsx) is untouched and still has no such prefill.
+  "channelTheme",
+  "defaultAudience",
 ];
 
 export function listProfiles() {

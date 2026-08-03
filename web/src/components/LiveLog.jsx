@@ -66,6 +66,10 @@ function formatEvent(e) {
       return `LỖI: sceneId remix không khớp — cần [${e.want?.join(", ")}], nhận [${e.got?.join(", ")}]`;
     case "duration-check":
       return e.ok ? null : `Cảnh báo: tổng thời lượng scene không khớp kế hoạch`;
+    case "diversity-check":
+      return e.issue === "count-mismatch"
+        ? `Cảnh báo: sinh ${e.actual} ý tưởng thay vì ${e.expected} yêu cầu`
+        : `Cảnh báo: ý tưởng #${(e.index ?? 0) + 1} trùng hookStyle với ý tưởng trước`;
     default:
       return null;
   }

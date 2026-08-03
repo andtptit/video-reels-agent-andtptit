@@ -2563,3 +2563,72 @@ xác nhận luồng thành công bình thường KHÔNG bị ảnh hưởng bở
 đúng 1 lần, không retry thừa, `failedSceneIds: []`). Chưa test được path retry thật
 sự kích hoạt (lỗi "Stream closed" là transient, không ép xảy ra theo ý muốn được) —
 tin tưởng qua code review + cùng pattern đã verify sống ở `dashscope.mjs`.
+
+---
+
+## Đã làm — Tab "Hàng loạt" (sinh N ý tưởng từ 1 chủ đề kênh, duyệt rồi tạo project) (phiên 2026-08-03)
+
+Implement theo đúng plan đã duyệt (xem plan file phiên này — 4 quyết định: chỉ tới
+bước duyệt kịch bản, chạy client-side kiểu `runAllPipeline`, bắt buộc chọn profile,
+không dùng WebSearch). Tham khảo `hqbt-content-creation` cho cơ chế chống trùng (đọc
+lại lịch sử, không embedding) + khung đa dạng (xoay hookStyle/tone, không quá 2 ý cùng
+subTopic).
+
+### File mới
+- `server/lib/batch-id.mjs` — sandbox id cho `server/batches/{id}/` (cố tình ngoài
+  `output/` nên `listProjects()` không bao giờ thấy).
+- `server/lib/idea-history.mjs` — lịch sử ý tưởng append-only theo profile
+  (`server/profiles/{slug}-ideas-history.json`), chỉ ghi SAU KHI content-planner của
+  ý tưởng đó xong thật (không ghi lúc sinh, không ghi ý tưởng bị xoá/lỗi).
+- `server/agents/idea-generator.mjs` — sinh N ý tưởng, mỗi ý tưởng có
+  `idea/hookStyle/subTopic/tone`, ép đa dạng bằng prompt (không quá 2 ý cùng subTopic,
+  không 2 ý liên tiếp cùng hookStyle, đủ 4 tone), né lịch sử cũ. Dùng `write_file` như
+  mọi agent khác (không tin LLM tự parse JSON), code tự gán field cấu trúc
+  (`ideaId/kept/status/projectId`) sau khi đọc lại file.
+- `web/src/components/Batch.jsx` + `IdeaCard.jsx` — UI tab mới: chọn profile (bắt
+  buộc) → nhập chủ đề kênh + đối tượng xem + số lượng → sinh ý tưởng → grid card
+  sửa/giữ/xoá (tự lưu ngay qua PUT, không có nút Lưu riêng) → "Duyệt & tạo project"
+  lặp tuần tự qua `POST /projects` + `POST /projects/:id/plan` KHÔNG ĐỔI GÌ (không có
+  route approve gộp ở server) — support resume nếu reload giữa chừng (bỏ qua ý tưởng
+  đã `status:"done"`).
+
+### File sửa
+- `server/lib/profiles.mjs` — export `PROFILES_DIR`, thêm 2 field tuỳ chọn
+  `channelTheme`/`defaultAudience` (chỉ để prefill batch tab, không đụng luồng
+  1-video).
+- `server/routes.mjs` — route mới `POST/GET /batches`, `PUT /batches/:id/ideas`,
+  `GET /batches/:id/events` (SSE, tái dùng nguyên `job-status.mjs` generic — không sửa
+  file đó), `POST /profiles/:slug/idea-history`.
+- `web/src/useJobStatus.js` — tách `useEventStream(url)` generic, `useJobStatus`/mới
+  `useBatchStatus` chỉ gọi lại với URL khác nhau — không đổi hành vi cũ.
+- `web/src/App.jsx` — thêm tab thứ 3 "Hàng loạt", dùng lại nguyên `handleCreated` làm
+  `onProjectCreated`.
+
+### Verify thật — toàn bộ luồng qua route thật, không mock
+
+1. Tạo profile thật (`test-healing-channel`) có `channelTheme`/`defaultAudience` qua
+   `PUT /profiles/:name` — xác nhận field lưu đúng.
+2. `POST /batches` thật (DashScope thật, count=2) — 2 ý tưởng ra khác hẳn nhau
+   (hookStyle `so-lieu`/`cau-hoi`, tone `day-kien-thuc`/`de-ton-thuong`, subTopic khác
+   nhau rõ).
+3. Mô phỏng đúng vòng lặp duyệt của `Batch.jsx` bằng script gọi thẳng
+   `POST /projects` → `POST /projects/:id/plan` → poll tới `"done"` →
+   `POST /profiles/:slug/idea-history` cho cả 2 ý tưởng — **cả 2 project thật được
+   tạo** dưới `output/2026-08-03/{slug}/video/` với `master_content.md`+`scenes.json`
+   thật (đọc nội dung xác nhận đúng nội dung "chữa lành" theo chủ đề).
+4. `listProjects()` thấy đúng cả 2 project mới, label "Đã có content-plan" — y hệt
+   luồng 1-video, không cần code thêm gì để hiện trong History/ProjectPicker.
+5. `server/profiles/test-healing-channel-ideas-history.json` có đúng 2 record, giữ
+   nguyên dấu tiếng Việt (xác nhận riêng: garble dấu ban đầu chỉ do dùng `curl` qua
+   Windows console encode sai tham số dòng lệnh — gọi lại bằng `fetch()` thật giống
+   cách frontend gọi thì giữ dấu hoàn hảo, không phải bug thật).
+6. Dọn sạch toàn bộ dữ liệu test sau khi verify (xoá 2 project, profile, file lịch sử,
+   batch dir) — không để sót trong repo.
+
+### Chưa test / biết trước
+- Chưa test qua UI thật trong trình duyệt (chỉ verify bằng gọi route trực tiếp) —
+  cần user tự bấm thử tab "Hàng loạt" sau khi `npm run dev` lại web.
+- Chưa test path resume (reload giữa lúc duyệt) bằng tay qua UI, dù logic
+  `status !== "done" thì skip` đã có sẵn trong code.
+- Chưa test path retry `(v2)` khi trùng slug thật (2 ý tưởng test đủ khác nhau nên
+  không trigger được path này qua verify thật).
