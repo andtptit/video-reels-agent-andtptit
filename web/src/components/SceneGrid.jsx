@@ -56,9 +56,40 @@ export function SceneGrid({ id, steps, events, refreshKey, audioReady }) {
     });
   }
 
+  // Only scenes not yet "done"/"running" — mirrors the per-scene button's own
+  // semantics (first-time generate needs no confirm-per-scene; a scene already done
+  // has a real paid AI image/HTML on disk and isn't touched here).
+  const pendingScenes = (videoPlan.scenes ?? []).filter((s) => {
+    const st = steps[`scene:${s.sceneId}`]?.status;
+    return st !== "done" && st !== "running";
+  });
+
+  // Firing every request without awaiting is safe: the server's own
+  // queues.dashscope (ConcurrencyQueue) already throttles actual concurrent
+  // DashScope calls — see routes.mjs/jobs/queue.mjs — this just needs to hand off
+  // N requests, not pace them.
+  function generateAllPending() {
+    if (!pendingScenes.length) return;
+    if (
+      !window.confirm(
+        `Generate ${pendingScenes.length} scene chưa xong (${pendingScenes.map((s) => s.sceneId).join(", ")})? Sẽ gọi DashScope (kèm sinh ảnh AI nếu style có dùng) cho từng scene, có thể tốn phí.`
+      )
+    ) {
+      return;
+    }
+    for (const scene of pendingScenes) {
+      api.runScene(id, scene.sceneId).catch((err) => alert(`${scene.sceneId}: ${err.message}`));
+    }
+  }
+
   return (
     <div className="card">
-      <h3>Scenes ({videoPlan.scenes?.length ?? 0})</h3>
+      <div className="step-row-head">
+        <h3>Scenes ({videoPlan.scenes?.length ?? 0})</h3>
+        <button type="button" disabled={!pendingScenes.length} onClick={generateAllPending}>
+          Generate tất cả ({pendingScenes.length} chưa xong)
+        </button>
+      </div>
       <div className="scene-grid">
         {(videoPlan.scenes ?? []).map((scene) => {
           const stepKey = `scene:${scene.sceneId}`;
