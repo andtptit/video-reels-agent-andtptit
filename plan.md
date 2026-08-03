@@ -1,5 +1,232 @@
 # Plan: Web UI fallback (DashScope + Edge TTS) khi hết credit Claude
 
+## Đã sửa — tăng khoảng nghỉ giữa các scene (phiên 2026-08-03)
+
+User cảm thấy voice "nhanh" chỗ chuyển cảnh. Kiểm tra thật: khoảng lặng giữa 2 scene
+đã CÓ SẴN (~0.2s, từ công thức `scene_duration = vo_duration + 0.5` buffer trừ `0.3s`
+crossfade overlap = 0.2s), verify bằng số liệu thật trên 2 project khác nhau
+(0.2045s, 0.1986s). Lý do vẫn cảm thấy "nhanh": nhạc nền chạy liên tục xuyên suốt,
+không dừng qua chỗ chuyển cảnh — nên dù voice có nghỉ 0.2s, tai không cảm nhận được
+vì nhạc lấp đầy khoảng lặng đó.
+
+Đề xuất tăng buffer thay vì chỉnh crossfade (giữ 0.3s crossfade hình ảnh nguyên vẹn,
+chỉ tăng khoảng lặng thật của voice) — user chọn tăng lên 0.7 (khoảng nghỉ thật
+0.7-0.3=0.4s). Đã sửa `server/pipeline/generate-audio.mjs` — hằng số
+`SCENE_DURATION_BUFFER` (0.5 → 0.7), áp dụng cho MỌI video tạo/generate-audio lại từ
+giờ. Chưa test lại thật (user sẽ tự test) — cần chạy lại `/audio` (hoặc tạo video
+mới) rồi Root + Render để thấy hiệu ứng, vì đây là field tính từ bước audio, không
+ảnh hưởng project đã render sẵn cho tới khi chạy lại pipeline.
+
+## ĐÍNH CHÍNH — kết luận "font Charm bị lỗi" bên dưới là SAI, đã revert (phiên 2026-08-03, cùng ngày)
+
+Sau khi gỡ "Charm" khỏi UI + đổi Profile 1 sang Itim (xem mục ngay dưới đây), tình cờ
+render lại 1 project KHÁC (`moi-tinh-dau-thoi-cap-3`, 6 scene, cũng dùng font Charm —
+để test tính năng "tăng khoảng nghỉ giữa scene") — toàn bộ 16 frame trích từ video
+đều hiện subtitle ĐÚNG HOÀN TOÀN với Charm, không lỗi gì, không mất shade. Điều này
+mâu thuẫn trực tiếp với kết luận "Charm luôn lỗi" bên dưới.
+
+**Kết luận đúng**: lỗi gốc ở project `cam-giac-yen-binh-khi-ve-que` nhiều khả năng là
+1 lỗi render KHÔNG ỔN ĐỊNH (non-deterministic), đúng loại "race condition, same-
+settings retry can also come back clean" đã ghi trong CLAUDE.md của chính project đó
+từ trước — KHÔNG phải do font Charm. Việc đổi sang Itim "sửa được" chỉ là trùng hợp,
+vì thao tác đó đi kèm regenerate lại toàn bộ scene (một lượt render mới, có thể tự
+nhiên không dính lại race condition đó nữa) — không phải do bản thân font khác đi.
+
+Đã **revert toàn bộ**: khôi phục "Charm" vào cả 2 dropdown font (`Pipeline.jsx`),
+khôi phục `fontFamily: "Charm"` cho Profile 1. Bài học thật sự rút ra: 1 lần test
+KHÔNG đủ để kết luận root cause cho lỗi có tính chất không ổn định — cần lặp lại
+nhiều lần trên nhiều project trước khi khẳng định, đặc biệt khi nghi ngờ rơi vào 1
+thành phần bên ngoài (ở đây là chính engine render HyperFrames, đã biết có lịch sử
+race condition từ trước).
+
+## SAI (đã revert ở trên) — font "Charm" làm HyperFrames render mất TOÀN BỘ shade+subtitle (phiên 2026-08-03)
+
+User báo trên project mới nhất (đã bật Ken Burns): "zoom 2 lần trong 1 scene, bị
+khựng 1 lần, và không thấy sub text" — hỏi lỗi do LLM hay hệ thống.
+
+Điều tra thật (nhiều vòng, không đoán):
+- Đọc trực tiếp `compositions/scene_01.html` — chỉ có ĐÚNG 1 dòng GSAP `fromTo` cho
+  Ken Burns (không có "zoom 2 lần" ở cấp file), cấu trúc hoàn toàn đúng, không khác gì
+  các composition khác đã render thành công trước đó trong phiên.
+- Trích frame từ video render thật (nhiều lần, phải sửa 1 lỗi ffmpeg flag `-update`
+  gặp lại nhiều lần trong phiên) — xác nhận: **hoàn toàn không có shade tối lẫn
+  subtitle** suốt cả scene, dù cả 2 đều là phần tử tĩnh/động đã verify đúng cấu trúc.
+- Test đối chứng: tắt hẳn Ken Burns, render lại → VẪN lỗi y hệt → loại Ken Burns khỏi
+  danh sách nghi phạm.
+- So sánh byte-level với 1 composition khác đã render đúng cùng phiên (dùng
+  `imageStylePrefix`, cấu trúc y hệt) — không có khác biệt cấu trúc nào ngoài nội
+  dung/font.
+- Dùng `hyperframes snapshot` (pipeline capture KHÁC với `render`) tại đúng thời điểm
+  — phát hiện manh mối quan trọng: shade CÓ hiện, nhưng subtitle bị **lỗi encoding
+  (mojibake)** — "phố ồn ào" hiện thành "phá»'á»"n Ã o". `render` (pipeline thật) thì
+  mất trắng hoàn toàn cả 2, `snapshot` chỉ hỏng phần chữ — 2 pipeline khác nhau, cùng
+  bị ảnh hưởng bởi cùng 1 nguyên nhân gốc.
+- **Test quyết định**: đổi `fontFamily` từ "Charm" sang "Itim" trên CHÍNH project bị
+  lỗi (không đổi gì khác) → render lại → shade + subtitle hiện ĐÚNG HOÀN TOÀN, dấu
+  tiếng Việt chuẩn ("phố ồn ào"). Xác nhận lại thêm 1 lần nữa (Charm lỗi, Itim đúng,
+  cùng project, cùng nội dung) — kết luận chắc chắn: **font "Charm" cụ thể làm
+  HyperFrames' render pipeline hỏng hoàn toàn phần overlay của scene đó** (không chỉ
+  chữ lỗi vì thiếu glyph — mà cả `.s?-shade`, 1 div CSS tĩnh không phụ thuộc font gì,
+  cũng biến mất theo, gợi ý HyperFrames coi lỗi font-load là chặn toàn bộ phần overlay
+  render của cả sub-composition đó).
+
+**Trả lời user**: lỗi này đến từ **HỆ THỐNG** (bug trong chính engine render của
+HyperFrames khi xử lý font "Charm"), KHÔNG phải do LLM viết sai — composition file
+100% đúng cấu trúc, LLM không hề liên quan đến việc chọn font (font do user/profile
+chọn qua UI, không phải LLM tự quyết).
+
+**Fix**: gỡ "Charm" khỏi cả 2 dropdown chọn font trên UI (`Pipeline.jsx` — dropdown
+chính + dropdown remix), giữ lại file `.woff2` (không hại gì, chỉ không cho chọn qua
+UI nữa). Đổi Profile 1 (đang có `fontFamily: "Charm"`) sang `Itim` để tránh video sau
+này qua profile đó tiếp tục dính lỗi im lặng.
+
+**Bài học**: xác nhận 1 font "hỗ trợ tiếng Việt" qua Google Fonts metadata API
+(coverage.vietnamese) chỉ đảm bảo font CÓ glyph — không đảm bảo font ĐÓ render đúng
+qua chính engine HyperFrames dùng để render video thật. Cần verify end-to-end qua
+render thật, không chỉ qua nguồn cấp dữ liệu font bên ngoài.
+
+## Đã sửa — ảnh AI dính chữ/màu neon dù imageStylePrefix đúng pastel (phiên 2026-08-03)
+
+User yêu cầu đối chiếu ảnh video mới nhất với `imageStylePrefix` của Profile 1 —
+báo 3 lỗi: ảnh dính chữ (kể cả trông như chữ Hán), ảnh toàn text tiếng Anh (đã có
+sub rồi, chỉ cần ảnh minh hoạ), màu vẫn neon dù profile không hề có màu đó.
+
+Root cause tìm thấy ngay ở `image_prompt` thật trong `video-plan.json` (project
+`3-thoi-quen-buoi-sang-...`): mỗi prompt là 2 phần dính lại — phần ĐẦU do LLM tự
+nghĩ (vd `"Glowing neon green text 'First bad habit: reaching for your phone...'
+centered on dark background..."`) + phần CUỐI đúng `imageStylePrefix` (pastel). Phần
+đầu tự yêu cầu model sinh ảnh **vẽ cả câu tiếng Anh dài** lên nền **neon xanh tối** —
+mâu thuẫn trực tiếp với chính "no text, no watermark" ở cuối cùng 1 prompt, và
+model sinh ảnh cố vẽ chữ luôn ra ký tự méo/gãy (giống chữ Hán). Đúng gốc:
+`video-planner.mjs`'s prompt yêu cầu model "mô tả ĐÚNG màu sắc/mood/phong cách đọc
+từ DESIGN.md" cho `image_prompt` — nhưng DESIGN.md của workspace này là bảng màu
+neon-xanh-tối cho style "motion" cũ, KHÔNG liên quan gì đến ảnh AI của style "sub".
+Đúng loại bug đã gặp ở `root-composer.mjs` trước đây (atmosphere layer neon dính
+vào scene "sub") — nhưng lần này ở `video-planner.mjs`, chưa từng được vá.
+
+**Fix (prompt + code, 2 lớp)**:
+- Sửa hẳn prompt `video-planner.mjs`: nói rõ KHÔNG lấy màu/mood từ DESIGN.md cho
+  `image_prompt` (chỉ dùng DESIGN.md để hiểu chủ đề/nội dung, không phải màu sắc);
+  cấm tuyệt đối mô tả chữ/từ/câu dưới mọi hình thức (kể cả trong ngoặc kép); thêm
+  DANH SÁCH TỪ CẤM cụ thể (`text`, `word(s)`, `caption`, `quote`, `headline`,
+  `subhead(ing)`, `title card`, `neon`, `glow(ing)`, `dark background`, `tech
+  aesthetic`) — lần đầu chỉ nói nguyên tắc chung, model vẫn rò rỉ "tech
+  aesthetic"/"headline"/"subhead" nên phải liệt kê tường minh mới hết hẳn.
+- Thêm `checkImagePromptHygiene(scenes)` (`validators.mjs`) — defense-in-depth,
+  không chặn (không có retry loop ở video-planner.mjs), chỉ cảnh báo qua
+  `onEvent`/`LiveLog`. Tìm cụm `"no text, ... no watermark"` bắt buộc trong prompt,
+  chỉ quét phần CHỦ THỂ trước cụm đó (tránh báo nhầm vì chính cụm bắt buộc có chứa
+  chữ "text") — không so khớp `imageStylePrefix` chính xác (dễ vỡ nếu model không
+  copy đúng 100%, đã từng gặp ở nơi khác trong repo này).
+
+Verify thật (không chỉ đọc code) — chạy lại `/video-plan` trên đúng project bị lỗi
+2 lần: lần 1 (chỉ sửa nguyên tắc chung) còn sót "neon green light"/"tech aesthetic"
+ở 2/10 scene (validator bắt đúng, hiện đúng trên LiveLog); lần 2 (thêm danh sách từ
+cấm) — cả 10 scene sạch hoàn toàn, không còn từ cấm nào, đúng đối tượng minh hoạ
+thuần tuý (người, đồ vật, khung cảnh), đúng tông pastel ấm của `imageStylePrefix`,
+0 event `image-prompt-hygiene` phát sinh.
+
+(Gặp 2 lần lỗi JSON "Bad control character" không liên quan trong lúc test — model
+thỉnh thoảng chèn newline thô chưa escape vào 1 field khác của video-plan.json, vấn
+đề đã biết từ trước, retry là qua, chưa cần vá thêm.)
+
+## Đã sửa — mở lại project từ Hàng loạt/Remix không giữ profile (phiên 2026-08-03)
+
+User hỏi: mở project từ chức năng "Hàng loạt" hay "Remix" thì profile kênh đi kèm
+không được load ra cùng — có đúng là bug không. Xác nhận đúng, và có 2 lớp nguyên
+nhân khác nhau:
+
+1. **Bug chung cho MỌI project** (không riêng batch/remix): `Pipeline.jsx`'s
+   `selectedProfileSlug` khởi tạo `useState("")` và CHỈ được set khi user tự bấm
+   chọn dropdown (`onSelectProfile`) — không có chỗ nào đọc lại từ dữ liệu đã lưu khi
+   mở 1 project đã tồn tại. Ảnh hưởng trực tiếp Remix, vì `remix-project.mjs` đã copy
+   nguyên `video-plan.json` (gồm cả `imageLibrary.profileSlug`) sang project mới
+   NGAY LÚC TẠO (đồng bộ, xác nhận qua đọc code) — dữ liệu đúng đã có sẵn trên đĩa,
+   chỉ là UI không đọc lại.
+2. **Bug riêng cho Hàng loạt**: nặng hơn — lúc `Batch.jsx` approve ý tưởng, nó chỉ
+   chạy `content-planner` (bước 1), CHƯA có `video-plan.json` nào tồn tại, nên không
+   có gì để (1) đọc lại kể cả khi đã sửa. `IdeaCard`'s nút "Mở project" gọi thẳng
+   `onOpen(projectId, idea, platform)` → `App.jsx`'s `handleCreated` — chưa từng
+   truyền `profileSlug` qua chỗ nào.
+
+**Fix (2 lớp, giải quyết cả 2 nguyên nhân)**:
+- `Pipeline.jsx` — `useEffect` mới (chạy khi `id`/`profiles` sẵn sàng, chỉ 1 lần):
+  ưu tiên `initialProfileSlug` prop (truyền thẳng lúc tạo, dùng cho case 2), fallback
+  đọc `video-plan.json`'s `imageLibrary.profileSlug` nếu file đã tồn tại (dùng cho
+  case 1 — tự động fix Remix, không cần sửa gì thêm ở đó vì file đã có sẵn đúng lúc
+  Pipeline mount).
+- `App.jsx` — `handleCreated(id, idea, platform, profileSlug)` thêm tham số thứ 4,
+  lưu vào `project` state + `<Pipeline initialProfileSlug={project.profileSlug}>`.
+- `Batch.jsx` — bọc `onOpen` thành
+  `(projectId, ideaText, plat) => onProjectCreated(projectId, ideaText, plat, profileSlug)`
+  (đọc từ state `profileSlug` batch-level đã có sẵn trong scope).
+
+Verify thật bằng Playwright (không chỉ đọc code): mở lại project có sẵn
+`imageLibrary.profileSlug: "profile-1"` qua `localStorage` (mô phỏng đúng cách
+History/ProjectPicker mở lại 1 project cũ) → confirm dropdown "Load profile kênh đã
+lưu" tự chọn đúng `profile-1` sau khi component mount, không cần user bấm gì.
+
+## Đã sửa — scene chuyển cảnh trước khi audio nói hết câu (phiên 2026-08-03)
+
+User báo: video mới nhất render xong, "tiếng đang hơi nhanh so với hình và sub, dẫn
+đến chưa hết câu đã chuyển cảnh". Kiểm tra thật `index.html` của project mới nhất
+(`3-dau-hieu-ban-dang-yeu-mot-nguoi-khong-the-cho-ba`) — root cause tìm ra ngay:
+
+- `vo-*` (audio track 21) `data-start` được tính ĐÚNG theo công thức crossfade
+  (`prev_start + prev_scene_duration - 0.3`) — vì có `enforceVoiceoverTags` ép cứng
+  bằng code, không tin LLM.
+- NHƯNG scene `<div data-composition-src>` (track 10/11) `data-start` lại bị model
+  tính SAI — dùng tổng dồn (cumulative sum) của `vo_duration` THÔ, không trừ 0.3s
+  crossfade, không cộng buffer 0.5s của `scene_duration`. Tween crossfade GSAP
+  (`tl.to`/`tl.set`) trong `<script>` cũng dùng luôn số sai này vì lấy theo
+  `data-start` của scene.
+- Hậu quả: lệch dồn tăng dần qua từng scene (0.2s → 0.4s → 0.6s → 0.8s ở scene 5) —
+  đúng khớp mô tả user "ngày càng lệch". Scene sau bắt đầu fade-out SỚM hơn thời
+  điểm audio của chính nó thật sự phát xong.
+
+**Fix**: thêm `enforceSceneTiming(html, doneScenes, width, height)` trong
+`root-composer.mjs` — cùng pattern `enforceVoiceoverTags` đã có (code viết field cấu
+trúc, không tin LLM echo lại đúng): tính lại toàn bộ `data-start` scene div + toàn bộ
+dòng `tl.to`/`tl.set` crossfade bằng `crossfadeStarts()` (hàm dùng chung với
+voiceover), ép cứng vào `index.html` ở MỌI attempt (không chỉ lần cuối), y hệt cách
+enforceVoiceoverTags đã làm. Gọi theo thứ tự: `enforceVoiceoverTags` trước (đặt đúng
+audio block), rồi `enforceSceneTiming` sau (dựa vào vị trí audio block cuối cùng để
+chèn scene block đúng chỗ, tránh đoán mò cấu trúc HTML chung).
+
+Verify thật (không chỉ đọc code): chạy lại `/root` trên project thật đã bị lỗi —
+confirm `data-start` của cả 5 scene giờ khớp CHÍNH XÁC với `data-start` của `vo-*`
+tương ứng (4.76, 8.56, 12.17, 15.56), tween crossfade cũng đổi theo đúng. `lint`
+không phát sinh lỗi mới (chỉ còn lỗi font-path đã biết từ trước, không liên quan).
+Render lại toàn bộ — `video_2026-08-03_21-00-34.mp4`.
+
+**User hỏi tiếp**: lỗi này do model không đủ thông minh, hay do vấn đề gì khác — vì
+repo gốc dùng Claude Code, còn nhánh Web UI cố tình đổi sang model rẻ hơn (kém hơn).
+Trả lời + hành động ngay: đúng là 1 phần do bản chất — phép tính DỒN TÍCH LŨY lặp lại
+nhiều lần (mỗi scene phụ thuộc kết quả scene trước) là dạng lỗi kinh điển của mọi
+LLM khi nhúng trong 1 tác vụ sinh code lớn, không riêng model rẻ. Nhưng lý do CHÍNH
+là: phần `vo-*` audio đã có `enforceVoiceoverTags` ép cứng bằng code từ trước (không
+phải model tính giỏi hơn ở đó), còn phần scene-timing thì bị bỏ sót, chưa có cơ chế
+tương tự — đúng nguyên tắc xuyên suốt dự án "không tin LLM giữ đúng giá trị cấu trúc,
+để code tự tính" nhưng áp dụng thiếu 1 nửa. User yêu cầu: từ nay hễ thấy chỗ nào giao
+phó tính toán/cấu trúc cho model rẻ mà dễ sai kiểu này thì phải tham vấn/chủ động sửa.
+
+**Rà soát ngay, tìm thêm 1 lỗi cùng loại chưa bị phát hiện**: `#root` + 7 phần tử
+atmosphere + nhạc nền dùng chung 1 `data-duration` (tổng thời lượng video) — cũng là
+model tự cộng dồn, KHÔNG có code ép cứng. Verify thật trên chính project vừa sửa:
+tính đúng phải là `28.37` (= crossfade-start của scene cuối + scene_duration của nó),
+nhưng file đang ghi `29.41` — dư ~1s nhạc nền/atmosphere chạy dài hơn cảnh cuối.
+
+**Fix**: thêm `enforceTotalDuration(html, doneScenes)` — tính tổng đúng bằng cùng
+`crossfadeStarts()`, tìm giá trị `data-duration` SAI hiện tại trên thẻ `#root`, rồi
+thay thế TOÀN BỘ chỗ xuất hiện giá trị đó trong file (an toàn vì lúc này scene/audio
+đã được ép về giá trị riêng đúng ở bước trước, không còn trùng số cũ nữa). Gọi theo
+thứ tự: `enforceVoiceoverTags` → `enforceSceneTiming` → `enforceTotalDuration`.
+
+Verify thật: chạy lại `/root` → xác nhận `data-duration="28.37"` trên `#root` + toàn
+bộ atmosphere + nhạc nền. `lint` không lỗi mới. Render lại — `video_2026-08-03_
+21-08-26.mp4`, `ffprobe` xác nhận thời lượng thật 28.42s (khớp số đã tính, chênh do
+làm tròn frame).
+
 ## Mới — Banner "Đang chạy nền" trên UI (phiên 2026-08-02)
 
 User hỏi Q&A: chạy xong video này muốn chạy luôn video khác trong lúc chờ thì sao.

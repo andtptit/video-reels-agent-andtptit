@@ -21,8 +21,8 @@ export default function App() {
   const [project, setProject] = useState(loadStored);
   const [tab, setTab] = useState("pipeline"); // "pipeline" | "history" | "batch"
 
-  function handleCreated(id, idea, platform) {
-    const next = { id, idea, platform };
+  function handleCreated(id, idea, platform, profileSlug) {
+    const next = { id, idea, platform, profileSlug };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
     setProject(next);
     setTab("pipeline");
@@ -76,7 +76,13 @@ export default function App() {
           <ProjectPicker onSelect={handleSelect} />
         </>
       ) : (
-        <Pipeline id={project.id} idea={project.idea} platform={project.platform} onProjectCreated={handleCreated} />
+        <Pipeline
+          id={project.id}
+          idea={project.idea}
+          platform={project.platform}
+          initialProfileSlug={project.profileSlug}
+          onProjectCreated={handleCreated}
+        />
       )}
     </div>
   );

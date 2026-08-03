@@ -169,12 +169,19 @@ export async function runGenerateAudio(projectDir, { ttsProvider: providerId = p
   // showed "audio: done". Collected here so the caller can fail the whole step loudly.
   const failedSceneIds = [];
 
+  // Buffer between vo_duration and scene_duration — combined with root-composer's
+  // 0.3s crossfade overlap, the actual silent gap between scenes' voiceovers is
+  // (SCENE_DURATION_BUFFER - 0.3). Was 0.5 (→ 0.2s gap); bumped to 0.7 (→ 0.4s gap)
+  // per user request — the 0.2s gap technically existed but wasn't perceptible since
+  // bg-music never pauses through it, masking the silence.
+  const SCENE_DURATION_BUFFER = 0.7;
+
   for (const scene of plans.scenes) {
     const result = await generateVoiceover(scene);
     if (scene.narration && !result) failedSceneIds.push(scene.sceneId);
     const wordTimestamps = result?.wordTimestamps ?? null;
     const voDuration = result?.voDuration ?? scene.estimated_duration ?? scene.duration ?? 5;
-    const sceneDuration = Math.round((voDuration + 0.5) * 100) / 100;
+    const sceneDuration = Math.round((voDuration + SCENE_DURATION_BUFFER) * 100) / 100;
 
     const timingAnchors = resolveTimingAnchors(scene.visual_brief ?? scene.creative_brief ?? "", wordTimestamps ?? [], onEvent);
 

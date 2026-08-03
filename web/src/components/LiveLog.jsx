@@ -66,6 +66,10 @@ function formatEvent(e) {
       return `LỖI: sceneId remix không khớp — cần [${e.want?.join(", ")}], nhận [${e.got?.join(", ")}]`;
     case "duration-check":
       return e.ok ? null : `Cảnh báo: tổng thời lượng scene không khớp kế hoạch`;
+    case "image-prompt-hygiene":
+      return e.ok
+        ? null
+        : `Cảnh báo: ${e.findings?.length ?? 0} image_prompt còn dính chữ/màu neon (${e.findings?.map((f) => f.sceneId).join(", ")}) — nên kiểm tra lại trước khi sinh ảnh`;
     case "diversity-check":
       return e.issue === "count-mismatch"
         ? `Cảnh báo: sinh ${e.actual} ý tưởng thay vì ${e.expected} yêu cầu`

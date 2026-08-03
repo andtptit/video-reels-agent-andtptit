@@ -1,15 +1,22 @@
 {
   "name": "Profile 1",
   "slug": "profile-1",
-  "updatedAt": "2026-08-01T16:03:17.262Z",
+  "updatedAt": "2026-08-03T16:04:28.835Z",
   "ttsProvider": "edge-tts",
   "ttsRate": 1.1,
+  "ttsVoice": "",
+  "musicTrack": "default",
+  "musicVolume": 20,
   "template": "sub",
   "visualStyle": "animation",
   "subStyle": "image_full_focus",
-  "fontFamily": "Itim",
+  "fontFamily": "Charm",
   "imageStylePrefix": "Flat illustration, soft pastel color palette, minimalist line art, warm and gentle mood, simple shapes, plain solid background, no text, no watermark",
+  "kenBurns": false,
+  "grain": false,
   "plannerModel": "qwen-plus-2025-04-28",
   "cheapModel": "qwen-flash",
-  "imgModel": "z-image-turbo"
+  "imgModel": "z-image-turbo",
+  "channelTheme": "chữa lành, nhẹ nhàng",
+  "defaultAudience": "người trẻ"
 }

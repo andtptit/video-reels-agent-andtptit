@@ -85,7 +85,7 @@ const FONT_OPTIONS = [
   ["Amatic SC", "Amatic SC (marker, cô đặc)"],
 ];
 
-export function Pipeline({ id, idea, platform, onProjectCreated }) {
+export function Pipeline({ id, idea, platform, initialProfileSlug, onProjectCreated }) {
   const { steps, totalUsage, events } = useJobStatus(id);
   const [audience, setAudience] = useState("");
   const [ttsProvider, setTtsProvider] = useState("edge-tts");
@@ -145,6 +145,35 @@ export function Pipeline({ id, idea, platform, onProjectCreated }) {
     api.listProfiles().then((r) => setProfiles(r.profiles ?? [])).catch(() => {});
     api.listMusicLibrary().then((r) => setMusicTracks(r.tracks ?? [])).catch(() => {});
   }, []);
+
+  // Restore which channel profile this project was made with, so re-opening a
+  // project (from History, or right after Remix/Hàng loạt) doesn't silently drop
+  // back to "no profile selected" — found live as a real bug: image-library reuse
+  // and every profile-only setting (font, effects, models...) require a selected
+  // profile, so losing it on reload effectively broke those features for any
+  // returning project without the user noticing why. Two sources, since a
+  // freshly-created batch project has no video-plan.json yet:
+  //   1. `initialProfileSlug` — passed straight through from Batch.jsx/remix at the
+  //      moment of creation (see App.jsx's handleCreated), before video-plan.json exists.
+  //   2. video-plan.json's `imageLibrary.profileSlug` — set once video-planner has
+  //      run; also how a remix project (which copies the source's video-plan.json
+  //      wholesale) correctly recovers its source profile without any special-casing.
+  // Runs once `profiles` is loaded so the match-by-slug below can actually find it.
+  useEffect(() => {
+    if (!id || !profiles.length || selectedProfileSlug) return;
+    if (initialProfileSlug) {
+      onSelectProfile(initialProfileSlug);
+      return;
+    }
+    api
+      .getFile(id, "video-plan.json")
+      .then((plan) => {
+        const slug = plan?.imageLibrary?.profileSlug;
+        if (slug && profiles.some((p) => p.slug === slug)) onSelectProfile(slug);
+      })
+      .catch(() => {}); // video-plan.json not written yet — nothing to restore
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, profiles]);
 
   async function run(fn) {
     setFormError(null);
@@ -557,6 +586,19 @@ export function Pipeline({ id, idea, platform, onProjectCreated }) {
             Chạy audio
           </button>
         )}
+        {planStatus === "done" && audioStatus === "done" && (
+          <button
+            type="button"
+            className="linklike"
+            title="Chạy lại bước audio — scene đã có file MP3 sẽ được bỏ qua (không tốn phí TTS lại), nhưng scene_duration/khoảng nghỉ giữa scene luôn được TÍNH LẠI theo config mới nhất (vd sau khi đổi buffer khoảng nghỉ)"
+            onClick={() => {
+              if (!window.confirm('Chạy lại audio? Scene đã có file MP3 sẽ được giữ nguyên (không tốn phí TTS lại), chỉ scene_duration/khoảng nghỉ được tính lại. Sau đó cần Generate lại từng scene bên dưới (không cần chạy lại video-planner) rồi Root + Render để áp dụng.')) return;
+              run(() => api.runAudio(id, { ttsProvider, ttsRate, ttsVoice: ttsVoice || undefined, musicTrack: musicTrack || undefined, musicVolume }));
+            }}
+          >
+            Chạy lại audio
+          </button>
+        )}
         {audioStatus === "running" && <LiveLog events={events} step="audio" />}
       </StepRow>
 
@@ -579,11 +621,41 @@ export function Pipeline({ id, idea, platform, onProjectCreated }) {
                   imageLibraryMaxReuse: imageLibraryMaxReuse === "" ? undefined : Number(imageLibraryMaxReuse),
                   profileSlug: selectedProfileSlug || undefined,
                   kenBurns,
+                  grain,
                 })
               )
             }
           >
             Chạy video-planner
+          </button>
+        )}
+        {audioStatus === "done" && videoPlanStatus === "done" && (
+          <button
+            type="button"
+            className="linklike"
+            title="Chạy lại video-planner (gọi LLM thật, tốn phí) — dùng khi đổi style/model/imageStylePrefix và muốn viết lại toàn bộ visual_brief/image_prompt"
+            onClick={() => {
+              if (!window.confirm('Chạy lại video-planner? Gọi LLM thật (tốn phí), có thể viết lại khác đi visual_brief/image_prompt của mọi scene. Sau đó cần Generate lại từng scene + Root + Render.')) return;
+              run(() =>
+                api.runVideoPlan(id, {
+                  template,
+                  visualStyle,
+                  subStyle,
+                  fontFamily: template === "sub" ? fontFamily : undefined,
+                  imageStylePrefix: imageStylePrefix.trim() || undefined,
+                  model: plannerModel || undefined,
+                  cheapModel: cheapModel || undefined,
+                  imageModel: imgModel || undefined,
+                  imageLibraryEnabled,
+                  imageLibraryMaxReuse: imageLibraryMaxReuse === "" ? undefined : Number(imageLibraryMaxReuse),
+                  profileSlug: selectedProfileSlug || undefined,
+                  kenBurns,
+                  grain,
+                })
+              );
+            }}
+          >
+            Chạy lại video-planner
           </button>
         )}
         {videoPlanStatus === "running" && <LiveLog events={events} step="video-plan" />}

@@ -24,6 +24,11 @@ job-status.json
 # leaving PNG/HTML/JSON untracked-but-visible; excluding the whole tree instead.
 output/
 
+# "Hàng loạt" (Batch) scratch working dirs — see routes.mjs's withBatchDir doc
+# comment: only ever holds ideas.json + job-status.json for an in-progress batch
+# review, never a real project. Ephemeral, not source.
+server/batches/
+
 # macOS AppleDouble sidecar files — this workspace runs on an external volume
 # without native xattr support, so every file write leaves a "._filename" twin.
 # hyperframes lint has been observed scanning these as bogus composition files.

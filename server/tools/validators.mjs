@@ -23,6 +23,45 @@ export function checkDurationSum({ total, scenes, key, toleranceSeconds = 1 }) {
   return { ok: Math.abs(diff) <= toleranceSeconds, total, sum, diff };
 }
 
+// Defense-in-depth for video-planner's image_prompt rule (see its own prompt text) —
+// found live via user report: even with an explicit "never describe text in the
+// image" instruction, the model sometimes still writes patterns like `text saying
+// '...'`, `glowing text '...'`, `central text`, `headline`/`subhead` (implying a
+// text-bearing image even without the word "text"), or `neon`/`glow`/`tech
+// aesthetic` bleeding in from DESIGN.md's unrelated "motion" style palette. AI image
+// models asked to render literal text reliably produce garbled/non-latin-looking
+// glyphs — this is a warning (not a hard fail, no retry loop exists here), just
+// surfaced to the UI so it's visible instead of only showing up in a bad rendered
+// image days later.
+//
+// The required `"no text, no words, no watermark"` phrase legitimately contains the
+// word "text" — rather than matching the LLM's exact `imageStylePrefix` string
+// (fragile if it doesn't copy it byte-for-byte, a real risk already seen elsewhere
+// in this codebase), find that negation phrase itself and only scan the SUBJECT
+// portion before it. Any prompt that doesn't even contain the required negation
+// phrase is itself already a hygiene violation worth flagging.
+const NO_TEXT_PHRASE_RE = /,?\s*no\s+text,?\s*(no\s+words,?\s*)?no\s+watermark\b/i;
+const IMAGE_TEXT_LEAK_RE = /\b(text|words?|caption|quote|headline|subhead(ing)?|title\s+card)\b/i;
+const IMAGE_NEON_LEAK_RE = /\bneon\b|\bglow(ing)?\b|dark\s+background|\btech\s+aesthetic\b/i;
+
+export function checkImagePromptHygiene(scenes) {
+  const findings = [];
+  for (const scene of scenes ?? []) {
+    const prompt = scene.image_prompt;
+    if (!prompt) continue;
+    const cutIdx = prompt.search(NO_TEXT_PHRASE_RE);
+    const subject = cutIdx === -1 ? prompt : prompt.slice(0, cutIdx);
+    if (cutIdx === -1) {
+      findings.push({ sceneId: scene.sceneId, issue: "missing-no-text-phrase", prompt });
+    } else if (IMAGE_TEXT_LEAK_RE.test(subject)) {
+      findings.push({ sceneId: scene.sceneId, issue: "text-in-image", prompt });
+    } else if (IMAGE_NEON_LEAK_RE.test(subject)) {
+      findings.push({ sceneId: scene.sceneId, issue: "design-palette-leak", prompt });
+    }
+  }
+  return { ok: findings.length === 0, findings };
+}
+
 // Matches gsap.to(...) and any timeline var (tl.to(...), timeline.from(...), etc.) —
 // the real bug caught in scene-writer testing was `tl.to("#scene-01::after", ...)`,
 // not a direct `gsap.` call, so the method receiver must stay a wildcard.

@@ -51,6 +51,8 @@ export function Batch({ onProjectCreated }) {
   const [count, setCount] = useState(10);
   const [orientation, setOrientation] = useState("portrait");
 
+  const [profileSaveMsg, setProfileSaveMsg] = useState(null);
+
   const [batchId, setBatchId] = useState(null);
   const [ideasMeta, setIdeasMeta] = useState(null); // full ideas.json envelope
   const [approving, setApproving] = useState(false);
@@ -82,6 +84,24 @@ export function Batch({ onProjectCreated }) {
     const p = profiles.find((x) => x.slug === slug);
     if (p?.channelTheme !== undefined) setChannelTheme(p.channelTheme);
     if (p?.defaultAudience !== undefined) setAudience(p.defaultAudience);
+  }
+
+  // saveProfile() overwrites the whole profile with exactly the fields sent — spread
+  // the ALREADY-LOADED profile object (from listProfiles(), still has every other
+  // field: template, imageStylePrefix, models...) instead of sending only
+  // channelTheme/audience, or this would silently wipe the rest of the profile.
+  async function saveThemeToProfile() {
+    setProfileSaveMsg(null);
+    const p = profiles.find((x) => x.slug === profileSlug);
+    if (!p) return;
+    try {
+      const saved = await api.saveProfile(p.name, { ...p, channelTheme, defaultAudience: audience });
+      const r = await api.listProfiles();
+      setProfiles(r.profiles ?? []);
+      setProfileSaveMsg(`Đã lưu chủ đề + đối tượng vào profile "${saved.name}" — lần sau chọn profile này sẽ tự điền sẵn.`);
+    } catch (err) {
+      setProfileSaveMsg(err.message);
+    }
   }
 
   async function generateIdeas() {
@@ -173,6 +193,17 @@ export function Batch({ onProjectCreated }) {
           placeholder="Đối tượng xem — ví dụ: Nữ 20-30 tuổi, hay lo âu"
           disabled={approving}
         />
+        {profileSlug && (
+          <button
+            type="button"
+            className="linklike"
+            disabled={!channelTheme.trim() || !audience.trim() || approving}
+            onClick={saveThemeToProfile}
+          >
+            Lưu lại vào profile (để lần sau tự điền sẵn)
+          </button>
+        )}
+        {profileSaveMsg && <p className="muted">{profileSaveMsg}</p>}
         <div className="inline-form">
           <label>
             Số lượng ý tưởng:{" "}
@@ -221,7 +252,7 @@ export function Batch({ onProjectCreated }) {
                 onEdit={(text) => patchIdea(idea.ideaId, { idea: text })}
                 onToggleKeep={(kept) => patchIdea(idea.ideaId, { kept })}
                 onDelete={() => deleteIdea(idea.ideaId)}
-                onOpen={onProjectCreated}
+                onOpen={(projectId, ideaText, plat) => onProjectCreated(projectId, ideaText, plat, profileSlug)}
               />
             ))}
           </div>

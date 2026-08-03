@@ -124,6 +124,95 @@ function enforceVoiceoverTags(html, doneScenes) {
   return withoutOldVo.slice(0, marker) + correctBlock + "\n\n    " + withoutOldVo.slice(marker);
 }
 
+function buildSceneBlock(doneScenes, width, height) {
+  const starts = crossfadeStarts(doneScenes);
+  return doneScenes
+    .map((s, i) => {
+      const num = s.sceneId.replace(/^scene_?/, "");
+      const track = i % 2 === 0 ? 10 : 11;
+      return `    <div id="scene-${num}" class="clip" data-composition-id="scene-${num}" data-composition-src="compositions/scene_${num}.html" data-start="${starts[i]}" data-duration="${s._audio.scene_duration}" data-track-index="${track}" data-width="${width}" data-height="${height}"></div>`;
+    })
+    .join("\n");
+}
+
+function buildCrossfadeScript(doneScenes) {
+  const starts = crossfadeStarts(doneScenes);
+  const lines = [];
+  for (let i = 0; i < doneScenes.length - 1; i++) {
+    const num = doneScenes[i].sceneId.replace(/^scene_?/, "");
+    const fadeStart = starts[i + 1];
+    const hardKill = Math.round((fadeStart + 0.3) * 1000) / 1000;
+    lines.push(`    tl.to('#scene-${num}', { opacity: 0, duration: 0.3, ease: 'power2.inOut' }, ${fadeStart});`);
+    lines.push(`    tl.set('#scene-${num}', { opacity: 0 }, ${hardKill});`);
+  }
+  return lines.join("\n");
+}
+
+/**
+ * Same "code writes structural fields, never trust the LLM" fix as
+ * enforceVoiceoverTags, for the OTHER half of the same crossfade math — found live
+ * via a user report: narration cut off before finishing, "chưa hết câu đã chuyển
+ * cảnh" (scene changes before the sentence ends), worse on later scenes. Root cause
+ * confirmed on a real broken index.html: the model computed `vo-*` audio
+ * `data-start` correctly with the crossfade formula (`prev_start + prev_scene_
+ * duration - 0.3`), but computed the SCENE `<div>` `data-start` (and the matching
+ * crossfade `tl.to`/`tl.set` trigger times) as a plain running sum of raw
+ * `vo_duration` instead — no `-0.3` crossfade offset, no `scene_duration` (which
+ * includes generate-audio.mjs's +0.5s buffer). The drift compounds every scene
+ * (0.2s, 0.4s, 0.6s, 0.8s late by scene 5 in the reported project), so each scene's
+ * fade-out/hard-kill fires earlier and earlier relative to when its own voiceover
+ * actually finishes playing. Both numbers are 100% deterministic from the same
+ * `doneScenes` data enforceVoiceoverTags already uses — no reason to leave either to
+ * the model.
+ */
+function enforceSceneTiming(html, doneScenes, width, height) {
+  // Must run AFTER enforceVoiceoverTags — relies on the voiceover block already
+  // being correct and sitting immediately before where the scene divs used to be
+  // (that's where the LLM always writes them), so inserting right after the LAST
+  // voiceover <audio> tag lands scenes back in the same spot without guessing at
+  // generic HTML structure.
+  const sceneBlock = buildSceneBlock(doneScenes, width, height);
+  const withoutOldScenes = html.replace(/[ \t]*<div\b[^>]*data-composition-src="compositions\/scene_[^"]*\.html"[^>]*>\s*<\/div>\n?/g, "");
+  const audioMatches = [...withoutOldScenes.matchAll(/<audio\b[^>]*data-track-index="21"[^>]*>\s*<\/audio>\n?/g)];
+  const insertAt = audioMatches.length
+    ? audioMatches[audioMatches.length - 1].index + audioMatches[audioMatches.length - 1][0].length
+    : withoutOldScenes.search(/<\/div>\s*\n\s*<\/div>/);
+  const withScenes =
+    insertAt === -1 || !sceneBlock ? withoutOldScenes : withoutOldScenes.slice(0, insertAt) + "\n" + sceneBlock + "\n" + withoutOldScenes.slice(insertAt);
+
+  const crossfadeScript = buildCrossfadeScript(doneScenes);
+  const withoutOldTweens = withScenes.replace(/[ \t]*tl\.(to|set)\('#scene-[^']+',[^;]*\);\n?/g, "");
+  const tlMarker = withoutOldTweens.search(/const tl = gsap\.timeline\([^)]*\);\n?/);
+  if (tlMarker === -1 || !crossfadeScript) return withoutOldTweens;
+  const afterTlLine = withoutOldTweens.indexOf("\n", tlMarker) + 1;
+  return withoutOldTweens.slice(0, afterTlLine) + "\n" + crossfadeScript + "\n" + withoutOldTweens.slice(afterTlLine);
+}
+
+/**
+ * Same class of bug as enforceSceneTiming — the root composition's total
+ * `data-duration` (shared by `#root`, the 7 atmosphere elements, and the music
+ * track, per this project's own convention) is another value the model computes by
+ * summing scene durations itself instead of it being handed a ground truth. Found
+ * live while investigating the crossfade bug above: the SAME broken project had
+ * root `data-duration="29.41"` when the correct total (last scene's crossfade start
+ * + its own scene_duration) is `28.37` — atmosphere/music running ~1s past when the
+ * last scene actually ends. Scoped replace is safe here because by the time this
+ * runs, scene/voiceover durations have already been corrected to their own distinct
+ * per-scene values (see enforceSceneTiming/enforceVoiceoverTags above) — the OLD
+ * total is the only remaining occurrence of that exact number in the file.
+ */
+function enforceTotalDuration(html, doneScenes) {
+  const starts = crossfadeStarts(doneScenes);
+  const lastIdx = doneScenes.length - 1;
+  const correctTotal = Math.round((starts[lastIdx] + doneScenes[lastIdx]._audio.scene_duration) * 1000) / 1000;
+  const rootMatch = html.match(/<div id="root"[^>]*data-duration="([\d.]+)"/);
+  if (!rootMatch) return html;
+  const oldTotal = rootMatch[1];
+  if (oldTotal === String(correctTotal)) return html;
+  const re = new RegExp(`data-duration="${oldTotal.replace(/\./g, "\\.")}"`, "g");
+  return html.replace(re, `data-duration="${correctTotal}"`);
+}
+
 /**
  * @param {object} params
  * @param {string} params.projectDir
@@ -316,7 +405,9 @@ trả lời bằng 1 câu tóm tắt — không tool call nào nữa.`;
     // and the other checks below always see the corrected version, and a project
     // that fails for some OTHER reason still ends up with correct audio in the
     // partially-failed file on disk.
-    const html = enforceVoiceoverTags(rawHtml, doneScenes);
+    const withVoiceover = enforceVoiceoverTags(rawHtml, doneScenes);
+    const withSceneTiming = enforceSceneTiming(withVoiceover, doneScenes, width, height);
+    const html = enforceTotalDuration(withSceneTiming, doneScenes);
     if (html !== rawHtml) writeFileSync(indexPath, html);
 
     const current = await lint(projectDir);

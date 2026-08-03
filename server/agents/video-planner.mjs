@@ -8,7 +8,7 @@ import { readFileSync, writeFileSync, existsSync } from "fs";
 import { join } from "path";
 import { runAgent, DEFAULT_MODEL } from "./run-agent.mjs";
 import { createFsTools } from "../tools/fs-tools.mjs";
-import { checkDurationSum } from "../tools/validators.mjs";
+import { checkDurationSum, checkImagePromptHygiene } from "../tools/validators.mjs";
 import { DEFAULT_SUB_STYLE } from "../templates/sub-styles/index.mjs";
 
 const SKILL_PATH = join(import.meta.dirname, "..", "..", ".agents", "skills", "video-planner", "SKILL.md");
@@ -101,9 +101,28 @@ Style video này dùng ẢNH NỀN SINH BẰNG AI cho mỗi scene (không phải
 Với MỖI scene trong \`video-plan.json\`, thêm field \`"image_prompt"\`: 1 câu mô tả ảnh
 nền (tiếng Anh, để model sinh ảnh hiểu đúng) theo đúng các quy tắc sau:
 
-- Mô tả ĐÚNG màu sắc/mood/phong cách đã đọc trong DESIGN.md bên dưới (không tự bịa màu
-  khác) — đây là cách duy nhất để ảnh khớp thương hiệu, vì bước sinh ảnh không tự đọc
-  lại DESIGN.md.
+- KHÔNG dùng màu sắc/mood/phong cách đọc từ DESIGN.md bên dưới cho \`image_prompt\` —
+  DESIGN.md ở đây là bảng màu neon-xanh-tối mặc định của workspace cho style "motion"
+  (CSS/GSAP thuần), HOÀN TOÀN KHÔNG áp dụng cho ảnh AI của style này. Phong cách ẢNH
+  AI do DUY NHẤT cụm \`imageStylePrefix\` bên dưới quyết định — chỉ đọc DESIGN.md để
+  hiểu MOOD/NỘI DUNG của video (phục vụ chọn chủ thể/composition từng scene), tuyệt
+  đối không lấy màu sắc/ánh sáng (vd "neon", "glow", "dark background") từ đó đưa vào
+  \`image_prompt\`.
+- Chỉ mô tả CHỦ THỂ THỊ GIÁC THUẦN TUÝ (đồ vật, khung cảnh, biểu tượng, con người,
+  bố cục minh hoạ) — TUYỆT ĐỐI KHÔNG mô tả ảnh có chứa chữ/từ/câu dưới bất kỳ hình
+  thức nào, kể cả đặt trong ngoặc kép (vd KHÔNG viết "text saying '...'", "glowing
+  text '...'", "words reading '...'", "caption '...'") — dù mục đích là minh hoạ nội
+  dung, ảnh sinh ra sẽ cố vẽ chữ thật và luôn ra ký tự méo/lỗi (kể cả lẫn ký tự không
+  phải latin). Phụ đề/text đã có HTML overlay lo hoàn toàn, ảnh AI KHÔNG BAO GIỜ được
+  chứa chữ dưới bất kỳ hình thức nào.
+- DANH SÁCH TỪ CẤM (không dùng trong phần chủ thể của prompt, dưới mọi hình thức,
+  kể cả biến thể/đồng nghĩa) — vì mỗi từ này luôn kéo theo mô tả 1 vật thể có chữ hoặc
+  màu sắc tối/neon không thuộc \`imageStylePrefix\`: \`text\`, \`word\`/\`words\`,
+  \`caption\`, \`quote\`, \`headline\`, \`subhead\`/\`subheading\`, \`title card\`,
+  \`neon\`, \`glow\`/\`glowing\`, \`dark background\`, \`tech aesthetic\`. Nếu ý định
+  ban đầu là "chữ nổi bật giữa màn hình" hay "tiêu đề" thì đổi hẳn sang mô tả 1 VẬT
+  THỂ minh hoạ ý nghĩa đó thay vì mô tả chữ (vd thay vì "bold headline in center" hãy
+  mô tả 1 hình minh hoạ/biểu tượng thể hiện đúng ý nghĩa câu đó).
 - TUYỆT ĐỐI không có chữ/số/watermark trong ảnh (\`"no text, no words, no watermark"\`
   luôn có ở cuối mỗi prompt) — chữ thật sẽ do HTML overlay lên trên.
 - Chừa khoảng trống thị giác (negative space) ở giữa hoặc 1 phía cho text overlay đọc
@@ -145,6 +164,11 @@ DESIGN.md và scenes-with-timing.json đã được nhúng đầy đủ trong us
     const plan = JSON.parse(readFileSync(outFile, "utf-8"));
     const durationCheck = checkDurationSum({ total: plan.total_duration ?? 0, scenes: plan.scenes ?? [], key: "duration" });
     if (!durationCheck.ok) onEvent?.({ type: "duration-check", ...durationCheck });
+
+    if (effectiveVisualStyle === "ai-image") {
+      const promptCheck = checkImagePromptHygiene(plan.scenes ?? []);
+      if (!promptCheck.ok) onEvent?.({ type: "image-prompt-hygiene", ...promptCheck });
+    }
 
     // Written by CODE, not the model — routes.mjs's scene-generate route trusts
     // `plan.template` to decide scene-writer (LLM) vs sub-scene-writer (deterministic)
