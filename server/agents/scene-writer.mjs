@@ -13,7 +13,7 @@
  * written yet, root index.html not wired up until step 6); blocking on those would
  * make convergence impossible through no fault of this scene's HTML.
  */
-import { readFileSync, mkdirSync } from "fs";
+import { readFileSync, mkdirSync, existsSync, statSync } from "fs";
 import { join } from "path";
 import { runAgent, CHEAP_MODEL } from "./run-agent.mjs";
 import { createFsTools } from "../tools/fs-tools.mjs";
@@ -21,6 +21,7 @@ import { lint } from "../tools/hyperframes-cli.mjs";
 import { checkPseudoElementAnimations, checkCanvasDimensions, checkClipClassOverride } from "../tools/validators.mjs";
 import { dimensionsForFormat } from "../lib/canvas.mjs";
 import { generateAndSaveImage } from "../providers/image/dashscope-image.mjs";
+import { findReusableImage, addToLibrary, copyFromLibrary, tryReserveReuseSlot } from "../lib/image-library.mjs";
 
 const SKILL_PATH = join(import.meta.dirname, "..", "..", ".agents", "skills", "hyperframes", "SKILL.md");
 
@@ -49,6 +50,12 @@ export async function runSceneWriter({
   model = CHEAP_MODEL,
   imageModel, // DashScope image model id — undefined lets generateAndSaveImage fall
   // back to its own env-configured default (DASHSCOPE_MODEL_IMAGE / "wan2.6-image")
+  imageLibrary, // { enabled, maxReuse, profileSlug } from video-plan.json — see
+  // lib/image-library.mjs. Was previously wired ONLY into sub-scene-writer.mjs even
+  // though video-planner.mjs writes `image_tags` for this ("motion" + ai-image) style
+  // too — confirmed live this meant the motion+ai-image path always paid for a fresh
+  // generation while the identically-tagged "sub" path reused for free. Same fix,
+  // mirrored here.
   maxTurns = 6,
   maxFixAttempts = 3,
   onEvent,
@@ -72,14 +79,42 @@ export async function runSceneWriter({
   let imagePath = null;
   if (scene.image_prompt) {
     imagePath = `assets/images/scene_${padded}.png`;
+    const imageAbsPath = join(projectDir, imagePath);
     mkdirSync(join(projectDir, "assets", "images"), { recursive: true });
-    await generateAndSaveImage({
-      prompt: scene.image_prompt,
-      format,
-      destPath: join(projectDir, imagePath),
-      ...(imageModel ? { model: imageModel } : {}),
+
+    let imageResult;
+    if (existsSync(imageAbsPath)) {
+      // Already generated (or already reused) in a prior run.
+      imageResult = { destPath: imageAbsPath, bytes: statSync(imageAbsPath).size, skipped: true };
+    } else if (imageLibrary?.enabled) {
+      const match = findReusableImage({ profileSlug: imageLibrary.profileSlug, format, tags: scene.image_tags });
+      if (match && tryReserveReuseSlot(projectDir, imageLibrary.maxReuse)) {
+        imageResult = copyFromLibrary(match, imageAbsPath);
+      }
+    }
+    if (!imageResult) {
+      imageResult = await generateAndSaveImage({
+        prompt: scene.image_prompt,
+        format,
+        destPath: imageAbsPath,
+        ...(imageModel ? { model: imageModel } : {}),
+      });
+      // Only a genuinely fresh generation is worth banking — see sub-scene-writer.mjs's
+      // identical comment for why skip-if-exists/reused entries aren't re-added.
+      if (!imageResult.skipped && imageLibrary?.enabled) {
+        addToLibrary({
+          profileSlug: imageLibrary.profileSlug,
+          format,
+          tags: scene.image_tags,
+          prompt: scene.image_prompt,
+          srcImagePath: imageAbsPath,
+        });
+      }
+    }
+    onEvent?.({
+      type: imageResult.reusedFromLibrary ? "image-reused" : imageResult.skipped ? "image-skip" : "image",
+      outPath: imagePath,
     });
-    onEvent?.({ type: "image", outPath: imagePath });
   }
 
   const imageOverride = imagePath

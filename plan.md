@@ -2476,3 +2476,49 @@ project thật → `scenes-with-timing.json` ghi đúng `music_volume: 0.35`. Gh
 ### Chưa làm / theo dõi tiếp
 - Chưa có nút "nghe thử nhạc trước khi chạy audio" (đã gợi ý trước đó, chưa làm —
   có thể ghép chung với dropdown này sau, giống cách đã làm với "nghe thử voice").
+
+---
+
+## Đã sửa — thư viện ảnh tái dùng thiếu ở luồng "Chuyển động + Nền ảnh AI" (phiên 2026-08-03)
+
+Phát hiện khi user hỏi về cơ chế `image_tags` (tái dùng ảnh AI giữa các video cùng
+profile, xem `lib/image-library.mjs` — do 1 phiên khác build trong lúc pull). Đọc
+code thật xác nhận: `video-planner.mjs` sinh field `image_tags` cho MỌI scene cần ảnh
+AI, không phân biệt `template` — nhưng chỉ `sub-scene-writer.mjs` (luồng "Sub
+karaoke") thực sự gọi `findReusableImage`/`addToLibrary`. `scene-writer.mjs` (luồng
+"Chuyển động" + chọn nền "Ảnh AI" — vẫn chọn được độc lập với "Sub karaoke", 2 hướng
+không loại trừ nhau) gọi thẳng `generateAndSaveImage`, bỏ qua thư viện hoàn toàn — tốn
+tiền sinh ảnh mới mỗi lần dù đã có ảnh cùng tag từ video khác.
+
+### Fix
+
+Copy nguyên logic đã verify ở `sub-scene-writer.mjs` sang `scene-writer.mjs`: check
+`existsSync` (đã có sẵn) → check thư viện nếu `imageLibrary?.enabled` (tag overlap
+≥2, cùng `profileSlug`+`format`) → generate mới nếu không match → add vào thư viện
+nếu là generation thật (không phải reuse/đã tồn tại). `routes.mjs` thêm
+`imageLibrary: videoPlan.imageLibrary` vào lời gọi `runSceneWriter` (field này
+`video-planner.mjs` đã ghi sẵn cho MỌI project có ảnh AI từ trước, không cần sửa
+video-planner.mjs).
+
+### Quyết định thiết kế đi kèm (thảo luận trước khi code)
+
+User hỏi có nên match reuse theo `imageStylePrefix` (không chỉ `profileSlug`) để
+tránh lẫn ảnh khi ai đó sửa nhẹ prefix của 1 profile đang dùng — quyết định GIỮ
+NGUYÊN chỉ match theo `profileSlug` (không thêm check prefix): sửa prefix "không
+đáng kể" trong cùng profile chấp nhận rủi ro nhỏ (đằng nào wan2.6-image cũng không
+deterministic tuyệt đối); đổi phong cách thật sự → tạo profile MỚI (cơ chế đã có sẵn,
+`profileSlug` khác nhau = pool ảnh khác nhau hoàn toàn). Thêm check prefix sẽ dễ gãy
+hơn: chỉ lệch 1 khoảng trắng cũng làm mọi ảnh cũ bị bỏ qua oan.
+
+### Verify thật — không tốn tiền sinh ảnh
+
+Test trực tiếp `runSceneWriter` trên project scratchpad với `imageLibrary: {enabled:
+true, profileSlug: "profile-1"}` (profile thật, đã có 6 ảnh trong
+`assets/image-library/manifest.json` từ trước) + scene giả có `image_tags:
+["success-achievement", "motivation-determination"]` (khớp ≥2 tag với 1 entry có
+sẵn) + `image_prompt` cố tình để chuỗi "SHOULD NEVER BE USED" để phát hiện ngay nếu
+lỡ gọi generate thật. Kết quả: event `image-reused` (không phải `image`), file được
+copy khớp CHÍNH XÁC MD5 với `assets/image-library/a2f09626-....png` — xác nhận không
+có lệnh gọi DashScope image nào xảy ra, tái dùng đúng file mong đợi. PASS lint sau 1
+lần sửa (agent viết đè `.clip` CSS ở lần đầu, tự sửa đúng ở lần 2 — hành vi bình
+thường của retry gate có sẵn).

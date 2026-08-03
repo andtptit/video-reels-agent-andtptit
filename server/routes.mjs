@@ -367,6 +367,7 @@ router.post("/projects/:id/scenes/:sceneId/generate", withProjectDir, (req, res)
         format: videoPlan.format,
         model: videoPlan.cheapModel,
         imageModel: videoPlan.imageModel,
+        imageLibrary: videoPlan.imageLibrary,
         onEvent,
       })
     )
