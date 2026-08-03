@@ -14,6 +14,7 @@ const ROOT = resolve(import.meta.dirname, "..", "..");
 const TTS_PROVIDERS = { elevenlabs, "edge-tts": edgeTts };
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const TTS_RETRIES = 2; // total 3 attempts per scene before giving up — matches dashscope.mjs's convention
 
 function findWordTime(wordTimestamps, target) {
   const norm = (s) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
@@ -116,16 +117,37 @@ export async function runGenerateAudio(projectDir, { ttsProvider: providerId = p
 
     onEvent({ type: "scene-start", sceneId: scene.sceneId, narration: scene.narration });
 
+    // Retry transient failures — confirmed live (user report) that edge-tts's
+    // unofficial WebSocket API occasionally drops mid-synthesis ("Stream closed
+    // before the synthesis completed (no turn.end received)") for no reason tied to
+    // the text itself (other scenes with similar narration succeeded on the first
+    // try). Same isTransient/backoff shape as chatCompletion (dashscope.mjs) — retry
+    // blindly (edge-tts throws plain Error, no error code to classify transient vs
+    // permanent) since the cost of retrying a genuinely permanent failure is just a
+    // few wasted seconds before it fails anyway, vs. previously killing an entire
+    // unattended "Chạy toàn bộ pipeline" run on one network hiccup.
     let result;
-    try {
-      result = await ttsProvider.synthesize({
-        text: scene.narration,
-        destPath: dest,
-        ...(ttsRate ? { rate: ttsRate } : {}),
-        ...(ttsVoice ? { voiceId: ttsVoice } : {}),
-      });
-    } catch (err) {
-      onEvent({ type: "scene-error", sceneId: scene.sceneId, error: err.message });
+    let lastErr;
+    for (let attempt = 0; attempt <= TTS_RETRIES; attempt++) {
+      try {
+        result = await ttsProvider.synthesize({
+          text: scene.narration,
+          destPath: dest,
+          ...(ttsRate ? { rate: ttsRate } : {}),
+          ...(ttsVoice ? { voiceId: ttsVoice } : {}),
+        });
+        lastErr = null;
+        break;
+      } catch (err) {
+        lastErr = err;
+        if (attempt < TTS_RETRIES) {
+          onEvent({ type: "scene-retry", sceneId: scene.sceneId, attempt: attempt + 1, error: err.message });
+          await sleep(1000 * 2 ** attempt); // 1s, 2s
+        }
+      }
+    }
+    if (lastErr) {
+      onEvent({ type: "scene-error", sceneId: scene.sceneId, error: lastErr.message });
       return null;
     }
 

@@ -2522,3 +2522,44 @@ copy khớp CHÍNH XÁC MD5 với `assets/image-library/a2f09626-....png` — x�
 có lệnh gọi DashScope image nào xảy ra, tái dùng đúng file mong đợi. PASS lint sau 1
 lần sửa (agent viết đè `.clip` CSS ở lần đầu, tự sửa đúng ở lần 2 — hành vi bình
 thường của retry gate có sẵn).
+
+---
+
+## Đã sửa — retry cho TTS khi edge-tts chập chờn (phiên 2026-08-03)
+
+User báo lỗi thật qua UI: bước Audio fail ở `scene_01` với message
+`TTS thất bại cho scene: scene_01 — không có audio/word-timestamps thật`. Tra
+`job-status.json` thấy nguyên nhân gốc: `"Stream closed before the synthesis
+completed (no turn.end received). The audio is likely truncated."` — lỗi WebSocket
+chập chờn của dịch vụ Edge TTS miễn phí (không chính thức), không liên quan nội dung
+câu (4 scene khác dùng câu tương tự chạy trót lọt ngay lần đầu).
+
+Phát hiện thêm khi bàn về việc chạy hàng loạt/không giám sát ("Chạy toàn bộ
+pipeline" trong `Pipeline.jsx`): `runAllPipeline` dừng NGAY toàn bộ chuỗi khi 1 bước
+lỗi (`waitForStep` reject), không tự retry gì — 1 lần chập chờn mạng là đủ giết cả
+lần chạy tự động, cần người phát hiện + bấm lại tay.
+
+### Fix (đã thống nhất chỉ làm phần retry tại nguồn, chưa làm retry tầng pipeline)
+
+`generate-audio.mjs`'s `generateVoiceover()` — bọc lệnh gọi `ttsProvider.synthesize()`
+bằng retry + backoff (tối đa 3 lần thử: 0s/1s/2s), cùng shape với
+`chatCompletion` (`dashscope.mjs`) đã có sẵn. Retry MÙ (không phân loại transient vs
+permanent) vì edge-tts ném `Error` thường, không có mã lỗi để phân biệt — chấp nhận
+được vì cái giá của việc retry 1 lỗi thật-sự-vĩnh-viễn chỉ là vài giây chờ thêm trước
+khi vẫn fail như cũ.
+
+User lưu ý: edge-tts đang free nên chưa cần lo retry gây tốn tiền — nếu sau này đổi
+sang TTS API có phí (ElevenLabs) sẽ cân nhắc lại retry count/backoff.
+
+**Chưa làm** (đã bàn, để dành nếu còn gặp lỗi tương tự ở BƯỚC KHÁC không phải audio):
+retry tự động ở tầng `runAllPipeline` (Pipeline.jsx) — hiện mọi bước khác
+(video-plan, scene generate, root, render) vẫn dừng cả chuỗi ngay khi lỗi đầu tiên,
+không riêng gì audio.
+
+### Verify thật
+
+Chạy `runGenerateAudio` thật (edge-tts, free) trên project scratch 1-scene mới tạo —
+xác nhận luồng thành công bình thường KHÔNG bị ảnh hưởng bởi lớp retry mới (chạy
+đúng 1 lần, không retry thừa, `failedSceneIds: []`). Chưa test được path retry thật
+sự kích hoạt (lỗi "Stream closed" là transient, không ép xảy ra theo ý muốn được) —
+tin tưởng qua code review + cùng pattern đã verify sống ở `dashscope.mjs`.
