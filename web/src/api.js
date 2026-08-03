@@ -32,6 +32,7 @@ export const api = {
   audioUrl: (id, sceneId) => `${API_BASE}/projects/${encodeURIComponent(id)}/audio/${encodeURIComponent(sceneId)}_vo.mp3`,
   eventsUrl: (id) => `${API_BASE}/projects/${encodeURIComponent(id)}/events`,
   listMusicLibrary: () => request("/music-library"),
+  testImage: (params) => request("/test-image", { method: "POST", body: JSON.stringify(params) }),
   listProfiles: () => request("/profiles"),
   saveProfile: (name, data) => request(`/profiles/${encodeURIComponent(name)}`, { method: "PUT", body: JSON.stringify(data) }),
   deleteProfile: (slug) => request(`/profiles/${encodeURIComponent(slug)}`, { method: "DELETE" }),

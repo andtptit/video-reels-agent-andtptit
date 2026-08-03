@@ -30,6 +30,7 @@ import { listProfiles, saveProfile, deleteProfile } from "./lib/profiles.mjs";
 import { createBatchDir, resolveBatchDir, InvalidBatchIdError } from "./lib/batch-id.mjs";
 import { readIdeaHistory, appendIdeaHistory } from "./lib/idea-history.mjs";
 import { runIdeaGenerator } from "./agents/idea-generator.mjs";
+import { generateImage } from "./providers/image/dashscope-image.mjs";
 
 startIdleSweep();
 
@@ -82,6 +83,22 @@ router.get("/debug/models", (req, res) => {
     CHEAP_MODEL,
     DASHSCOPE_MODEL_IMAGE: process.env.DASHSCOPE_MODEL_IMAGE || "wan2.6-image",
   });
+});
+
+// Quick "test prompt" tool for tuning imageStylePrefix/model before committing to a
+// full pipeline run — not scoped to a project (no destPath, nothing persisted to
+// disk on our side). Returns the OSS image URL directly; it's signed and expires in
+// 24h (see dashscope-image.mjs's own doc comment) which is plenty for a UI preview,
+// so there's no need to download+store it like generateAndSaveImage does for real
+// scene images.
+router.post("/test-image", (req, res) => {
+  const { prompt, imageStylePrefix, format, model } = req.body ?? {};
+  if (!prompt?.trim()) return res.status(400).json({ error: "prompt is required" });
+  const fullPrompt = imageStylePrefix?.trim() ? `${prompt.trim()}, ${imageStylePrefix.trim()}` : prompt.trim();
+  queues.dashscope
+    .run(() => generateImage({ prompt: fullPrompt, format: format || "9:16", ...(model ? { model } : {}) }))
+    .then(({ imageUrl }) => res.json({ imageUrl, fullPrompt }))
+    .catch((err) => res.status(500).json({ error: err.message }));
 });
 
 // Channel profiles — see lib/profiles.mjs doc comment. Not scoped under

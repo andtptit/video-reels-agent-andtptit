@@ -98,6 +98,14 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, onProjectCrea
   const [visualStyle, setVisualStyle] = useState("animation");
   const [subStyle, setSubStyle] = useState("image_full_focus");
   const [imageStylePrefix, setImageStylePrefix] = useState("");
+  // "Test prompt" — quick standalone image-gen call to tune imageStylePrefix/model
+  // before spending a full pipeline run on it (tham khảo Pixelle-Video). Hidden by
+  // default, toggled open on demand.
+  const [testPromptOpen, setTestPromptOpen] = useState(false);
+  const [testPromptSubject, setTestPromptSubject] = useState("");
+  const [testPromptResult, setTestPromptResult] = useState(null);
+  const [testPromptLoading, setTestPromptLoading] = useState(false);
+  const [testPromptError, setTestPromptError] = useState(null);
   const [fontFamily, setFontFamily] = useState("Itim");
   const [plannerModel, setPlannerModel] = useState("");
   const [cheapModel, setCheapModel] = useState("");
@@ -473,11 +481,49 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, onProjectCrea
             </>
           )}
           {(template === "sub" || visualStyle === "ai-image") && (
-            <textarea
-              placeholder='Phong cách ảnh AI (để trống = "minimalist matchstick figure") — vd chủ thể, chất liệu, tông màu...'
-              value={imageStylePrefix} onChange={(e) => setImageStylePrefix(e.target.value)}
-              rows={2}
-            />
+            <>
+              <textarea
+                placeholder='Phong cách ảnh AI (để trống = "minimalist matchstick figure") — vd chủ thể, chất liệu, tông màu...'
+                value={imageStylePrefix} onChange={(e) => setImageStylePrefix(e.target.value)}
+                rows={2}
+              />
+              <button type="button" className="linklike" onClick={() => setTestPromptOpen((v) => !v)}>
+                {testPromptOpen ? "Ẩn test prompt" : "Test prompt (thử prefix trước khi chạy pipeline)"}
+              </button>
+              {testPromptOpen && (
+                <div className="inline-form" style={{ alignItems: "flex-start" }}>
+                  <input
+                    value={testPromptSubject}
+                    onChange={(e) => setTestPromptSubject(e.target.value)}
+                    placeholder='Chủ thể chính — vd: "1 cô gái đang đọc sách"'
+                  />
+                  <button
+                    type="button"
+                    disabled={!testPromptSubject.trim() || testPromptLoading}
+                    onClick={() => {
+                      setTestPromptLoading(true);
+                      setTestPromptError(null);
+                      setTestPromptResult(null);
+                      api
+                        .testImage({ prompt: testPromptSubject, imageStylePrefix: imageStylePrefix.trim() || undefined, model: imgModel || undefined })
+                        .then(setTestPromptResult)
+                        .catch((err) => setTestPromptError(err.message))
+                        .finally(() => setTestPromptLoading(false));
+                    }}
+                  >
+                    {testPromptLoading ? "Đang sinh ảnh..." : "Sinh ảnh test"}
+                  </button>
+                  {testPromptError && <p className="error">{testPromptError}</p>}
+                  {testPromptResult && (
+                    <div style={{ width: "100%" }}>
+                      <img src={testPromptResult.imageUrl} alt="test prompt result" style={{ maxWidth: "280px", borderRadius: "8px", display: "block" }} />
+                      <p className="muted" style={{ wordBreak: "break-word" }}>{testPromptResult.fullPrompt}</p>
+                      <p className="muted">Link ảnh hết hạn sau 24h — không tự lưu, chỉ để xem thử.</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
           )}
           {template === "sub" && (
             <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>

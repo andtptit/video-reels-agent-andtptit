@@ -17,6 +17,26 @@ giờ. Chưa test lại thật (user sẽ tự test) — cần chạy lại `/au
 mới) rồi Root + Render để thấy hiệu ứng, vì đây là field tính từ bước audio, không
 ảnh hưởng project đã render sẵn cho tới khi chạy lại pipeline.
 
+## Mới — nút "Test prompt" tune imageStylePrefix (phiên 2026-08-03)
+
+User đề xuất (tham khảo Pixelle-Video): thêm nút ẩn mặc định cạnh ô `imageStylePrefix`
+— bấm ra 1 textbox nhập chủ thể (vd "1 cô gái"), ghép với `imageStylePrefix` hiện tại,
+gửi thẳng tới model sinh ảnh để xem thử — không cần chạy cả pipeline chỉ để tinh
+chỉnh prefix/model.
+
+- `server/routes.mjs` — `POST /test-image { prompt, imageStylePrefix, format, model }`
+  — không gắn với project nào (không `projectDir`, không ghi file), ghép
+  `${prompt}, ${imageStylePrefix}` rồi gọi thẳng `generateImage()` (hàm gốc, KHÔNG
+  qua `generateAndSaveImage` vì không cần lưu — trả thẳng URL OSS, hết hạn sau 24h,
+  đủ cho xem thử trên UI). Chạy qua `queues.dashscope` như mọi lệnh gọi DashScope
+  khác trong hệ thống.
+- `web/src/components/Pipeline.jsx` — nút "Test prompt" ẩn mặc định cạnh ô
+  `imageStylePrefix`, bấm ra input chủ thể + nút "Sinh ảnh test", hiện ảnh trả về +
+  full prompt đã ghép (để biết chính xác cái gì gửi đi) + cảnh báo link hết hạn 24h.
+- Verify thật: gọi `/test-image` với prompt "1 cô gái đang đọc sách" + đúng
+  `imageStylePrefix` của Profile 1 → tải ảnh trả về, xác nhận đúng phong cách flat
+  illustration/pastel/minimalist, không chữ, không watermark.
+
 ## ĐÍNH CHÍNH — kết luận "font Charm bị lỗi" bên dưới là SAI, đã revert (phiên 2026-08-03, cùng ngày)
 
 Sau khi gỡ "Charm" khỏi UI + đổi Profile 1 sang Itim (xem mục ngay dưới đây), tình cờ
