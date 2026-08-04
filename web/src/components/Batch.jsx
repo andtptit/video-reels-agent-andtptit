@@ -3,10 +3,13 @@ import { api } from "../api.js";
 import { useBatchStatus } from "../useJobStatus.js";
 import { LiveLog } from "./LiveLog.jsx";
 import { IdeaCard } from "./IdeaCard.jsx";
+import { StatusBadge } from "./StatusBadge.jsx";
 
-/** Waits until `api.getProject(projectId).status.steps[stepKey]` is "done"/"error" —
+/** Waits until `api.getProject(projectId).status.steps[stepKey]` leaves "running" —
  *  same polling shape as Pipeline.jsx's own `waitForStep`, just re-pointed at a new
- *  project id every call instead of one fixed project (see runApproval below). */
+ *  project id every call instead of one fixed project. Also settles on "cancelled"
+ *  (rejects, same as "error") — needed once "Chạy hàng loạt" below can hit its own
+ *  Huỷ button mid-step. */
 function waitForProjectStep(projectId, stepKey, { pollMs = 1000, timeoutMs = 180_000 } = {}) {
   const deadline = Date.now() + timeoutMs;
   return new Promise((resolvePromise, reject) => {
@@ -20,6 +23,7 @@ function waitForProjectStep(projectId, stepKey, { pollMs = 1000, timeoutMs = 180
       const s = status.steps?.[stepKey];
       if (s?.status === "done") return resolvePromise(s);
       if (s?.status === "error") return reject(new Error(s.error || `Bước "${stepKey}" thất bại`));
+      if (s?.status === "cancelled") return reject(new Error(s.error || `Bước "${stepKey}" đã bị huỷ`));
       if (Date.now() > deadline) return reject(new Error(`Timeout chờ "${stepKey}" cho project ${projectId}`));
       setTimeout(check, pollMs);
     };
@@ -43,6 +47,16 @@ async function createProjectWithRetry(ideaText, orientation, attempt = 0) {
   }
 }
 
+const BATCH_STEP_TIMEOUT_MS = 15 * 60 * 1000; // generous shared ceiling — this runs
+// unattended, so a uniform 15min per step (well above render's own 10min server-side
+// cap) is simpler than tuning a tighter timeout per step type.
+
+// If this many CONSECUTIVE step failures across DIFFERENT projects share the exact
+// same step + error message, treat it as a systemic problem (bad API key, DashScope
+// down, disk full...) rather than N unrelated bad-luck projects, and stop the whole
+// batch instead of burning through the rest one-by-one for no reason — see plan.md.
+const SYSTEMIC_FAILURE_THRESHOLD = 3;
+
 export function Batch({ onProjectCreated }) {
   const [profiles, setProfiles] = useState([]);
   const [profileSlug, setProfileSlug] = useState("");
@@ -57,6 +71,19 @@ export function Batch({ onProjectCreated }) {
   const [ideasMeta, setIdeasMeta] = useState(null); // full ideas.json envelope
   const [approving, setApproving] = useState(false);
   const [formError, setFormError] = useState(null);
+
+  // "Chạy hàng loạt" — full pipeline (audio→video-plan→scene→root→render), tuần tự
+  // qua từng project đã duyệt, cấu hình lấy thẳng từ profile đã chọn ở trên.
+  const [runningPipeline, setRunningPipeline] = useState(false);
+  const [pipelineRunError, setPipelineRunError] = useState(null);
+  const [runProgress, setRunProgress] = useState({}); // { [projectId]: { ideaText, step, status, error } }
+  const [stopRequested, setStopRequested] = useState(false);
+  // Refs mirror the 2 state values above for synchronous reads inside the async loop
+  // (state updates are async and the loop spans many `await`s — a stale closure over
+  // plain state would miss a stop request that landed mid-await).
+  const stopRequestedRef = useRef(false);
+  const currentRunningRef = useRef(null); // { projectId, step } in-flight right now — target for "Dừng toàn bộ"
+  const recentFailuresRef = useRef([]); // last few {step, message} failures, for systemic-failure detection
 
   const { steps, events } = useBatchStatus(batchId);
   const ideateStatus = steps.ideate?.status;
@@ -161,8 +188,175 @@ export function Batch({ onProjectCreated }) {
     setApproving(false);
   }
 
+  function updateProgress(projectId, patch) {
+    setRunProgress((prev) => ({ ...prev, [projectId]: { ...prev[projectId], ...patch } }));
+  }
+
+  /** Fires `fireFn` (a POST .../<step> call) and waits for job-status to leave
+   *  "running" — mirrors Pipeline.jsx's ensureStepDone/waitForStep, just against a
+   *  project id that changes every outer-loop iteration instead of one fixed id. */
+  async function runStepOnce(projectId, stepKey, fireFn) {
+    currentRunningRef.current = { projectId, step: stepKey };
+    updateProgress(projectId, { step: stepKey, status: "running", error: null });
+    try {
+      await fireFn();
+      const result = await waitForProjectStep(projectId, stepKey, { timeoutMs: BATCH_STEP_TIMEOUT_MS });
+      updateProgress(projectId, { step: stepKey, status: "done" });
+      return result;
+    } finally {
+      currentRunningRef.current = null;
+    }
+  }
+
+  /** 1 retry per step (quyết định đã chốt: 2 lần thử tổng cộng) — a step still
+   *  failing after 1 retry gets recorded for systemic-failure detection, since a
+   *  transient blip should self-heal on the first retry; a REPEATED identical
+   *  failure across different projects looks more like a real outage than bad luck. */
+  async function runStepWithRetry(projectId, stepKey, fireFn) {
+    if (stopRequestedRef.current) throw new Error("__stopped__");
+    try {
+      return await runStepOnce(projectId, stepKey, fireFn);
+    } catch (err) {
+      if (stopRequestedRef.current || err.message === "__stopped__") throw err;
+      updateProgress(projectId, { step: stepKey, status: "retrying", error: err.message });
+      try {
+        const result = await runStepOnce(projectId, stepKey, fireFn);
+        recentFailuresRef.current = []; // a success breaks any in-progress failure streak
+        return result;
+      } catch (err2) {
+        updateProgress(projectId, { step: stepKey, status: "error", error: err2.message });
+        recentFailuresRef.current.push({ step: stepKey, message: err2.message });
+        const recent = recentFailuresRef.current.slice(-SYSTEMIC_FAILURE_THRESHOLD);
+        if (recent.length === SYSTEMIC_FAILURE_THRESHOLD && recent.every((f) => f.step === stepKey && f.message === err2.message)) {
+          stopRequestedRef.current = true;
+          setStopRequested(true);
+          setPipelineRunError(
+            `Có vẻ lỗi hệ thống (không phải lỗi riêng 1 project) ở bước "${stepKey}" — đã tự dừng hàng loạt: ${err2.message}`
+          );
+        }
+        throw err2;
+      }
+    }
+  }
+
+  /** Skips a step already "done" (resume support — same reasoning as runApproval's
+   *  own resume-by-status check, but reading job-status fresh each time since a
+   *  project's steps can only be inspected via the server, not local state here). */
+  async function ensureProjectStep(projectId, stepKey, fireFn) {
+    const { status } = await api.getProject(projectId);
+    if (status.steps?.[stepKey]?.status === "done") {
+      updateProgress(projectId, { step: stepKey, status: "done" });
+      return;
+    }
+    await runStepWithRetry(projectId, stepKey, fireFn);
+  }
+
+  async function runFullPipelineForProject(idea, profile) {
+    const projectId = idea.projectId;
+    updateProgress(projectId, { ideaText: idea.idea, step: "audio", status: "pending" });
+
+    await ensureProjectStep(projectId, "audio", () =>
+      api.runAudio(projectId, {
+        ttsProvider: profile.ttsProvider,
+        ttsRate: profile.ttsRate,
+        ttsVoice: profile.ttsVoice,
+        musicTrack: profile.musicTrack,
+        musicVolume: profile.musicVolume,
+      })
+    );
+    if (stopRequestedRef.current) return;
+
+    await ensureProjectStep(projectId, "video-plan", () =>
+      api.runVideoPlan(projectId, {
+        template: profile.template,
+        visualStyle: profile.visualStyle,
+        subStyle: profile.subStyle,
+        imageStylePrefix: profile.imageStylePrefix,
+        fontFamily: profile.fontFamily,
+        model: profile.plannerModel,
+        cheapModel: profile.cheapModel,
+        imageModel: profile.imgModel,
+        // Batch runs are exactly the "many videos, same profile" scenario
+        // image-library reuse exists for — always on here regardless of what a
+        // single-video Pipeline.jsx session happened to have toggled, since that's
+        // per-session local state, not something stored on the profile itself.
+        imageLibraryEnabled: true,
+        profileSlug,
+        kenBurns: profile.kenBurns,
+        grain: profile.grain,
+      })
+    );
+    if (stopRequestedRef.current) return;
+
+    const videoPlan = await api.getFile(projectId, "video-plan.json");
+    for (const scene of videoPlan.scenes ?? []) {
+      if (stopRequestedRef.current) return;
+      await ensureProjectStep(projectId, `scene:${scene.sceneId}`, () => api.runScene(projectId, scene.sceneId));
+    }
+    if (stopRequestedRef.current) return;
+
+    await ensureProjectStep(projectId, "root", () => api.runRoot(projectId));
+    if (stopRequestedRef.current) return;
+
+    await ensureProjectStep(projectId, "render", () => api.runRender(projectId));
+  }
+
+  async function runBatchPipeline() {
+    const readyIdeas = (ideasMetaRef.current?.ideas ?? []).filter((i) => i.kept !== false && i.status === "done" && i.projectId);
+    if (!readyIdeas.length) return;
+    if (
+      !window.confirm(
+        `Chạy hết pipeline (audio→video-plan→scene→root→render) TUẦN TỰ cho ${readyIdeas.length} project? Chạy lâu (có thể hàng giờ), tốn phí thật — không cần ngồi canh nhưng nên theo dõi.`
+      )
+    ) {
+      return;
+    }
+
+    const profile = profiles.find((p) => p.slug === profileSlug);
+    if (!profile) {
+      setPipelineRunError("Không tìm thấy profile đã chọn — chọn lại profile trước khi chạy hàng loạt.");
+      return;
+    }
+
+    stopRequestedRef.current = false;
+    recentFailuresRef.current = [];
+    setStopRequested(false);
+    setPipelineRunError(null);
+    setRunningPipeline(true);
+
+    for (const idea of readyIdeas) {
+      if (stopRequestedRef.current) break;
+      try {
+        await runFullPipelineForProject(idea, profile);
+      } catch {
+        // Already recorded on the specific step via runStepWithRetry's own
+        // updateProgress — one project failing must not stop the batch (only the
+        // systemic-failure check above, or an explicit Dừng toàn bộ, should).
+      }
+    }
+
+    setRunningPipeline(false);
+  }
+
+  /** Huỷ NGAY bước đang chạy dở của project hiện tại (nếu có) + chặn vòng lặp
+   *  không tiến sang project tiếp theo — 2 việc cùng lúc, đúng quyết định đã chốt. */
+  async function stopBatchPipeline() {
+    stopRequestedRef.current = true;
+    setStopRequested(true);
+    const running = currentRunningRef.current;
+    if (running) {
+      try {
+        await api.cancelStep(running.projectId, running.step);
+      } catch {
+        /* stale (step already settled) or transient — the loop's own polling will
+           notice either way */
+      }
+    }
+  }
+
   const ideas = ideasMeta?.ideas ?? [];
   const keptCount = ideas.filter((i) => i.kept !== false).length;
+  const readyIdeas = ideas.filter((i) => i.kept !== false && i.status === "done" && i.projectId);
 
   return (
     <div>
@@ -256,6 +450,45 @@ export function Batch({ onProjectCreated }) {
               />
             ))}
           </div>
+        </div>
+      )}
+
+      {readyIdeas.length > 0 && (
+        <div className="card">
+          <div className="step-row-head">
+            <h3>Chạy hàng loạt — hoàn thiện {readyIdeas.length} video</h3>
+            {runningPipeline ? (
+              <button type="button" disabled={stopRequested} onClick={stopBatchPipeline}>
+                {stopRequested ? "Đang dừng…" : "Dừng toàn bộ hàng loạt"}
+              </button>
+            ) : (
+              <button type="button" onClick={runBatchPipeline}>
+                {`Chạy hàng loạt (${readyIdeas.length} project)`}
+              </button>
+            )}
+          </div>
+          <p className="muted">
+            Chạy TUẦN TỰ từng project (audio→video-plan→scene→root→render), dùng đúng cấu hình của profile đã chọn ở
+            trên. Có thể đóng tab và quay lại sau — bấm "Chạy hàng loạt" lần nữa sẽ tự tiếp tục từ project/bước dở
+            dang, không chạy lại phần đã xong.
+          </p>
+          {pipelineRunError && <p className="error">{pipelineRunError}</p>}
+          {Object.keys(runProgress).length > 0 && (
+            <div className="scene-grid">
+              {readyIdeas.map((idea) => {
+                const p = runProgress[idea.projectId];
+                if (!p) return null;
+                return (
+                  <div key={idea.projectId} className="scene-card">
+                    <strong>{idea.idea}</strong>
+                    <div className="muted">{p.step}</div>
+                    <StatusBadge status={p.status === "retrying" || p.status === "pending" ? "running" : p.status} />
+                    {p.status === "error" && p.error && <p className="error">{p.error}</p>}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
     </div>

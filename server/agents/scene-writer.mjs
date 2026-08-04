@@ -59,6 +59,7 @@ export async function runSceneWriter({
   maxTurns = 6,
   maxFixAttempts = 3,
   onEvent,
+  signal,
 }) {
   const skill = readFileSync(SKILL_PATH, "utf-8");
   const tools = createFsTools(projectDir);
@@ -97,6 +98,7 @@ export async function runSceneWriter({
         prompt: scene.image_prompt,
         format,
         destPath: imageAbsPath,
+        signal,
         ...(imageModel ? { model: imageModel } : {}),
       });
       // Only a genuinely fresh generation is worth banking — see sub-scene-writer.mjs's
@@ -203,7 +205,7 @@ xong, trả lời bằng 1 câu tóm tắt — không tool call nào nữa.`;
       // write_file on its own judgment (see run-agent.mjs's doc for the real
       // incident this fixes: 184k tokens burned on a scene already lint-clean
       // after its first write).
-      agentResult = await runAgent({ systemPrompt, userPrompt, tools, model, maxTurns, onEvent, priorMessages, stopAfterWrites: 1 });
+      agentResult = await runAgent({ systemPrompt, userPrompt, tools, model, maxTurns, onEvent, priorMessages, stopAfterWrites: 1, signal });
     } catch (err) {
       addUsage(err.usage);
       err.usage = { ...usage };

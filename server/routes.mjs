@@ -32,6 +32,7 @@ import { createBatchDir, resolveBatchDir, InvalidBatchIdError } from "./lib/batc
 import { readIdeaHistory, appendIdeaHistory } from "./lib/idea-history.mjs";
 import { runIdeaGenerator } from "./agents/idea-generator.mjs";
 import { generateImage } from "./providers/image/dashscope-image.mjs";
+import { cancelStep } from "./jobs/cancel-registry.mjs";
 
 startIdleSweep();
 
@@ -169,8 +170,8 @@ router.post("/batches", (req, res) => {
     JSON.stringify({ channelTheme, audience, requestedCount: n, profileSlug, avoidListUsed: avoidList, createdAt: new Date().toISOString(), ideas: [] }, null, 2)
   );
 
-  runInBackground(batchDir, "ideate", (onEvent) =>
-    queues.dashscope.run(() => runIdeaGenerator({ batchDir, channelTheme, audience, count: n, avoidList, onEvent }))
+  runInBackground(batchDir, "ideate", (onEvent, signal) =>
+    queues.dashscope.run(() => runIdeaGenerator({ batchDir, channelTheme, audience, count: n, avoidList, onEvent, signal }))
   );
 
   res.status(202).json({ batchId, step: "ideate", status: "running" });
@@ -220,6 +221,19 @@ router.post("/projects", (req, res) => {
 
 router.get("/projects/:id", withProjectDir, (req, res) => {
   res.json({ id: req.params.id, status: readJobStatus(req.projectDir) });
+});
+
+// Aborts a currently-running step — see jobs/cancel-registry.mjs. Returns 404 if
+// nothing is actually running under that exact step key (already finished, or never
+// started); the frontend is expected to only show the Huỷ button while its own
+// `status === "running"`, so a 404 here means the UI's view was stale (the step
+// finished on its own a moment before the click landed), not a real error.
+router.post("/projects/:id/cancel", withProjectDir, (req, res) => {
+  const { step } = req.body ?? {};
+  if (!step) return res.status(400).json({ error: "step is required" });
+  const cancelled = cancelStep(req.projectDir, step);
+  if (!cancelled) return res.status(404).json({ error: `No running job for step "${step}"` });
+  res.json({ cancelled: true });
 });
 
 // Opens the project's folder in the OS file manager — only meaningful because this
@@ -293,9 +307,9 @@ router.post("/projects/:id/plan", withProjectDir, (req, res) => {
   if (!idea) return res.status(400).json({ error: "idea is required" });
   if (!audience) return res.status(400).json({ error: "audience is required" });
 
-  runInBackground(req.projectDir, "plan", (onEvent) =>
+  runInBackground(req.projectDir, "plan", (onEvent, signal) =>
     queues.dashscope.run(() =>
-      runContentPlanner({ idea, projectDir: req.projectDir, audience, platform, targetDuration, model, onEvent })
+      runContentPlanner({ idea, projectDir: req.projectDir, audience, platform, targetDuration, model, onEvent, signal })
     )
   );
   res.status(202).json({ step: "plan", status: "running" });
@@ -322,9 +336,9 @@ router.post("/projects/:id/remix", withProjectDir, (req, res) => {
 
   emitProgress(created.projectDir, { step: "video-plan", status: "done" });
 
-  runInBackground(created.projectDir, "plan", (onEvent) =>
+  runInBackground(created.projectDir, "plan", (onEvent, signal) =>
     queues.dashscope.run(() =>
-      runRemixScenes({ projectDir: created.projectDir, sourceScenes: created.sourceScenes, remixPrompt, model, onEvent })
+      runRemixScenes({ projectDir: created.projectDir, sourceScenes: created.sourceScenes, remixPrompt, model, onEvent, signal })
     )
   );
 
@@ -353,7 +367,7 @@ router.post("/projects/:id/audio", withProjectDir, (req, res) => {
   // nowhere to go. The step still resolved and got marked "done" even with 2 scenes
   // missing real audio/word-timestamps entirely. Every other route here threads
   // `(onEvent) => ...` through — this one just forgot to.
-  runInBackground(req.projectDir, "audio", (onEvent) =>
+  runInBackground(req.projectDir, "audio", (onEvent, signal) =>
     queues.tts.run(() =>
       runGenerateAudio(req.projectDir, {
         ttsProvider,
@@ -365,6 +379,7 @@ router.post("/projects/:id/audio", withProjectDir, (req, res) => {
         // rendered index.html's data-volume attribute.
         musicVolume: musicVolume !== undefined ? musicVolume / 100 : undefined,
         onEvent,
+        signal,
       })
     )
   );
@@ -376,7 +391,7 @@ router.post("/projects/:id/video-plan", withProjectDir, (req, res) => {
     visualStyle, template, subStyle, imageStylePrefix, fontFamily, model, cheapModel, imageModel,
     imageLibraryEnabled, imageLibraryMaxReuse, profileSlug, kenBurns, grain,
   } = req.body ?? {};
-  runInBackground(req.projectDir, "video-plan", (onEvent) =>
+  runInBackground(req.projectDir, "video-plan", (onEvent, signal) =>
     queues.dashscope.run(() =>
       runVideoPlanner({
         projectDir: req.projectDir,
@@ -394,6 +409,7 @@ router.post("/projects/:id/video-plan", withProjectDir, (req, res) => {
         kenBurns,
         grain,
         onEvent,
+        signal,
       })
     )
   );
@@ -439,7 +455,7 @@ router.post("/projects/:id/scenes/:sceneId/generate", withProjectDir, (req, res)
     const sceneTiming = JSON.parse(readFileSync(timingFile, "utf-8")).scenes?.find((s) => s.sceneId === sceneId);
     if (!sceneTiming) return res.status(404).json({ error: `Scene "${sceneId}" not found in scenes-with-timing.json` });
 
-    runInBackground(req.projectDir, `scene:${sceneId}`, (onEvent) =>
+    runInBackground(req.projectDir, `scene:${sceneId}`, (onEvent, signal) =>
       queues.dashscope.run(() =>
         runSubSceneWriter({
           projectDir: req.projectDir,
@@ -453,6 +469,7 @@ router.post("/projects/:id/scenes/:sceneId/generate", withProjectDir, (req, res)
           kenBurns: videoPlan.kenBurns,
           grain: videoPlan.grain,
           onEvent,
+          signal,
         })
       )
     );
@@ -463,7 +480,7 @@ router.post("/projects/:id/scenes/:sceneId/generate", withProjectDir, (req, res)
   if (!existsSync(designFile)) return res.status(400).json({ error: "DESIGN.md not found in project" });
   const design = readFileSync(designFile, "utf-8");
 
-  runInBackground(req.projectDir, `scene:${sceneId}`, (onEvent) =>
+  runInBackground(req.projectDir, `scene:${sceneId}`, (onEvent, signal) =>
     queues.dashscope.run(() =>
       runSceneWriter({
         projectDir: req.projectDir,
@@ -474,6 +491,7 @@ router.post("/projects/:id/scenes/:sceneId/generate", withProjectDir, (req, res)
         imageModel: videoPlan.imageModel,
         imageLibrary: videoPlan.imageLibrary,
         onEvent,
+        signal,
       })
     )
   );
@@ -511,7 +529,7 @@ router.post("/projects/:id/root", withProjectDir, (req, res) => {
     return res.status(400).json({ error: "No scenes have finished generating yet — generate at least one scene first" });
   }
 
-  runInBackground(req.projectDir, "root", (onEvent) =>
+  runInBackground(req.projectDir, "root", (onEvent, signal) =>
     queues.dashscope.run(() =>
       runRootComposer({
         projectDir: req.projectDir,
@@ -522,6 +540,7 @@ router.post("/projects/:id/root", withProjectDir, (req, res) => {
         template: videoPlan.template,
         model: videoPlan.cheapModel,
         onEvent,
+        signal,
       })
     )
   );
@@ -529,7 +548,7 @@ router.post("/projects/:id/root", withProjectDir, (req, res) => {
 });
 
 router.post("/projects/:id/render", withProjectDir, (req, res) => {
-  runInBackground(req.projectDir, "render", () => render(req.projectDir));
+  runInBackground(req.projectDir, "render", (onEvent, signal) => render(req.projectDir, { signal }));
   res.status(202).json({ step: "render", status: "running" });
 });
 
@@ -546,8 +565,8 @@ router.post("/projects/:id/caption", withProjectDir, (req, res) => {
   const masterContent = readFileSync(masterContentFile, "utf-8");
   const design = readFileSync(designFile, "utf-8");
 
-  runInBackground(req.projectDir, "caption", (onEvent) =>
-    queues.dashscope.run(() => runCaptionWriter({ projectDir: req.projectDir, masterContent, design, onEvent }))
+  runInBackground(req.projectDir, "caption", (onEvent, signal) =>
+    queues.dashscope.run(() => runCaptionWriter({ projectDir: req.projectDir, masterContent, design, onEvent, signal }))
   );
   res.status(202).json({ step: "caption", status: "running" });
 });

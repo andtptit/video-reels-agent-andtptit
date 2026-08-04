@@ -26,6 +26,7 @@ export const api = {
   runRoot: (id) => request(`/projects/${encodeURIComponent(id)}/root`, { method: "POST" }),
   runRender: (id) => request(`/projects/${encodeURIComponent(id)}/render`, { method: "POST" }),
   runCaption: (id) => request(`/projects/${encodeURIComponent(id)}/caption`, { method: "POST" }),
+  cancelStep: (id, step) => request(`/projects/${encodeURIComponent(id)}/cancel`, { method: "POST", body: JSON.stringify({ step }) }),
   getPreviewUrl: (id) => request(`/projects/${encodeURIComponent(id)}/preview-url`),
   listRenders: (id) => request(`/projects/${encodeURIComponent(id)}/renders`),
   renderUrl: (id, name) => `${API_BASE}/projects/${encodeURIComponent(id)}/renders/${encodeURIComponent(name)}`,

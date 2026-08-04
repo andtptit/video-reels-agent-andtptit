@@ -34,6 +34,7 @@ export async function synthesize({
   apiKey = process.env.ELEVENLABS_API_KEY,
   voiceId = process.env.ELEVENLABS_VOICE_ID || "3VnrjnYrskPMDsapTr8X",
   modelId = "eleven_turbo_v2_5",
+  signal,
 }) {
   if (!apiKey) throw new Error("Missing ELEVENLABS_API_KEY");
 
@@ -47,6 +48,7 @@ export async function synthesize({
         model_id: modelId,
         voice_settings: { stability: 0.5, similarity_boost: 0.75 },
       }),
+      signal,
     }
   );
 

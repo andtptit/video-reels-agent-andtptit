@@ -43,6 +43,7 @@ export async function runSubSceneWriter({
   kenBurns = false, // from video-plan.json's plan.kenBurns — see templates/sub-styles/image-full-focus.mjs
   grain = false, // from video-plan.json's plan.grain — see templates/sub-styles/image-full-focus.mjs
   onEvent,
+  signal,
 }) {
   const style = SUB_STYLES[subStyle];
   if (!style) throw new Error(`Unknown sub style: "${subStyle}" (available: ${Object.keys(SUB_STYLES).join(", ")})`);
@@ -78,6 +79,7 @@ export async function runSubSceneWriter({
       prompt: scene.image_prompt,
       format,
       destPath: imageAbsPath,
+      signal,
       ...(imageModel ? { model: imageModel } : {}),
     });
     // Only a genuinely FRESH generation (not skip-if-exists) is worth banking —

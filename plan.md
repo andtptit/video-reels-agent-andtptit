@@ -2922,3 +2922,131 @@ có kèm hashtag.
    dây chuyền route + `READABLE_FILES` hoạt động, không chỉ hàm đơn lẻ.
 3. Dọn sạch `caption.md` test + khôi phục `job-status.json` về trạng thái trước test
    trên project thật (không để lại dấu vết trong project của user).
+
+---
+
+## Mới — "Chạy hàng loạt" (full pipeline) + Huỷ job đang chạy (chạy lẻ & hàng loạt) (phiên 2026-08-04)
+
+User đặt 2 yêu cầu gộp chung 1 đợt (phụ thuộc lẫn nhau): (1) tab "Hàng loạt" trước đó
+chỉ dừng ở tạo project (content-plan) — nay thêm nút tự chạy hết
+audio→video-plan→scene→root→render cho mọi project đã duyệt, không cần vào từng
+project bấm tay; (2) không có cách huỷ 1 job đang chạy thật (LLM/ảnh/TTS/render) — kể
+cả chạy lẻ lẫn hàng loạt, đặc biệt quan trọng lúc chạy hàng loạt không giám sát.
+
+3 quyết định đã chốt với user: chạy hàng loạt **tuần tự** (không song song); **retry 1
+lần** mỗi bước lỗi trước khi coi là thất bại thật; có nút **"Dừng toàn bộ hàng loạt"**
+riêng, huỷ ngay bước đang chạy dở + chặn không sang project tiếp theo. Yêu cầu UX
+riêng: phải có trạng thái tạm "Đang huỷ…" ngay khi bấm, CHỈ chuyển "Đã huỷ" sau khi
+job-status server xác nhận thật — không lạc quan hoá UI.
+
+### Kiến trúc — hạ tầng Huỷ xây 1 lần, dùng chung cho chạy lẻ & hàng loạt
+
+Batch-runner chỉ là 1 vòng lặp client-side gọi lại ĐÚNG các route step đã có sẵn
+(`POST /projects/:id/audio|video-plan|scenes/:id/generate|root|render`) — giống hệt
+`runAllPipeline` (Pipeline.jsx) đã làm, chỉ lặp qua N project thay vì 1. Vì vậy cơ chế
+Huỷ chỉ cần xây 1 lần ở tầng route/agent/provider.
+
+`run-agent.mjs`'s `runAgent()` là điểm hội tụ DUY NHẤT của mọi agent LLM (content-
+planner/video-planner/scene-writer/sub-scene-writer/root-composer/remix-scenes/idea-
+generator/caption-writer đều gọi qua đây) — chỉ xuyên 1 `signal` qua đúng điểm này là
+phủ được toàn bộ nhóm agent.
+
+**Cơ chế**: `AbortController` mới tạo mỗi lần `runStep()` chạy, đăng ký vào
+`server/jobs/cancel-registry.mjs` (`Map<"${projectDir}::${step}", AbortController>`).
+Route `POST /projects/:id/cancel` (body `{step}`) tra registry, gọi
+`controller.abort(new CancelledError())`. `CancelledError` (class riêng) đảm bảo mọi
+tầng retry sẵn có trong repo (dashscope.mjs's 2-retry cho AbortError, TTS retry mới
+thêm gần đây) phân biệt được "huỷ chủ động" với "lỗi mạng thoáng qua" — check
+`signal?.aborted` LUÔN đứng trước logic retry trong mọi catch block liên quan.
+`signal` xuyên qua từng lớp bằng `AbortSignal.any([external, internalTimeout])`
+(Node 20+, xác nhận chạy Node 24) để không mất khả năng timeout nội bộ có sẵn.
+
+Job-status có state mới `"cancelled"` (tách biệt `"error"`) để UI/retry logic phân
+biệt "dừng chủ động" với "thất bại thật".
+
+### Bug thật tìm thấy khi verify (không phải lỗi có sẵn — do chính code Huỷ mới thêm)
+
+`server/providers/tts/edge-tts.mjs`: bản đầu tiên đăng ký
+`signal.addEventListener("abort", onAbort)` SAU `await tts.setMetadata(...)`. Nếu
+abort xảy ra ĐÚNG lúc đang await `setMetadata` (trước khi listener tồn tại), event bị
+bỏ lỡ vĩnh viễn (AbortSignal không phát lại event cho listener đăng ký sau) →
+`synthesize()` treo vô hạn. Fix: đăng ký listener NGAY sau `new MsEdgeTTS()`, trước
+`setMetadata`; `setMetadata` cũng bọc try/catch check `signal?.aborted`. Verify thật:
+huỷ lúc đang setMetadata giờ throw `CancelledError` đúng ~313ms khớp abort trigger
+300ms (trước đó treo >20s không có output).
+
+### Verify thật — từng layer riêng lẻ (đã PASS, gọi API/process thật, không mock)
+
+1. **Huỷ LLM call (dashscope.mjs qua run-agent.mjs)**: gọi thật, abort giữa chừng →
+   `CancelledError` throw ngay, không bị retry 2 lần như AbortError thường.
+2. **Huỷ sinh ảnh (dashscope-image.mjs)**: abort giữa lúc đọc SSE stream VÀ giữa lúc
+   `fetch` tải ảnh về — cả 2 nhánh đều dừng đúng, throw `CancelledError`.
+3. **Huỷ TTS (edge-tts.mjs)**: tìm + fix bug thật ở trên; verify lại sau fix PASS.
+4. **Huỷ render (hyperframes-cli.mjs qua execFile signal)**: huỷ 1 render đang chạy
+   dở ở giây thứ 3 (giữa lúc capture frame) → `CancelledError` sau ~5s (đúng lúc
+   process con bị kill), soi danh sách process Windows ngay sau đó — KHÔNG thấy
+   Chromium/node con mồ côi sót lại (so sánh trước/sau theo group PID + command-line
+   pattern). Không 100% chắc chắn tuyệt đối (Windows `TerminateProcess` không đảm bảo
+   cascade cleanup cây tiến trình), nhưng test thật không phát hiện rò rỉ.
+
+### Verify thật — end-to-end (2 project thật, quota DashScope free-tier lúc test đang
+cạn ở `qwen3.6-plus`/`qwen3.6-flash`, phải chuyển sang `qwen3.7-flash`)
+
+- **Project 1** (`3 mẹo tăng tốc điện thoại Android chậm`, 5 scene): chạy tuần tự
+  audio→video-plan→scene_01…scene_05→root→render, tất cả qua ĐÚNG route HTTP thật (mô
+  phỏng batch-runner). `scene_05` thất bại thật lần đầu (`ENOENT` trên
+  `compositions/scene_05.html` — model trả lời bằng văn xuôi thay vì gọi `write_file`,
+  xem mục bug có sẵn bên dưới) — kích hoạt đúng logic **retry 1 lần** mới thêm: gọi
+  lại `POST /scenes/scene_05/generate`, lần này model gọi `write_file` đúng, lint tự
+  sửa qua vài attempt, step chuyển `"done"` thật. Root + render chạy tiếp bình thường
+  → `renders/video_2026-08-04_15-01-35.mp4` thật, `ffprobe` xác nhận hợp lệ: h264
+  1080×1920, có track AAC, duration 49.19s, 6.9MB.
+- **Project 2** (`Cách kiểm tra điện thoại có bị theo dõi không`): mô phỏng đúng hành
+  vi nút "Dừng toàn bộ hàng loạt" — fire `POST /audio`, đợi 2s (đang giữa lúc gọi TTS
+  thật), gọi `POST /cancel {step:"audio"}` → step chuyển `"cancelled"` với message
+  "Đã huỷ theo yêu cầu" (không phải `"error"`) — đúng hành vi mà `stopBatchPipeline()`
+  trong `Batch.jsx` sẽ kích hoạt: huỷ đúng bước đang chạy dở, không có project nào
+  tiếp theo được fire (đảm bảo bởi check đồng bộ `stopRequestedRef` trong vòng lặp
+  client, đã review code — không cần thêm project 3 để chứng minh, logic chặn nằm
+  hoàn toàn ở phía client trước khi gọi API tiếp theo).
+- Dọn sạch: xoá cả 2 project test, profile test (`test-batch-run`,
+  `test-batch-run2`), không còn dấu vết trong `output/2026-08-04/` hay
+  `server/profiles/`.
+
+### Chưa test / biết trước (giới hạn của lần verify này)
+
+- Chưa test qua UI thật trong trình duyệt (chỉ verify bằng gọi route trực tiếp qua
+  Node `fetch`, mô phỏng đúng thứ tự API mà Batch.jsx/Pipeline.jsx gọi) — cần user tự
+  bấm nút "Huỷ"/"Chạy hàng loạt"/"Dừng toàn bộ hàng loạt" thật trên UI sau khi
+  `npm run dev` lại web để xác nhận state React (`cancellingSteps`, "Đang huỷ…" →
+  "Đã huỷ") render đúng.
+- Chưa ép được lỗi hệ thống thật (3 lỗi liên tiếp cùng step+message ở project khác
+  nhau) để kiểm tra path tự-dừng-cả-batch — verify qua code review, chưa có bằng
+  chứng sống.
+- Chưa verify path resume thật (đóng/mở lại tab giữa lúc chạy hàng loạt) qua UI, dù
+  logic `status === "done" thì skip` đã có sẵn và cùng pattern với vòng duyệt ý tưởng
+  đã verify trước đó.
+
+### Bug có sẵn tìm thấy khi test (KHÔNG liên quan tới việc Huỷ/hàng loạt — phát hiện
+phụ trong lúc verify dưới áp lực quota cạn)
+
+3 agent (`idea-generator.mjs`, `video-planner.mjs`, `scene-writer.mjs`) không xác
+nhận file output thực sự được ghi trước khi coi bước là thành công: `run-agent.mjs`'s
+nhánh sớm-trả-về khi model không gọi tool nào (`if (!message.tool_calls?.length)
+{ return {finalMessage: ...}; }`) không biết/không quan tâm liệu deliverable thật
+(vd `write_file` đúng path) có xảy ra không. Khi model (đặc biệt lúc bị fallback do
+quota) trả lời bằng văn xuôi thay vì gọi `write_file`, bước bị đánh dấu `"done"` dù
+KHÔNG có output thật, làm hỏng ngầm state ở bước sau (vd `readFileSync` ENOENT). Gặp
+thật 3 lần trong phiên hôm nay (idea-generator ra `ideas.json` rỗng, video-planner
+thiếu `video-plan.json`, scene-writer thiếu `compositions/scene_05.html`). Đã báo cho
+user, CHƯA nhận quyết định có sửa hay không — không nằm trong phạm vi việc Huỷ/hàng
+loạt lần này, để lại làm việc riêng nếu user xác nhận muốn sửa.
+
+### Critical Files
+server/jobs/cancel-registry.mjs (mới), server/jobs/job-status.mjs,
+server/routes.mjs, server/providers/llm/dashscope.mjs, server/agents/run-agent.mjs,
+server/providers/image/dashscope-image.mjs, server/providers/tts/edge-tts.mjs,
+elevenlabs.mjs, server/pipeline/generate-audio.mjs, server/tools/hyperframes-cli.mjs,
+8 file agent (content-planner/video-planner/scene-writer/sub-scene-writer/root-
+composer/remix-scenes/idea-generator/caption-writer.mjs), web/src/api.js,
+web/src/components/StatusBadge.jsx, Pipeline.jsx, SceneGrid.jsx, Batch.jsx.

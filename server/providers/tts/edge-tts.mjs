@@ -9,6 +9,7 @@
  */
 import { writeFileSync } from "fs";
 import { MsEdgeTTS, OUTPUT_FORMAT } from "msedge-tts";
+import { CancelledError } from "../../jobs/cancel-registry.mjs";
 
 export const id = "edge-tts";
 
@@ -19,36 +20,69 @@ const DEFAULT_VOICE = process.env.EDGE_TTS_VOICE || "vi-VN-HoaiMyNeural";
 // directly (confirmed via server/node_modules/msedge-tts/dist/Prosody.d.ts).
 const DEFAULT_RATE = Number(process.env.EDGE_TTS_RATE) || 1.1;
 
-export async function synthesize({ text, destPath, voiceId = DEFAULT_VOICE, rate = DEFAULT_RATE }) {
+export async function synthesize({ text, destPath, voiceId = DEFAULT_VOICE, rate = DEFAULT_RATE, signal }) {
+  if (signal?.aborted) throw signal.reason instanceof CancelledError ? signal.reason : new CancelledError();
+
   const tts = new MsEdgeTTS();
-  await tts.setMetadata(voiceId, OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3, {
-    wordBoundaryEnabled: true,
-  });
+
+  // `MsEdgeTTS.close()` is the library's public method for tearing down the
+  // WebSocket mid-synthesis (confirmed via its .d.ts) — closing it before "turn.end"
+  // is exactly the same code path that already produces the "Stream closed before
+  // the synthesis completed..." error (the transient chập chờn bug fixed earlier),
+  // so we tell the two apart below by checking `signal.aborted` once the streams
+  // reject, not by trying to special-case the error message.
+  //
+  // Registered BEFORE `setMetadata` (not after `toStream`, where it lived in an
+  // earlier version of this function) — confirmed live this was a real bug: an abort
+  // firing while `setMetadata`'s WebSocket handshake is still in flight has no
+  // listener yet at that point, and `addEventListener` on an already-fired
+  // AbortSignal does NOT retroactively replay the event, so the cancel was silently
+  // swallowed and `synthesize()` hung until the real network response eventually
+  // arrived (or never returned within a test's timeout at all).
+  const onAbort = () => tts.close();
+  signal?.addEventListener("abort", onAbort, { once: true });
+
+  try {
+    await tts.setMetadata(voiceId, OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3, {
+      wordBoundaryEnabled: true,
+    });
+  } catch (err) {
+    signal?.removeEventListener("abort", onAbort);
+    if (signal?.aborted) throw signal.reason instanceof CancelledError ? signal.reason : new CancelledError();
+    throw err;
+  }
 
   const { audioStream, metadataStream } = tts.toStream(text, { rate });
 
   const audioChunks = [];
   const metadataItems = [];
 
-  await Promise.all([
-    new Promise((resolve, reject) => {
-      audioStream.on("data", (chunk) => audioChunks.push(chunk));
-      audioStream.once("error", reject);
-      audioStream.once("close", resolve);
-    }),
-    new Promise((resolve, reject) => {
-      metadataStream.on("data", (chunk) => {
-        try {
-          const parsed = JSON.parse(chunk.toString());
-          metadataItems.push(...(parsed.Metadata ?? []));
-        } catch {
-          // ignore malformed metadata chunk — audio is unaffected
-        }
-      });
-      metadataStream.once("error", reject);
-      metadataStream.once("close", resolve);
-    }),
-  ]);
+  try {
+    await Promise.all([
+      new Promise((resolve, reject) => {
+        audioStream.on("data", (chunk) => audioChunks.push(chunk));
+        audioStream.once("error", reject);
+        audioStream.once("close", resolve);
+      }),
+      new Promise((resolve, reject) => {
+        metadataStream.on("data", (chunk) => {
+          try {
+            const parsed = JSON.parse(chunk.toString());
+            metadataItems.push(...(parsed.Metadata ?? []));
+          } catch {
+            // ignore malformed metadata chunk — audio is unaffected
+          }
+        });
+        metadataStream.once("error", reject);
+        metadataStream.once("close", resolve);
+      }),
+    ]);
+  } catch (err) {
+    if (signal?.aborted) throw signal.reason instanceof CancelledError ? signal.reason : new CancelledError();
+    throw err;
+  } finally {
+    signal?.removeEventListener("abort", onAbort);
+  }
 
   const audioBuf = Buffer.concat(audioChunks);
   if (!audioBuf.length) throw new Error("Edge TTS returned no audio data");

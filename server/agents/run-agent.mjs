@@ -10,6 +10,7 @@
  */
 import { chatCompletion, isQuotaOrRateLimitError } from "../providers/llm/dashscope.mjs";
 import { nextFallbackModel } from "../lib/models.mjs";
+import { CancelledError } from "../jobs/cancel-registry.mjs";
 
 // Overridable via .env (DASHSCOPE_MODEL) so switching models for a test doesn't
 // require editing code — content-planner/video-planner default to this (each runs
@@ -58,6 +59,7 @@ export async function runAgent({
   priorMessages = null,
   stopAfterWrites = null,
   timeoutMs,
+  signal,
 }) {
   const messages = priorMessages
     ? [...priorMessages, { role: "user", content: userPrompt }]
@@ -84,12 +86,17 @@ export async function runAgent({
   const triedModels = [];
 
   for (let turn = 0; turn < maxTurns; turn++) {
+    if (signal?.aborted) throw signal.reason instanceof CancelledError ? signal.reason : new CancelledError();
     let response;
     for (;;) {
       try {
-        response = await chatCompletion({ model: currentModel, messages, tools: tools.definitions, ...(timeoutMs ? { timeoutMs } : {}) });
+        response = await chatCompletion({ model: currentModel, messages, tools: tools.definitions, signal, ...(timeoutMs ? { timeoutMs } : {}) });
         break;
       } catch (err) {
+        if (err instanceof CancelledError) {
+          err.usage = usage;
+          throw err;
+        }
         if (!isQuotaOrRateLimitError(err)) throw err;
         if (!triedModels.includes(currentModel)) triedModels.push(currentModel);
         const fallback = nextFallbackModel(model, triedModels);

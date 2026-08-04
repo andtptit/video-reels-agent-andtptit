@@ -40,10 +40,40 @@ export function SceneGrid({ id, steps, events, refreshKey, audioReady }) {
   const [videoPlan, setVideoPlan] = useState(null);
   const [error, setError] = useState(null);
   const [openImages, setOpenImages] = useState(() => new Set());
+  // Same "Đang huỷ… until job-status confirms" pattern as Pipeline.jsx's StepRow —
+  // kept local here (not lifted to Pipeline) since SceneGrid already owns its own
+  // transient UI state (openImages) independently.
+  const [cancellingSteps, setCancellingSteps] = useState(() => new Set());
 
   useEffect(() => {
     api.getFile(id, "video-plan.json").then(setVideoPlan).catch((err) => setError(err.message));
   }, [id, refreshKey]);
+
+  useEffect(() => {
+    if (!cancellingSteps.size) return;
+    setCancellingSteps((prev) => {
+      let changed = false;
+      const next = new Set(prev);
+      for (const key of prev) {
+        if (steps[key]?.status !== "running") {
+          next.delete(key);
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [steps]);
+
+  async function cancelSceneUI(stepKey) {
+    setCancellingSteps((prev) => new Set(prev).add(stepKey));
+    try {
+      await api.cancelStep(id, stepKey);
+    } catch {
+      /* stale view or transient network error — cleared by the effect above once
+         job-status itself settles */
+    }
+  }
 
   if (error) return <p className="error">{error}</p>;
   if (!videoPlan) return null;
@@ -99,7 +129,11 @@ export function SceneGrid({ id, steps, events, refreshKey, audioReady }) {
               <strong>{scene.sceneId}</strong>
               <div className="muted">{scene.content_shape} · {scene.duration}s</div>
               <div className="step-row-badges">
-                <StatusBadge status={stepStatus} />
+                {cancellingSteps.has(stepKey) ? (
+                  <span style={{ color: "#888", fontWeight: 600, fontSize: "0.85em" }}>Đang huỷ…</span>
+                ) : (
+                  <StatusBadge status={stepStatus} />
+                )}
                 <TokenBadge usage={steps[stepKey]?.usage} />
               </div>
               {audioReady && <SceneAudioPreview id={id} sceneId={scene.sceneId} />}
@@ -120,6 +154,11 @@ export function SceneGrid({ id, steps, events, refreshKey, audioReady }) {
               >
                 {stepStatus === "done" ? "Generate lại" : "Generate"}
               </button>
+              {stepStatus === "running" && (
+                <button type="button" className="linklike" disabled={cancellingSteps.has(stepKey)} onClick={() => cancelSceneUI(stepKey)}>
+                  Huỷ
+                </button>
+              )}
               {stepStatus === "done" && (
                 <button type="button" className="linklike" onClick={() => toggleImage(scene.sceneId)}>
                   {openImages.has(scene.sceneId) ? "Ẩn ảnh" : "Xem ảnh"}
@@ -130,6 +169,7 @@ export function SceneGrid({ id, steps, events, refreshKey, audioReady }) {
               )}
               {stepStatus === "running" && <LiveLog events={events} step={stepKey} maxLines={4} />}
               {steps[stepKey]?.status === "error" && <p className="error">{steps[stepKey].error}</p>}
+              {steps[stepKey]?.status === "cancelled" && <p className="muted">{steps[stepKey].error}</p>}
             </div>
           );
         })}

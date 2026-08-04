@@ -84,6 +84,7 @@ export async function runVideoPlanner({
   model = DEFAULT_MODEL,
   maxTurns = 8,
   onEvent,
+  signal,
 }) {
   const effectiveVisualStyle = template === "sub" ? "ai-image" : visualStyle;
   const skill = readFileSync(SKILL_PATH, "utf-8");
@@ -157,7 +158,7 @@ DESIGN.md và scenes-with-timing.json đã được nhúng đầy đủ trong us
   // default (was 90s) wasn't enough: 3 separate real runs each burned the full 90s ×
   // 3 retries and still got AbortError, so the model was still generating, not stuck.
   // Give this one extra headroom beyond the (now-raised) global default.
-  const result = await runAgent({ systemPrompt, userPrompt, tools, model, maxTurns, onEvent, timeoutMs: 240_000 });
+  const result = await runAgent({ systemPrompt, userPrompt, tools, model, maxTurns, onEvent, timeoutMs: 240_000, signal });
 
   const outFile = join(projectDir, "video-plan.json");
   if (existsSync(outFile)) {

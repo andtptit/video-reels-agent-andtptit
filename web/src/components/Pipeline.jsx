@@ -60,18 +60,28 @@ function PipelineNav({ items }) {
   );
 }
 
-function StepRow({ id, title, status, error, usage, children }) {
+function StepRow({ id, title, status, error, usage, cancelling, onCancel, children }) {
   return (
     <div className="step-row" id={id}>
       <div className="step-row-head">
         <strong>{title}</strong>
         <span className="step-row-badges">
           <TokenBadge usage={usage} />
-          <StatusBadge status={status} />
+          {cancelling ? (
+            <span style={{ color: "#888", fontWeight: 600, fontSize: "0.85em" }}>Đang huỷ…</span>
+          ) : (
+            <StatusBadge status={status} />
+          )}
+          {status === "running" && onCancel && (
+            <button type="button" className="linklike" disabled={cancelling} onClick={onCancel}>
+              Huỷ
+            </button>
+          )}
         </span>
       </div>
       {children}
       {status === "error" && error && <p className="error">{error}</p>}
+      {status === "cancelled" && error && <p className="muted">{error}</p>}
     </div>
   );
 }
@@ -155,6 +165,13 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, onProjectCrea
   const [effectsMsg, setEffectsMsg] = useState(null);
   const [formError, setFormError] = useState(null);
 
+  // Steps a Huỷ click was fired for but job-status hasn't confirmed stopped yet —
+  // renders "Đang huỷ…" until the SSE-driven `steps` state actually shows the step
+  // left "running" (done/error/cancelled), never optimistically before the server
+  // confirms (see plan.md's Huỷ section for why this matters: cancelling a real
+  // DashScope call is a request, not an instant fact).
+  const [cancellingSteps, setCancellingSteps] = useState(() => new Set());
+
   // Channel profiles — bundles everything above except `audience` (per-video, not
   // per-channel) so a recurring channel's setup doesn't need re-picking every time.
   const [profiles, setProfiles] = useState([]);
@@ -225,6 +242,39 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, onProjectCrea
       setFormError(err.message);
     }
   }
+
+  // A 404 here just means the step already finished (done/error) a moment before the
+  // click landed — the UI's own view was stale, not a real failure, so it's dropped
+  // silently rather than surfaced via setFormError like a genuine error would be.
+  async function cancelStepUI(stepKey) {
+    setCancellingSteps((prev) => new Set(prev).add(stepKey));
+    try {
+      await api.cancelStep(id, stepKey);
+    } catch {
+      /* stale view (step already settled) or a transient network error — either way,
+         the effect below clears cancellingSteps once `steps[stepKey]` itself settles,
+         so nothing more to do here. */
+    }
+  }
+
+  // Clears a step out of `cancellingSteps` only once job-status confirms it's no
+  // longer "running" — this is what makes "Đang huỷ…" hold until the real state
+  // change, instead of flipping to "Đã huỷ" the instant the button is clicked.
+  useEffect(() => {
+    if (!cancellingSteps.size) return;
+    setCancellingSteps((prev) => {
+      let changed = false;
+      const next = new Set(prev);
+      for (const key of prev) {
+        if (steps[key]?.status !== "running") {
+          next.delete(key);
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [steps]);
 
   function applyProfile(p) {
     if (!p) return;
@@ -300,6 +350,10 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, onProjectCrea
         const s = stepsRef.current[stepKey];
         if (s?.status === "done") return resolve(s);
         if (s?.status === "error") return reject(new Error(s.error || `Bước "${stepKey}" thất bại`));
+        // Huỷ giữa lúc "Chạy toàn bộ pipeline" đang chạy phải dừng cả chuỗi luôn
+        // (không tự tiếp bước tiếp theo) — cùng đường reject với "error", chỉ khác
+        // message, vì runAllPipeline's catch không phân biệt 2 loại này.
+        if (s?.status === "cancelled") return reject(new Error(s.error || `Bước "${stepKey}" đã bị huỷ`));
         setTimeout(check, pollMs);
       };
       check();
@@ -645,7 +699,7 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, onProjectCrea
         )}
       </div>
 
-      <StepRow id="step-plan" title="1. Content plan" status={planStatus} error={steps.plan?.error} usage={steps.plan?.usage}>
+      <StepRow id="step-plan" title="1. Content plan" status={planStatus} error={steps.plan?.error} usage={steps.plan?.usage} cancelling={cancellingSteps.has("plan")} onCancel={() => cancelStepUI("plan")}>
         {planStatus !== "done" && planStatus !== "running" && (
           <button
             type="button"
@@ -661,7 +715,7 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, onProjectCrea
         <CheckpointPanel id={id} file="scenes.json" title="Scenes (nội dung)" refreshKey={steps.plan?.at} />
       )}
 
-      <StepRow id="step-audio" title="2. Audio (TTS)" status={audioStatus} error={steps.audio?.error}>
+      <StepRow id="step-audio" title="2. Audio (TTS)" status={audioStatus} error={steps.audio?.error} cancelling={cancellingSteps.has("audio")} onCancel={() => cancelStepUI("audio")}>
         {planStatus === "done" && audioStatus !== "done" && audioStatus !== "running" && (
           <button type="button" onClick={() => run(() => api.runAudio(id, { ttsProvider, ttsRate, ttsVoice: ttsVoice || undefined, musicTrack: musicTrack || undefined, musicVolume }))}>
             Chạy audio
@@ -683,7 +737,7 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, onProjectCrea
         {audioStatus === "running" && <LiveLog events={events} step="audio" />}
       </StepRow>
 
-      <StepRow id="step-video-plan" title="3. Video plan" status={videoPlanStatus} error={steps["video-plan"]?.error} usage={steps["video-plan"]?.usage}>
+      <StepRow id="step-video-plan" title="3. Video plan" status={videoPlanStatus} error={steps["video-plan"]?.error} usage={steps["video-plan"]?.usage} cancelling={cancellingSteps.has("video-plan")} onCancel={() => cancelStepUI("video-plan")}>
         {audioStatus === "done" && videoPlanStatus !== "done" && videoPlanStatus !== "running" && (
           <button
             type="button"
@@ -751,7 +805,7 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, onProjectCrea
         </div>
       )}
 
-      <StepRow id="step-root" title="4. Ghép video (root)" status={rootStatus} error={steps.root?.error} usage={steps.root?.usage}>
+      <StepRow id="step-root" title="4. Ghép video (root)" status={rootStatus} error={steps.root?.error} usage={steps.root?.usage} cancelling={cancellingSteps.has("root")} onCancel={() => cancelStepUI("root")}>
         {videoPlanStatus === "done" && rootStatus !== "running" && (
           <>
             <p className="muted">
@@ -769,7 +823,7 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, onProjectCrea
         <CheckpointPanel id={id} file="index.html" title="Root composition" refreshKey={steps.root?.at} />
       )}
 
-      <StepRow id="step-render" title="5. Render" status={renderStatus} error={steps.render?.error}>
+      <StepRow id="step-render" title="5. Render" status={renderStatus} error={steps.render?.error} cancelling={cancellingSteps.has("render")} onCancel={() => cancelStepUI("render")}>
         {rootStatus === "done" && renderStatus !== "running" && (
           <button type="button" onClick={() => run(() => api.runRender(id))}>
             {renderStatus === "done" ? "Render lại" : "Render"}
@@ -781,7 +835,7 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, onProjectCrea
       </StepRow>
       {renderStatus === "done" && <RenderPlayer id={id} refreshKey={steps.render?.at} />}
 
-      <StepRow id="step-caption" title="6. Caption (Reels)" status={captionStatus} error={steps.caption?.error} usage={steps.caption?.usage}>
+      <StepRow id="step-caption" title="6. Caption (Reels)" status={captionStatus} error={steps.caption?.error} usage={steps.caption?.usage} cancelling={cancellingSteps.has("caption")} onCancel={() => cancelStepUI("caption")}>
         {planStatus === "done" && captionStatus !== "running" && (
           <button type="button" onClick={() => run(() => api.runCaption(id))}>
             {captionStatus === "done" ? "Viết lại caption" : "Viết caption"}

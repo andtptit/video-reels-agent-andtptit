@@ -24,7 +24,7 @@ import { createFsTools } from "../tools/fs-tools.mjs";
  * @param {string} params.remixPrompt - free-text remix instruction from the user
  *   (change writing style, target audience, tone, etc).
  */
-export async function runRemixScenes({ projectDir, sourceScenes, remixPrompt, model = DEFAULT_MODEL, onEvent }) {
+export async function runRemixScenes({ projectDir, sourceScenes, remixPrompt, model = DEFAULT_MODEL, onEvent, signal }) {
   const tools = createFsTools(projectDir);
 
   // Strip `_audio` (stale mp3 path/word-timestamps from the OLD narration — audio
@@ -73,7 +73,7 @@ Sau khi ghi xong, trả lời bằng 1 câu tóm tắt ngắn — không tool ca
     `Scene gốc (KHÔNG đổi sceneId/thứ tự/số lượng):\n${JSON.stringify(sourceForPrompt, null, 2)}`,
   ].join("\n\n---\n\n");
 
-  const result = await runAgent({ systemPrompt, userPrompt, tools, model, onEvent });
+  const result = await runAgent({ systemPrompt, userPrompt, tools, model, onEvent, signal });
 
   const outFile = join(projectDir, "scenes.json");
   if (existsSync(outFile)) {

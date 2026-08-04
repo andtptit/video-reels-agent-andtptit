@@ -11,6 +11,7 @@
 import { readFileSync, writeFileSync, existsSync } from "fs";
 import { join } from "path";
 import { EventEmitter } from "events";
+import { registerCancellable, unregisterCancellable, CancelledError } from "./cancel-registry.mjs";
 
 const emitters = new Map();
 
@@ -53,6 +54,7 @@ export function summarizeProjectStatus(projectDir) {
   if (!Object.keys(steps).length) return { label: "Chưa bắt đầu", hasError: false, renderDone: false, isRunning: false };
 
   const erroredStep = Object.values(steps).find((s) => s.status === "error");
+  const cancelledStep = Object.values(steps).find((s) => s.status === "cancelled");
   const sceneEntries = Object.entries(steps).filter(([k]) => k.startsWith("scene:"));
   const sceneDone = sceneEntries.filter(([, s]) => s.status === "done").length;
 
@@ -68,6 +70,7 @@ export function summarizeProjectStatus(projectDir) {
   }
 
   if (erroredStep) return { label: `Lỗi ở "${erroredStep.step}"`, hasError: true, renderDone, isRunning };
+  if (cancelledStep) return { label: `Đã huỷ ở "${cancelledStep.step}"`, hasError: false, renderDone, isRunning };
   if (renderDone) return { label: "Đã render", hasError: false, renderDone, isRunning };
   if (steps.root?.status === "done") return { label: "Đã ghép, chưa render", hasError: false, renderDone, isRunning };
   if (sceneTotal > 0) return { label: `${sceneDone}/${sceneTotal} scene xong`, hasError: false, renderDone, isRunning };
@@ -84,7 +87,7 @@ export function getEmitter(projectDir) {
   return emitters.get(projectDir);
 }
 
-const STATUS_TRANSITIONS = new Set(["running", "done", "error"]);
+const STATUS_TRANSITIONS = new Set(["running", "done", "error", "cancelled"]);
 const MAX_EVENTS = 500;
 
 /** Records one progress event for `step` (e.g. "plan", "audio", "scene:scene_01")
@@ -165,10 +168,18 @@ export function reconcileInterruptedSteps(projectDir) {
   return changed;
 }
 
+/** `taskFn(onEvent, signal)` — `signal` fires when `POST /projects/:id/cancel` is
+ *  called for this exact `(projectDir, step)` while it's running (see
+ *  cancel-registry.mjs). Every provider call downstream (chatCompletion, TTS
+ *  synthesize, render's execFile, image generation) is expected to accept and honor
+ *  this same signal so an abort actually stops in-flight work instead of just
+ *  hiding it from the UI while the server keeps paying for it. */
 export async function runStep(projectDir, step, taskFn) {
   emitProgress(projectDir, { step, status: "running" });
+  const controller = new AbortController();
+  registerCancellable(projectDir, step, controller);
   try {
-    const result = await taskFn((partial) => emitProgress(projectDir, { step, status: "progress", ...partial }));
+    const result = await taskFn((partial) => emitProgress(projectDir, { step, status: "progress", ...partial }), controller.signal);
     if (result && typeof result === "object" && result.ok === false) {
       const err = new Error(result.error ?? `${step} failed`);
       err.usage = result.usage;
@@ -177,11 +188,17 @@ export async function runStep(projectDir, step, taskFn) {
     emitProgress(projectDir, { step, status: "done", usage: result?.usage ?? null });
     return result;
   } catch (err) {
+    if (err instanceof CancelledError) {
+      emitProgress(projectDir, { step, status: "cancelled", error: err.message, usage: err.usage ?? null });
+      throw err;
+    }
     // Agent tasks (content-planner/video-planner/scene-writer/root-composer) attach
     // `.usage` to thrown errors too (see run-agent.mjs) — a failed job still spent
     // real tokens getting there, and that cost should show up in totalUsage same as
     // a successful one, not silently vanish.
     emitProgress(projectDir, { step, status: "error", error: err.message, usage: err.usage ?? null });
     throw err;
+  } finally {
+    unregisterCancellable(projectDir, step);
   }
 }

@@ -24,6 +24,7 @@ export async function runContentPlanner({
   targetDuration = "30–60s",
   model = DEFAULT_MODEL,
   onEvent,
+  signal,
 }) {
   const skill = readFileSync(SKILL_PATH, "utf-8");
   const tools = createFsTools(projectDir);
@@ -45,7 +46,7 @@ có tiền tố thư mục project): \`master_content.md\` và \`scenes.json\`. 
     `Tổng thời lượng mong muốn: ${targetDuration}`,
   ].join("\n");
 
-  const result = await runAgent({ systemPrompt, userPrompt, tools, model, onEvent });
+  const result = await runAgent({ systemPrompt, userPrompt, tools, model, onEvent, signal });
 
   const outFile = join(projectDir, "scenes.json");
   if (existsSync(outFile)) {

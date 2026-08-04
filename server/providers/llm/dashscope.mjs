@@ -7,6 +7,8 @@
  *     for scene-writer.mjs/root-composer.mjs (see run-agent.mjs's CHEAP_MODEL) since
  *     those run once per scene and don't need qwen-plus's extra reasoning quality.
  */
+import { CancelledError } from "../../jobs/cancel-registry.mjs";
+
 export const id = "dashscope";
 
 const ENDPOINT =
@@ -46,24 +48,31 @@ export async function chatCompletion({
   apiKey = process.env.DASHSCOPE_API_KEY,
   timeoutMs = 180_000,
   retries = 2,
+  signal, // external cancel signal (see jobs/cancel-registry.mjs) — merged with our
+  // own timeout controller below. Must NOT go through the transient-retry path: a
+  // deliberate user cancel and a bare `AbortError` are both "AbortError" by name, but
+  // treating cancel as retryable would silently keep calling DashScope 1-2 more times
+  // after the user clicked Huỷ, which defeats the whole point of that button.
 }) {
   if (!apiKey) throw new Error("Missing DASHSCOPE_API_KEY");
 
   for (let attempt = 0; ; attempt++) {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    const timeoutController = new AbortController();
+    const timer = setTimeout(() => timeoutController.abort(), timeoutMs);
+    const combinedSignal = signal ? AbortSignal.any([signal, timeoutController.signal]) : timeoutController.signal;
     try {
       const res = await fetch(ENDPOINT, {
         method: "POST",
         headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
         body: JSON.stringify({ model, messages, ...(tools ? { tools } : {}) }),
-        signal: controller.signal,
+        signal: combinedSignal,
       });
       if (!res.ok) {
         throw new Error(`DashScope chat completion failed (${res.status}): ${await res.text()}`);
       }
       return await res.json();
     } catch (err) {
+      if (signal?.aborted) throw signal.reason instanceof CancelledError ? signal.reason : new CancelledError();
       const retryable = err.name === "AbortError" || isTransient(err);
       if (!retryable || attempt >= retries) {
         throw new Error(`DashScope chat completion failed after ${attempt + 1} attempt(s): ${err.message}`, { cause: err });

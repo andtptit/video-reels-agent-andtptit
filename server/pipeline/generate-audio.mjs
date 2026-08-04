@@ -9,6 +9,7 @@ import { writeFileSync, mkdirSync, existsSync, readFileSync, copyFileSync } from
 import { join, resolve } from "path";
 import * as elevenlabs from "../providers/tts/elevenlabs.mjs";
 import * as edgeTts from "../providers/tts/edge-tts.mjs";
+import { CancelledError } from "../jobs/cancel-registry.mjs";
 
 const ROOT = resolve(import.meta.dirname, "..", "..");
 const TTS_PROVIDERS = { elevenlabs, "edge-tts": edgeTts };
@@ -66,7 +67,7 @@ function selectMusic(plans) {
  *   entirely when given; `musicVolume` is 0-1 (UI sends a 0-100 percent, divided
  *   before it gets here — see routes.mjs).
  */
-export async function runGenerateAudio(projectDir, { ttsProvider: providerId = process.env.TTS_PROVIDER || "elevenlabs", ttsRate, ttsVoice, musicTrack: musicTrackOverride, musicVolume, onEvent = () => {} } = {}) {
+export async function runGenerateAudio(projectDir, { ttsProvider: providerId = process.env.TTS_PROVIDER || "elevenlabs", ttsRate, ttsVoice, musicTrack: musicTrackOverride, musicVolume, onEvent = () => {}, signal } = {}) {
   const ttsProvider = TTS_PROVIDERS[providerId];
   if (!ttsProvider) {
     throw new Error(`Unknown TTS_PROVIDER "${providerId}". Valid: ${Object.keys(TTS_PROVIDERS).join(", ")}`);
@@ -133,12 +134,19 @@ export async function runGenerateAudio(projectDir, { ttsProvider: providerId = p
         result = await ttsProvider.synthesize({
           text: scene.narration,
           destPath: dest,
+          signal,
           ...(ttsRate ? { rate: ttsRate } : {}),
           ...(ttsVoice ? { voiceId: ttsVoice } : {}),
         });
         lastErr = null;
         break;
       } catch (err) {
+        // A deliberate Huỷ must propagate immediately, not get folded into the
+        // per-scene retry loop (which exists for genuine transient hiccups) nor
+        // swallowed into `failedSceneIds` below like an ordinary TTS failure would
+        // be — that would misreport a cancel as "audio thất bại" and, worse, keep
+        // synthesizing the REMAINING scenes after the user asked to stop.
+        if (err instanceof CancelledError || signal?.aborted) throw err instanceof CancelledError ? err : new CancelledError();
         lastErr = err;
         if (attempt < TTS_RETRIES) {
           onEvent({ type: "scene-retry", sceneId: scene.sceneId, attempt: attempt + 1, error: err.message });
@@ -177,6 +185,7 @@ export async function runGenerateAudio(projectDir, { ttsProvider: providerId = p
   const SCENE_DURATION_BUFFER = 0.7;
 
   for (const scene of plans.scenes) {
+    if (signal?.aborted) throw signal.reason instanceof CancelledError ? signal.reason : new CancelledError();
     const result = await generateVoiceover(scene);
     if (scene.narration && !result) failedSceneIds.push(scene.sceneId);
     const wordTimestamps = result?.wordTimestamps ?? null;

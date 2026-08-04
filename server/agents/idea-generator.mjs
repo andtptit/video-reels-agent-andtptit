@@ -42,6 +42,7 @@ export async function runIdeaGenerator({
   model = DEFAULT_MODEL,
   maxTurns = 6,
   onEvent,
+  signal,
 }) {
   const tools = createFsTools(batchDir);
 
@@ -90,7 +91,7 @@ không tool call nào nữa.`;
     "\n"
   );
 
-  const result = await runAgent({ systemPrompt, userPrompt, tools, model, maxTurns, onEvent });
+  const result = await runAgent({ systemPrompt, userPrompt, tools, model, maxTurns, onEvent, signal });
 
   const outFile = join(batchDir, "ideas.json");
   if (!existsSync(outFile)) return result;

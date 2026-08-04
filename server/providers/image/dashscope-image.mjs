@@ -20,6 +20,7 @@
  *   project's assets/ immediately; never persist the URL itself.
  */
 import { writeFileSync, existsSync, statSync } from "fs";
+import { CancelledError } from "../../jobs/cancel-registry.mjs";
 
 const ENDPOINT = "https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation";
 
@@ -57,13 +58,15 @@ export async function generateImage({
   apiKey = process.env.DASHSCOPE_API_KEY,
   timeoutMs = 120_000,
   model = DEFAULT_IMAGE_MODEL,
+  signal, // external cancel signal, see jobs/cancel-registry.mjs
 }) {
   if (!apiKey) throw new Error("Missing DASHSCOPE_API_KEY");
   const sizeTable = SIZE_TABLES[model] ?? DEFAULT_SIZE_TABLE;
   const size = sizeTable[format] ?? sizeTable["9:16"];
 
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const timeoutController = new AbortController();
+  const timer = setTimeout(() => timeoutController.abort(), timeoutMs);
+  const combinedSignal = signal ? AbortSignal.any([signal, timeoutController.signal]) : timeoutController.signal;
   let res;
   try {
     res = await fetch(ENDPOINT, {
@@ -81,9 +84,10 @@ export async function generateImage({
           negative_prompt: negativePrompt,
         },
       }),
-      signal: controller.signal,
+      signal: combinedSignal,
     });
   } catch (err) {
+    if (signal?.aborted) throw signal.reason instanceof CancelledError ? signal.reason : new CancelledError();
     throw new Error(`wan2.6-image request failed: ${err.message}`, { cause: err });
   } finally {
     clearTimeout(timer);
@@ -99,35 +103,43 @@ export async function generateImage({
   let imageUrl = null;
   let errorMessage = null;
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buf += decoder.decode(value, { stream: true });
-    const lines = buf.split("\n");
-    buf = lines.pop();
-    for (const line of lines) {
-      if (!line.startsWith("data:")) continue;
-      let parsed;
-      try {
-        parsed = JSON.parse(line.slice(5));
-      } catch {
-        continue;
-      }
-      if (parsed.code) {
-        errorMessage = parsed.message; // SSE error event, e.g. event:error
-        continue;
-      }
-      const content = parsed.output?.choices?.[0]?.message?.content;
-      if (Array.isArray(content)) {
-        for (const part of content) {
-          // wan2.6-image's stream parts carry `type:"image"`; confirmed live that
-          // qwen-image/qwen-image-2.0/z-image-turbo omit `type` entirely on their
-          // image part — requiring it here silently dropped a real, successful
-          // image URL and made those 3 models look broken when they weren't.
-          if (part.image) imageUrl = part.image;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const lines = buf.split("\n");
+      buf = lines.pop();
+      for (const line of lines) {
+        if (!line.startsWith("data:")) continue;
+        let parsed;
+        try {
+          parsed = JSON.parse(line.slice(5));
+        } catch {
+          continue;
+        }
+        if (parsed.code) {
+          errorMessage = parsed.message; // SSE error event, e.g. event:error
+          continue;
+        }
+        const content = parsed.output?.choices?.[0]?.message?.content;
+        if (Array.isArray(content)) {
+          for (const part of content) {
+            // wan2.6-image's stream parts carry `type:"image"`; confirmed live that
+            // qwen-image/qwen-image-2.0/z-image-turbo omit `type` entirely on their
+            // image part — requiring it here silently dropped a real, successful
+            // image URL and made those 3 models look broken when they weren't.
+            if (part.image) imageUrl = part.image;
+          }
         }
       }
     }
+  } catch (err) {
+    // Aborting `combinedSignal` mid-stream (fetch's signal reaches into the response
+    // body reader too) rejects reader.read() — re-throw as CancelledError so callers
+    // don't mistake a deliberate Huỷ for a genuine stream error.
+    if (signal?.aborted) throw signal.reason instanceof CancelledError ? signal.reason : new CancelledError();
+    throw err;
   }
 
   if (!imageUrl) {
@@ -145,12 +157,18 @@ export async function generateImage({
  * pick up an unrelated caption/font fix) silently re-billed a fresh wan2.6-image call
  * even though the existing image was still perfectly usable.
  */
-export async function generateAndSaveImage({ prompt, format, negativePrompt, destPath, apiKey, model }) {
+export async function generateAndSaveImage({ prompt, format, negativePrompt, destPath, apiKey, model, signal }) {
   if (existsSync(destPath)) {
     return { destPath, bytes: statSync(destPath).size, skipped: true };
   }
-  const { imageUrl } = await generateImage({ prompt, format, negativePrompt, apiKey, ...(model ? { model } : {}) });
-  const res = await fetch(imageUrl);
+  const { imageUrl } = await generateImage({ prompt, format, negativePrompt, apiKey, signal, ...(model ? { model } : {}) });
+  let res;
+  try {
+    res = await fetch(imageUrl, { signal });
+  } catch (err) {
+    if (signal?.aborted) throw signal.reason instanceof CancelledError ? signal.reason : new CancelledError();
+    throw err;
+  }
   if (!res.ok) throw new Error(`Failed to download generated image (${res.status})`);
   const buf = Buffer.from(await res.arrayBuffer());
   writeFileSync(destPath, buf);

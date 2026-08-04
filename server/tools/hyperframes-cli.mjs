@@ -14,6 +14,7 @@ import { execFile } from "child_process";
 import { promisify } from "util";
 import { existsSync, readdirSync, rmSync } from "fs";
 import { join } from "path";
+import { CancelledError } from "../jobs/cancel-registry.mjs";
 
 const execFileAsync = promisify(execFile);
 
@@ -125,15 +126,24 @@ const RENDER_TIMEOUT_MS = Number(process.env.RENDER_TIMEOUT_MS) || 10 * 60 * 100
 const RENDER_ARGS = ["render", "--no-experimental-fast-capture"];
 
 /** Render doesn't support --json; resolve/reject on process exit and surface stderr on failure. */
-export async function render(projectDir) {
+export async function render(projectDir, { signal } = {}) {
   try {
     const { stdout } = await execHyperframes(RENDER_ARGS, {
       cwd: projectDir,
       maxBuffer: 1024 * 1024 * 50,
       timeout: RENDER_TIMEOUT_MS,
+      signal, // Node's execFile kills the child (default SIGTERM) when this fires —
+      // on Windows the direct child is cmd.exe wrapping npx wrapping hyperframes'
+      // own browser-automation workers, so whether this cascades to a fully clean
+      // kill of every grandchild process is NOT guaranteed; verify live (see plan.md).
     });
     return { ok: true, output: stdout };
   } catch (err) {
+    // A deliberate Huỷ must be reported as CancelledError (thrown, not the normal
+    // {ok:false} shape) so runStep records "cancelled" instead of "error" — checked
+    // FIRST because an aborted execFile call can also come back looking like a
+    // timeout (`err.killed && err.signal`), and that must not be misreported either.
+    if (signal?.aborted) throw signal.reason instanceof CancelledError ? signal.reason : new CancelledError();
     const timedOut = err.killed && err.signal;
     return {
       ok: false,

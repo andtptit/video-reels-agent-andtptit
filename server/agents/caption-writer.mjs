@@ -17,7 +17,7 @@
 import { runAgent, CHEAP_MODEL } from "./run-agent.mjs";
 import { createFsTools } from "../tools/fs-tools.mjs";
 
-export async function runCaptionWriter({ projectDir, masterContent, design, model = CHEAP_MODEL, maxTurns = 4, onEvent }) {
+export async function runCaptionWriter({ projectDir, masterContent, design, model = CHEAP_MODEL, maxTurns = 4, onEvent, signal }) {
   const tools = createFsTools(projectDir);
 
   const systemPrompt = `Bạn là chuyên gia viết caption Instagram Reels tiếng Việt.
@@ -53,5 +53,5 @@ Sau khi ghi file xong, trả lời bằng 1 câu tóm tắt ngắn — không to
 
   const userPrompt = `Narration (master_content.md):\n${masterContent}\n\n---\n\nDESIGN.md:\n${design}`;
 
-  return runAgent({ systemPrompt, userPrompt, tools, model, maxTurns, onEvent, stopAfterWrites: 1 });
+  return runAgent({ systemPrompt, userPrompt, tools, model, maxTurns, onEvent, stopAfterWrites: 1, signal });
 }

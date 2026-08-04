@@ -255,6 +255,7 @@ export async function runRootComposer({
   maxTurns = 12,
   maxFixAttempts = 3,
   onEvent,
+  signal,
 }) {
   if (!doneSceneIds?.length) {
     throw new Error("No successfully generated scenes to compose into root index.html");
@@ -388,7 +389,7 @@ trả lời bằng 1 câu tóm tắt — không tool call nào nữa.`;
     try {
       // stopAfterWrites: 1 — same fix as scene-writer.mjs (same architecture, same
       // observed risk of looping on write_file past the point the task is done).
-      agentResult = await runAgent({ systemPrompt, userPrompt, tools, model, maxTurns, onEvent, priorMessages, stopAfterWrites: 1 });
+      agentResult = await runAgent({ systemPrompt, userPrompt, tools, model, maxTurns, onEvent, priorMessages, stopAfterWrites: 1, signal });
     } catch (err) {
       addUsage(err.usage);
       err.usage = { ...usage };
