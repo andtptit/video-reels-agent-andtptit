@@ -2879,3 +2879,46 @@ subTopic).
   `status !== "done" thì skip` đã có sẵn trong code.
 - Chưa test path retry `(v2)` khi trùng slug thật (2 ý tưởng test đủ khác nhau nên
   không trigger được path này qua verify thật).
+
+---
+
+## Mới — Bước "Caption (Reels)" sau Render (phiên 2026-08-04)
+
+User muốn: render xong video thì có luôn caption + hashtag sẵn sàng copy-paste đăng
+Reels. Đã chốt trước khi code: chỉ 1 bản (không phân biệt platform, chỉ đăng Reels),
+có kèm hashtag.
+
+### File mới
+- `server/agents/caption-writer.mjs` — `runCaptionWriter({projectDir, masterContent,
+  design, model=CHEAP_MODEL, onEvent})`. Input là `master_content.md` (đã có sẵn từ
+  bước Content plan, KHÔNG phụ thuộc dữ liệu vào việc render xong chưa) + DESIGN.md
+  (giữ giọng văn). Output `caption.md`: đúng 2 phần cách nhau 1 dòng trống (caption
+  text + hashtag), KHÔNG có tiêu đề markdown/giải thích — để dán thẳng nguyên file
+  vào ô caption Reels. Dùng `CHEAP_MODEL` (đóng gói lại nội dung đã có, không phải
+  sáng tạo mới — cùng cấp scene-writer). Prompt ép: hook mở đầu KHÁC câu mở narration
+  (không tóm tắt lại), thêm giá trị/ngữ cảnh ngoài video, kết bằng CTA ngắn, đúng
+  8-12 hashtag.
+
+### File sửa
+- `server/routes.mjs` — route `POST /projects/:id/caption` (chỉ cần
+  `master_content.md` tồn tại, không cần render xong), thêm `caption.md` vào
+  `READABLE_FILES` với content-type `text/plain` (không phải markdown — không muốn
+  checkpoint viewer render markdown, chỉ hiện đúng text để copy).
+- `web/src/api.js` — thêm `runCaption`.
+- `web/src/components/Pipeline.jsx` — thêm `CaptionPanel` (component nhỏ mới, cạnh
+  `StepRow`/`PipelineNav` đã có) fetch `caption.md` + nút **Copy** (dùng
+  `navigator.clipboard`) — đây là phần thực sự phục vụ mục đích "thuận tiện đăng bài"
+  của user, không chỉ hiển thị. Thêm StepRow "6. Caption (Reels)" sau Render trong
+  UI (dù không phụ thuộc dữ liệu vào render, đặt sau cho khớp trải nghiệm "video +
+  caption cùng lúc = sẵn sàng đăng"), thêm vào `PipelineNav`.
+
+### Verify thật — cả hàm lẫn route qua HTTP thật
+
+1. Gọi thẳng `runCaptionWriter` (DashScope thật, CHEAP_MODEL) trên project thật đã
+   render (`model-kimi-ra-doi-khien-claude-de-chung`) — `caption.md` ra đúng format:
+   4 dòng caption (hook khác narration, có CTA) + 10 hashtag, không dính markdown.
+2. Test lại qua ĐÚNG route HTTP (`POST /projects/:id/caption` → poll
+   `GET /projects/:id` → `GET /projects/:id/files/caption.md`) — xác nhận toàn bộ
+   dây chuyền route + `READABLE_FILES` hoạt động, không chỉ hàm đơn lẻ.
+3. Dọn sạch `caption.md` test + khôi phục `job-status.json` về trạng thái trước test
+   trên project thật (không để lại dấu vết trong project của user).

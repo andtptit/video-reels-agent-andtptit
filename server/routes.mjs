@@ -22,6 +22,7 @@ import { runRemixScenes } from "./agents/remix-scenes.mjs";
 import { runSceneWriter } from "./agents/scene-writer.mjs";
 import { runSubSceneWriter } from "./agents/sub-scene-writer.mjs";
 import { runRootComposer } from "./agents/root-composer.mjs";
+import { runCaptionWriter } from "./agents/caption-writer.mjs";
 import { render } from "./tools/hyperframes-cli.mjs";
 import { readJobStatus, runStep, getEmitter, emitProgress } from "./jobs/job-status.mjs";
 import { queues } from "./jobs/queue.mjs";
@@ -40,6 +41,7 @@ startIdleSweep();
 // config) through this route.
 const READABLE_FILES = {
   "master_content.md": "text/markdown",
+  "caption.md": "text/plain", // served as text, not markdown — meant to be copy-pasted verbatim, not rendered
   "scenes.json": "application/json",
   "scenes-with-timing.json": "application/json",
   "video-plan.json": "application/json",
@@ -529,6 +531,25 @@ router.post("/projects/:id/root", withProjectDir, (req, res) => {
 router.post("/projects/:id/render", withProjectDir, (req, res) => {
   runInBackground(req.projectDir, "render", () => render(req.projectDir));
   res.status(202).json({ step: "render", status: "running" });
+});
+
+// Instagram Reels caption + hashtags, ready to copy-paste — see agents/caption-writer.mjs.
+// No hard data dependency on render (only needs master_content.md, already written by
+// the "plan" step), but placed after render in the UI as the final "ready to publish"
+// companion to the finished MP4.
+router.post("/projects/:id/caption", withProjectDir, (req, res) => {
+  const masterContentFile = join(req.projectDir, "master_content.md");
+  if (!existsSync(masterContentFile)) return res.status(400).json({ error: "master_content.md not found — chạy bước Content plan trước" });
+  const designFile = join(req.projectDir, "DESIGN.md");
+  if (!existsSync(designFile)) return res.status(400).json({ error: "DESIGN.md not found in project" });
+
+  const masterContent = readFileSync(masterContentFile, "utf-8");
+  const design = readFileSync(designFile, "utf-8");
+
+  runInBackground(req.projectDir, "caption", (onEvent) =>
+    queues.dashscope.run(() => runCaptionWriter({ projectDir: req.projectDir, masterContent, design, onEvent }))
+  );
+  res.status(202).json({ step: "caption", status: "running" });
 });
 
 router.get("/projects/:id/renders", withProjectDir, (req, res) => {

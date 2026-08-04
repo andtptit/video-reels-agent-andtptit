@@ -25,6 +25,7 @@ export const api = {
   runScene: (id, sceneId) => request(`/projects/${encodeURIComponent(id)}/scenes/${sceneId}/generate`, { method: "POST" }),
   runRoot: (id) => request(`/projects/${encodeURIComponent(id)}/root`, { method: "POST" }),
   runRender: (id) => request(`/projects/${encodeURIComponent(id)}/render`, { method: "POST" }),
+  runCaption: (id) => request(`/projects/${encodeURIComponent(id)}/caption`, { method: "POST" }),
   getPreviewUrl: (id) => request(`/projects/${encodeURIComponent(id)}/preview-url`),
   listRenders: (id) => request(`/projects/${encodeURIComponent(id)}/renders`),
   renderUrl: (id, name) => `${API_BASE}/projects/${encodeURIComponent(id)}/renders/${encodeURIComponent(name)}`,

@@ -76,6 +76,39 @@ function StepRow({ id, title, status, error, usage, children }) {
   );
 }
 
+/** Fetches caption.md and shows it read-only with a one-click Copy button — the
+ *  entire point of this step is pasting the whole file straight into Reels' caption
+ *  box, so "view it" and "copy it" share one fetch instead of duplicating
+ *  CheckpointPanel's fetch just to add a button next to it. */
+function CaptionPanel({ id, refreshKey }) {
+  const [text, setText] = useState(null);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    setCopied(false);
+    api.getFile(id, "caption.md").then(setText).catch(() => setText(null));
+  }, [id, refreshKey]);
+
+  if (!text) return null;
+
+  function copy() {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+
+  return (
+    <div className="card">
+      <div className="step-row-head">
+        <strong>Caption (Reels)</strong>
+        <button type="button" onClick={copy}>{copied ? "Đã copy ✓" : "Copy"}</button>
+      </div>
+      <pre className="checkpoint">{text}</pre>
+    </div>
+  );
+}
+
 const FONT_OPTIONS = [
   ["Itim", "Itim (viết tay, tròn)"],
   ["Mali", "Mali (viết tay, nhiều độ đậm)"],
@@ -142,6 +175,7 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, onProjectCrea
   const videoPlanStatus = steps["video-plan"]?.status;
   const rootStatus = steps.root?.status;
   const renderStatus = steps.render?.status;
+  const captionStatus = steps.caption?.status;
   const doneSceneCount = Object.entries(steps).filter(([key, s]) => key.startsWith("scene:") && s.status === "done").length;
 
   const stepsRef = useRef(steps);
@@ -380,6 +414,7 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, onProjectCrea
           { id: "step-scenes", label: "Scenes", show: videoPlanStatus === "done" },
           { id: "step-root", label: "4. Root", status: rootStatus },
           { id: "step-render", label: "5. Render", status: renderStatus },
+          { id: "step-caption", label: "6. Caption", status: captionStatus },
           { id: "step-remix", label: "Remix", show: sourceVideoPlan?.template === "sub" },
         ]}
       />
@@ -745,6 +780,16 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, onProjectCrea
         )}
       </StepRow>
       {renderStatus === "done" && <RenderPlayer id={id} refreshKey={steps.render?.at} />}
+
+      <StepRow id="step-caption" title="6. Caption (Reels)" status={captionStatus} error={steps.caption?.error} usage={steps.caption?.usage}>
+        {planStatus === "done" && captionStatus !== "running" && (
+          <button type="button" onClick={() => run(() => api.runCaption(id))}>
+            {captionStatus === "done" ? "Viết lại caption" : "Viết caption"}
+          </button>
+        )}
+        {planStatus !== "done" && <p className="muted">Cần hoàn thành bước 1 (Content plan) trước.</p>}
+      </StepRow>
+      {captionStatus === "done" && <CaptionPanel id={id} refreshKey={steps.caption?.at} />}
 
       {sourceVideoPlan?.template === "sub" && (
         <div className="card" id="step-remix">
