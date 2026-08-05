@@ -1,5 +1,19 @@
 # Plan: Web UI fallback (DashScope + Edge TTS) khi hết credit Claude
 
+## Đã sửa — template "footage" bị dính atmosphere neon của DESIGN.md (phiên 2026-08-05)
+
+Review code tính năng "footage" mới (không phải user report) — phát hiện
+`root-composer.mjs`'s điều kiện bỏ qua atmosphere layer (bg-dots/bg-glow/scanlines/
+4 góc, palette neon-green mặc định workspace) chỉ check `template === "sub"`, thiếu
+`"footage"`. Đúng y hệt bug đã sửa cho "sub" trước đây — video ghép từ footage thật
+rất có thể bị model vẽ đè lớp neon-tối lên trên.
+
+Fix: `atmosphereInstruction` giờ check `template === "sub" || template === "footage"`.
+Verify thật (không đoán): giả lập `template: "footage"` trên project đã có audio sẵn
+(backup `video-plan.json`/`index.html` gốc trước), chạy `/root` thật → confirm
+`index.html` mới có **0** occurrence của `bg-dots`/`bg-glow`/`scanlines`/`corner-t`.
+Khôi phục lại đúng file gốc sau test.
+
 ## Blur Card — thẻ ảnh vuông thỉnh thoảng không xuất hiện trong render (lỗi KHÔNG ỔN ĐỊNH, đã xác nhận qua bằng chứng đối lập) (phiên 2026-08-05)
 
 User báo 2 lần trên 2 project khác nhau (project 1: clock icon/wan2.6-image

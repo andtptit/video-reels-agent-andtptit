@@ -274,12 +274,14 @@ export async function runRootComposer({
   // Confirmed live via screenshot: leaving the atmosphere bullet unconditional made
   // the model still draw DESIGN.md's neon corner brackets/dots on top of a "sub"
   // scene. Skip the whole atmosphere layer for "sub" instead of asking the model to
-  // reconcile two unrelated palettes.
+  // reconcile two unrelated palettes. "footage" scenes are real stock-footage clips
+  // (footage-style.mjs) — same reasoning applies, just never wired up when that
+  // template was added (found via code review, not a user report this time).
   const atmosphereInstruction =
-    template === "sub"
+    template === "sub" || template === "footage"
       ? `- KHÔNG thêm atmosphere layer (bg-dots, bg-glow, scanlines, 4 góc...). DESIGN.md
   bên dưới là palette neon-green mặc định của workspace, dùng cho style "motion" —
-  KHÔNG áp dụng cho scene "sub" (ảnh AI full-bleed đã có gradient/shade riêng, tự
+  KHÔNG áp dụng cho scene "${template}" (${template === "sub" ? "ảnh AI full-bleed đã có gradient/shade riêng" : "video thật full-bleed đã có shade riêng"}, tự
   authored ngoài LLM). Root composition chỉ cần: scene clips + music + voiceover.`
       : `- Atmosphere (bg-dots, bg-glow, scanlines, 4 góc...) — \`data-track-index\` 0–6,
   \`data-start="0"\`, \`data-duration\` = tổng thời lượng toàn video (tổng \`scene_duration\`
