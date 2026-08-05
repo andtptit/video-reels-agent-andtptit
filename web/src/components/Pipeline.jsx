@@ -165,6 +165,22 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, onProjectCrea
   const [effectsMsg, setEffectsMsg] = useState(null);
   const [formError, setFormError] = useState(null);
 
+  // Template "footage" — ghép video ngẫu nhiên từ kho thay vì ảnh AI. Không tốn phí
+  // (không LLM/DashScope), nên mặc định thoải mái random lại nhiều lần.
+  const [footageMinClips, setFootageMinClips] = useState(1);
+  const [footageMaxClips, setFootageMaxClips] = useState(3);
+  const [footageMinSeconds, setFootageMinSeconds] = useState(3);
+  const [footageMaxSeconds, setFootageMaxSeconds] = useState(6);
+  const [footageFlipEnabled, setFootageFlipEnabled] = useState(false);
+  const [footageSpeedEnabled, setFootageSpeedEnabled] = useState(false);
+  const [footageSpeedMin, setFootageSpeedMin] = useState(1.0);
+  const [footageSpeedMax, setFootageSpeedMax] = useState(1.3);
+  const [footageLibraryCount, setFootageLibraryCount] = useState(null);
+
+  useEffect(() => {
+    api.getFootageLibraryInfo().then((r) => setFootageLibraryCount(r.count)).catch(() => setFootageLibraryCount(null));
+  }, []);
+
   // Steps a Huỷ click was fired for but job-status hasn't confirmed stopped yet —
   // renders "Đang huỷ…" until the SSE-driven `steps` state actually shows the step
   // left "running" (done/error/cancelled), never optimistically before the server
@@ -293,6 +309,14 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, onProjectCrea
     if (p.plannerModel !== undefined) setPlannerModel(p.plannerModel);
     if (p.cheapModel !== undefined) setCheapModel(p.cheapModel);
     if (p.imgModel !== undefined) setImgModel(p.imgModel);
+    if (p.footageMinClips !== undefined) setFootageMinClips(p.footageMinClips);
+    if (p.footageMaxClips !== undefined) setFootageMaxClips(p.footageMaxClips);
+    if (p.footageMinSeconds !== undefined) setFootageMinSeconds(p.footageMinSeconds);
+    if (p.footageMaxSeconds !== undefined) setFootageMaxSeconds(p.footageMaxSeconds);
+    if (p.footageFlipEnabled !== undefined) setFootageFlipEnabled(p.footageFlipEnabled);
+    if (p.footageSpeedEnabled !== undefined) setFootageSpeedEnabled(p.footageSpeedEnabled);
+    if (p.footageSpeedMin !== undefined) setFootageSpeedMin(p.footageSpeedMin);
+    if (p.footageSpeedMax !== undefined) setFootageSpeedMax(p.footageSpeedMax);
   }
 
   function onSelectProfile(slug) {
@@ -314,6 +338,8 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, onProjectCrea
       const saved = await api.saveProfile(profileName, {
         ttsProvider, ttsRate, ttsVoice, musicTrack, musicVolume, template, visualStyle, subStyle, fontFamily,
         imageStylePrefix, kenBurns, grain, plannerModel, cheapModel, imgModel,
+        footageMinClips, footageMaxClips, footageMinSeconds, footageMaxSeconds,
+        footageFlipEnabled, footageSpeedEnabled, footageSpeedMin, footageSpeedMax,
       });
       const r = await api.listProfiles();
       setProfiles(r.profiles ?? []);
@@ -386,9 +412,10 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, onProjectCrea
       await ensureStepDone("video-plan", () =>
         api.runVideoPlan(id, {
           template,
+          format: platform,
           visualStyle,
           subStyle,
-          fontFamily: template === "sub" ? fontFamily : undefined,
+          fontFamily: template === "sub" || template === "footage" ? fontFamily : undefined,
           imageStylePrefix: imageStylePrefix.trim() || undefined,
           model: plannerModel || undefined,
           cheapModel: cheapModel || undefined,
@@ -398,6 +425,20 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, onProjectCrea
           profileSlug: selectedProfileSlug || undefined,
           kenBurns,
           grain,
+          footageConfig:
+            template === "footage"
+              ? {
+                  minClipsPerScene: Number(footageMinClips),
+                  maxClipsPerScene: Number(footageMaxClips),
+                  minClipSeconds: Number(footageMinSeconds),
+                  maxClipSeconds: Number(footageMaxSeconds),
+                  flipEnabled: footageFlipEnabled,
+                  speedEnabled: footageSpeedEnabled,
+                  speedMin: Number(footageSpeedMin),
+                  speedMax: Number(footageSpeedMax),
+                  fontFamily,
+                }
+              : undefined,
         })
       );
 
@@ -548,11 +589,21 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, onProjectCrea
           <select value={template} onChange={(e) => setTemplate(e.target.value)}>
             <option value="motion">Chuyển động (card/animation)</option>
             <option value="sub">Sub karaoke (ảnh AI + phụ đề chạy chữ)</option>
+            <option value="footage">Footage (video thật ghép ngẫu nhiên + sub)</option>
           </select>
           {template === "motion" ? (
             <select value={visualStyle} onChange={(e) => setVisualStyle(e.target.value)}>
               <option value="animation">Nền CSS/GSAP thuần</option>
               <option value="ai-image">Nền ảnh AI (wan2.6-image)</option>
+            </select>
+          ) : template === "footage" ? (
+            <select value={fontFamily} onChange={(e) => setFontFamily(e.target.value)} title="Font phụ đề (đã xác nhận hỗ trợ tiếng Việt)">
+              <option value="Itim">Itim (viết tay, tròn — mặc định)</option>
+              <option value="Mali">Mali (viết tay, nhiều độ đậm)</option>
+              <option value="Pacifico">Pacifico (script mềm mại)</option>
+              <option value="Charm">Charm (thư pháp, thanh)</option>
+              <option value="Sriracha">Sriracha (bút lông, khoẻ)</option>
+              <option value="Amatic SC">Amatic SC (marker, cô đặc)</option>
             </select>
           ) : (
             <>
@@ -566,6 +617,16 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, onProjectCrea
                     cause (chữ hiện nhỏ/lệch góc thay vì to & giữa màn hình như
                     thiết kế) — xem plan.md. Tạm dừng theo yêu cầu user, không xoá,
                     chỉ không cho chọn nhầm qua UI cho tới khi sửa xong. */}
+                {/* "image_blur_card" — thẻ ảnh vuông thỉnh thoảng KHÔNG xuất hiện
+                    trong hyperframes render thật (nền mờ vẫn đúng), dù hyperframes
+                    snapshot luôn đúng — xác nhận đây là lỗi KHÔNG ỔN ĐỊNH (intermittent
+                    render/capture race), không phải lỗi cấu trúc composition: cùng 1
+                    project, cùng đoạn code, có lần render ra đúng có lần không. Đã thử
+                    2 hướng fix (khác src bằng query string; 2 file ảnh thật riêng biệt)
+                    — cả 2 có thể đã làm giảm tần suất lỗi dù không chứng minh được
+                    100% do bản chất không ổn định. Nếu gặp lại: thử render lại (không
+                    sửa gì) trước khi coi là lỗi thật — xem plan.md để biết đầy đủ các
+                    hướng đã loại trừ, tránh lặp lại. */}
               </select>
               <select value={fontFamily} onChange={(e) => setFontFamily(e.target.value)} title="Font phụ đề (đã xác nhận hỗ trợ tiếng Việt)">
                 <option value="Itim">Itim (viết tay, tròn — mặc định)</option>
@@ -576,6 +637,45 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, onProjectCrea
                 <option value="Amatic SC">Amatic SC (marker, cô đặc)</option>
               </select>
             </>
+          )}
+          {template === "footage" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px", width: "100%" }}>
+              <p className="muted">
+                Kho footage:{" "}
+                {footageLibraryCount === null ? "đang kiểm tra..." : `${footageLibraryCount} video`}
+                {footageLibraryCount === 0 && " — chưa có file .mp4 nào trong assets/footage-library/"}
+              </p>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                <span>Số clip/scene:</span>
+                <input type="number" min="1" value={footageMinClips} onChange={(e) => setFootageMinClips(e.target.value)} style={{ width: "60px" }} />
+                <span>–</span>
+                <input type="number" min="1" value={footageMaxClips} onChange={(e) => setFootageMaxClips(e.target.value)} style={{ width: "60px" }} />
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                <span>Độ dài mỗi đoạn (giây):</span>
+                <input type="number" min="0.5" step="0.5" value={footageMinSeconds} onChange={(e) => setFootageMinSeconds(e.target.value)} style={{ width: "60px" }} />
+                <span>–</span>
+                <input type="number" min="0.5" step="0.5" value={footageMaxSeconds} onChange={(e) => setFootageMaxSeconds(e.target.value)} style={{ width: "60px" }} />
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+                <label style={{ display: "inline-flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
+                  <input type="checkbox" checked={footageFlipEnabled} onChange={(e) => setFootageFlipEnabled(e.target.checked)} style={{ width: "auto", marginBottom: 0 }} />
+                  Lật ngẫu nhiên (tránh trùng lặp footage)
+                </label>
+                <label style={{ display: "inline-flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
+                  <input type="checkbox" checked={footageSpeedEnabled} onChange={(e) => setFootageSpeedEnabled(e.target.checked)} style={{ width: "auto", marginBottom: 0 }} />
+                  Tăng tốc ngẫu nhiên
+                </label>
+                {footageSpeedEnabled && (
+                  <>
+                    <input type="number" min="1" step="0.1" value={footageSpeedMin} onChange={(e) => setFootageSpeedMin(e.target.value)} style={{ width: "60px" }} />
+                    <span>–</span>
+                    <input type="number" min="1" step="0.1" value={footageSpeedMax} onChange={(e) => setFootageSpeedMax(e.target.value)} style={{ width: "60px" }} />
+                    <span>x</span>
+                  </>
+                )}
+              </div>
+            </div>
           )}
           {((template === "sub" && subStyle !== "kinetic_typography") || visualStyle === "ai-image") && (
             <>
@@ -753,9 +853,10 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, onProjectCrea
               run(() =>
                 api.runVideoPlan(id, {
                   template,
+                  format: platform,
                   visualStyle,
                   subStyle,
-                  fontFamily: template === "sub" ? fontFamily : undefined,
+                  fontFamily: template === "sub" || template === "footage" ? fontFamily : undefined,
                   imageStylePrefix: imageStylePrefix.trim() || undefined,
                   model: plannerModel || undefined,
                   cheapModel: cheapModel || undefined,
@@ -765,6 +866,20 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, onProjectCrea
                   profileSlug: selectedProfileSlug || undefined,
                   kenBurns,
                   grain,
+                  footageConfig:
+                    template === "footage"
+                      ? {
+                          minClipsPerScene: Number(footageMinClips),
+                          maxClipsPerScene: Number(footageMaxClips),
+                          minClipSeconds: Number(footageMinSeconds),
+                          maxClipSeconds: Number(footageMaxSeconds),
+                          flipEnabled: footageFlipEnabled,
+                          speedEnabled: footageSpeedEnabled,
+                          speedMin: Number(footageSpeedMin),
+                          speedMax: Number(footageSpeedMax),
+                          fontFamily,
+                        }
+                      : undefined,
                 })
               )
             }
@@ -782,9 +897,10 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, onProjectCrea
               run(() =>
                 api.runVideoPlan(id, {
                   template,
+                  format: platform,
                   visualStyle,
                   subStyle,
-                  fontFamily: template === "sub" ? fontFamily : undefined,
+                  fontFamily: template === "sub" || template === "footage" ? fontFamily : undefined,
                   imageStylePrefix: imageStylePrefix.trim() || undefined,
                   model: plannerModel || undefined,
                   cheapModel: cheapModel || undefined,
@@ -794,6 +910,20 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, onProjectCrea
                   profileSlug: selectedProfileSlug || undefined,
                   kenBurns,
                   grain,
+                  footageConfig:
+                    template === "footage"
+                      ? {
+                          minClipsPerScene: Number(footageMinClips),
+                          maxClipsPerScene: Number(footageMaxClips),
+                          minClipSeconds: Number(footageMinSeconds),
+                          maxClipSeconds: Number(footageMaxSeconds),
+                          flipEnabled: footageFlipEnabled,
+                          speedEnabled: footageSpeedEnabled,
+                          speedMin: Number(footageSpeedMin),
+                          speedMax: Number(footageSpeedMax),
+                          fontFamily,
+                        }
+                      : undefined,
                 })
               );
             }}

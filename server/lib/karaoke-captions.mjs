@@ -42,10 +42,13 @@ function escapeHtml(s) {
 export function renderKaraokeCaptions({ classPrefix, width, height, wordTimestamps, sceneDuration, narration = "", trackIndex = 1 }) {
   const p = classPrefix;
 
-  const fontSize = Math.round(width * 0.046);
+  // Bumped from 0.046/0.073 — user compared against a competitor reference video
+  // (caption sits noticeably higher and larger) and confirmed +30% font size /
+  // +~92% bottom offset, applied to all 3 sub-styles since they share this helper.
+  const fontSize = Math.round(width * 0.06);
   const strokeWidth = Math.max(2, Math.round(width * 0.0028));
   const sidePadding = Math.round(width * 0.074);
-  const bottomPadding = Math.round(height * 0.073);
+  const bottomPadding = Math.round(height * 0.14);
 
   const words = wordTimestamps.length ? wordTimestamps : [{ word: "", start: 0, end: sceneDuration }];
   const chunks = chunkWords(words, narration);

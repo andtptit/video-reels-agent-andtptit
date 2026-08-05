@@ -8,7 +8,7 @@
  * call here is the image generation itself (same wan2.6-image provider scene-writer
  * uses for its own ai-image style).
  */
-import { writeFileSync, mkdirSync, existsSync, statSync } from "fs";
+import { writeFileSync, mkdirSync, existsSync, statSync, copyFileSync } from "fs";
 import { join, resolve } from "path";
 import { generateAndSaveImage } from "../providers/image/dashscope-image.mjs";
 import { dimensionsForFormat } from "../lib/canvas.mjs";
@@ -110,6 +110,18 @@ export async function runSubSceneWriter({
     });
   }
 
+  // Some styles (e.g. image_blur_card) render the SAME image twice with different
+  // CSS (blurred background + sharp card) — see that style module's own doc comment
+  // for why two <img> tags pointing at one physical file (even with distinguishing
+  // query strings) rendered unreliably in real HyperFrames renders. A genuinely
+  // separate file on disk removes the ambiguity regardless of internal caching.
+  let cardImagePath;
+  if (needsImage && style.needsDuplicateImage) {
+    cardImagePath = `assets/images/scene_${padded}_card.png`;
+    const cardAbsPath = join(projectDir, cardImagePath);
+    if (!existsSync(cardAbsPath)) copyFileSync(join(projectDir, imagePath), cardAbsPath);
+  }
+
   const wordTimestamps = sceneTiming?._audio?.word_timestamps ?? [];
   const sceneDuration = sceneTiming?._audio?.scene_duration ?? scene.duration;
 
@@ -131,6 +143,7 @@ export async function runSubSceneWriter({
     width,
     height,
     imagePath,
+    ...(cardImagePath ? { cardImagePath } : {}),
     ...(kineticBgPath ? { bgImagePath: kineticBgPath } : {}),
     wordTimestamps,
     sceneDuration,

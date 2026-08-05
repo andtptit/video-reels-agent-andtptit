@@ -37,4 +37,8 @@ export class ConcurrencyQueue {
 export const queues = {
   dashscope: new ConcurrencyQueue(Number(process.env.DASHSCOPE_CONCURRENCY) || 2),
   tts: new ConcurrencyQueue(Number(process.env.TTS_CONCURRENCY) || 3),
+  // ffmpeg clip cutting for the "footage" template — CPU-bound local work, no
+  // external API involved, but "Generate tất cả" firing every scene at once would
+  // otherwise spawn unbounded parallel ffmpeg processes.
+  ffmpeg: new ConcurrencyQueue(Number(process.env.FFMPEG_CONCURRENCY) || 2),
 };

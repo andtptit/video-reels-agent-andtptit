@@ -18,6 +18,21 @@ function ScenePreviewImage({ id, sceneId, refreshKey }) {
   );
 }
 
+function ScenePreviewVideo({ id, sceneId, refreshKey }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) return <p className="muted">Scene này chưa có video footage.</p>;
+  return (
+    <video
+      key={refreshKey}
+      src={api.footageUrl(id, sceneId)}
+      controls
+      muted
+      className="scene-preview-image"
+      onError={() => setFailed(true)}
+    />
+  );
+}
+
 /** Lets the user listen to a scene's voiceover BEFORE spending on image/scene
  *  generation for it — catches a bad TTS take (wrong pronunciation, wrong rate, or
  *  the silent-failure-turned-loud-error case from generate-audio.mjs) at the cheap
@@ -100,11 +115,11 @@ export function SceneGrid({ id, steps, events, refreshKey, audioReady }) {
   // N requests, not pace them.
   function generateAllPending() {
     if (!pendingScenes.length) return;
-    if (
-      !window.confirm(
-        `Generate ${pendingScenes.length} scene chưa xong (${pendingScenes.map((s) => s.sceneId).join(", ")})? Sẽ gọi DashScope (kèm sinh ảnh AI nếu style có dùng) cho từng scene, có thể tốn phí.`
-      )
-    ) {
+    const confirmText =
+      videoPlan.template === "footage"
+        ? `Generate ${pendingScenes.length} scene chưa xong (${pendingScenes.map((s) => s.sceneId).join(", ")})? Chỉ ghép video từ kho footage cục bộ, không tốn phí.`
+        : `Generate ${pendingScenes.length} scene chưa xong (${pendingScenes.map((s) => s.sceneId).join(", ")})? Sẽ gọi DashScope (kèm sinh ảnh AI nếu style có dùng) cho từng scene, có thể tốn phí.`;
+    if (!window.confirm(confirmText)) {
       return;
     }
     for (const scene of pendingScenes) {
@@ -127,7 +142,7 @@ export function SceneGrid({ id, steps, events, refreshKey, audioReady }) {
           return (
             <div key={scene.sceneId} className="scene-card">
               <strong>{scene.sceneId}</strong>
-              <div className="muted">{scene.content_shape} · {scene.duration}s</div>
+              <div className="muted">{scene.content_shape ? `${scene.content_shape} · ` : ""}{scene.duration}s</div>
               <div className="step-row-badges">
                 {cancellingSteps.has(stepKey) ? (
                   <span style={{ color: "#888", fontWeight: 600, fontSize: "0.85em" }}>Đang huỷ…</span>
@@ -141,12 +156,14 @@ export function SceneGrid({ id, steps, events, refreshKey, audioReady }) {
                 type="button"
                 disabled={stepStatus === "running"}
                 onClick={() => {
-                  // Only confirm on a RE-generate — a scene already "done" has a real
-                  // AI image on disk (paid for), and image gen only skips if the
-                  // filename already exists; if video-plan.json's image_prompt
-                  // changed since, a "Generate lại" click can trigger a genuinely
-                  // new (billed) image. First-time "Generate" needs no confirm.
-                  if (stepStatus === "done" && !window.confirm(`Generate lại "${scene.sceneId}"? Nếu ảnh đã đổi trong video-plan, sẽ tốn phí sinh ảnh mới.`)) {
+                  // "footage" doesn't cost anything to re-roll (no LLM/DashScope, just
+                  // local ffmpeg) — no confirm needed there, unlike an AI-image scene
+                  // where "Generate lại" can trigger a genuinely new billed image.
+                  if (
+                    stepStatus === "done" &&
+                    videoPlan.template !== "footage" &&
+                    !window.confirm(`Generate lại "${scene.sceneId}"? Nếu ảnh đã đổi trong video-plan, sẽ tốn phí sinh ảnh mới.`)
+                  ) {
                     return;
                   }
                   api.runScene(id, scene.sceneId).catch((err) => alert(err.message));
@@ -161,11 +178,17 @@ export function SceneGrid({ id, steps, events, refreshKey, audioReady }) {
               )}
               {stepStatus === "done" && (
                 <button type="button" className="linklike" onClick={() => toggleImage(scene.sceneId)}>
-                  {openImages.has(scene.sceneId) ? "Ẩn ảnh" : "Xem ảnh"}
+                  {openImages.has(scene.sceneId)
+                    ? videoPlan.template === "footage" ? "Ẩn video" : "Ẩn ảnh"
+                    : videoPlan.template === "footage" ? "Xem video" : "Xem ảnh"}
                 </button>
               )}
               {stepStatus === "done" && openImages.has(scene.sceneId) && (
-                <ScenePreviewImage id={id} sceneId={scene.sceneId} refreshKey={steps[stepKey]?.at} />
+                videoPlan.template === "footage" ? (
+                  <ScenePreviewVideo id={id} sceneId={scene.sceneId} refreshKey={steps[stepKey]?.at} />
+                ) : (
+                  <ScenePreviewImage id={id} sceneId={scene.sceneId} refreshKey={steps[stepKey]?.at} />
+                )
               )}
               {stepStatus === "running" && <LiveLog events={events} step={stepKey} maxLines={4} />}
               {steps[stepKey]?.status === "error" && <p className="error">{steps[stepKey].error}</p>}

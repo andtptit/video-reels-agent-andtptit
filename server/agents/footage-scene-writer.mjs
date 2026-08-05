@@ -1,0 +1,166 @@
+/**
+ * Deterministic (no LLM) scene-composition writer for `template === "footage"` —
+ * mirrors `sub-scene-writer.mjs`'s overall shape (resolve paths, produce the scene's
+ * media, call a style's `render()`, lint-check, write the file) but swaps AI-image
+ * generation for: pick random footage clips, cut/normalize/flip/speed each with
+ * ffmpeg, concatenate into ONE final clip per scene.
+ *
+ * Deliberately produces exactly ONE `<video class="clip">` per scene composition (see
+ * footage-style.mjs's own doc comment) rather than mounting N separate clip elements
+ * on a HyperFrames timeline — a direct reaction to a real, still-not-fully-explained
+ * intermittent render bug hit this same session with image-blur-card.mjs's 2-layer
+ * `<img class="clip">` design. ffmpeg does the multi-clip assembly BEFORE HyperFrames
+ * ever sees it, matching how MoneyPrinterTurbo's own `combine_videos()` works (ffmpeg
+ * concat demuxer, not a multi-clip render timeline).
+ */
+import { writeFileSync, mkdirSync, existsSync } from "fs";
+import { join, resolve } from "path";
+import { dimensionsForFormat } from "../lib/canvas.mjs";
+import { lint } from "../tools/hyperframes-cli.mjs";
+import { ensureFontCopied } from "../lib/fonts.mjs";
+import { pickRandomClips, FOOTAGE_LIBRARY_DIR } from "../lib/footage-library.mjs";
+import { cutClip, concatClips } from "../tools/ffmpeg-cli.mjs";
+import * as footageStyle from "../templates/footage-style.mjs";
+
+const DEFAULT_FONT = "Itim"; // must match templates/sub-styles/image-full-focus.mjs's own default
+
+function sceneNumber(sceneId) {
+  const digits = sceneId.match(/\d+/)?.[0] ?? "1";
+  return parseInt(digits, 10);
+}
+
+function randomInRange(min, max) {
+  return min + Math.random() * (max - min);
+}
+
+/**
+ * Splits `targetDuration` into `count` per-clip output durations, each clamped to
+ * stay within [minSeconds, maxSeconds] while keeping the running total exactly on
+ * target — every clip but the last is bounded so the REMAINING clips can still each
+ * land in-range; the last clip absorbs whatever's left over.
+ */
+function splitDuration(targetDuration, count, minSeconds, maxSeconds) {
+  const durations = [];
+  let remaining = targetDuration;
+  for (let i = 0; i < count - 1; i++) {
+    const clipsLeftAfterThis = count - 1 - i;
+    const lower = Math.max(minSeconds, remaining - clipsLeftAfterThis * maxSeconds);
+    const upper = Math.min(maxSeconds, remaining - clipsLeftAfterThis * minSeconds);
+    const d = upper > lower ? randomInRange(lower, upper) : Math.max(0.5, lower);
+    durations.push(d);
+    remaining -= d;
+  }
+  durations.push(Math.max(0.5, remaining));
+  return durations;
+}
+
+export async function runFootageWriter({
+  projectDir,
+  scene, // video-plan.json.scenes entry — { sceneId, duration }
+  sceneTiming, // matching scenes-with-timing.json.scenes entry — narration + _audio.scene_duration
+  format,
+  footageConfig, // { minClipsPerScene, maxClipsPerScene, minClipSeconds, maxClipSeconds,
+  // flipEnabled, speedEnabled, speedMin, speedMax, fontFamily } — see build-footage-plan.mjs
+  onEvent,
+  signal,
+}) {
+  const {
+    minClipsPerScene = 1,
+    maxClipsPerScene = 3,
+    minClipSeconds = 3,
+    maxClipSeconds = 6,
+    flipEnabled = false,
+    speedEnabled = false,
+    speedMin = 1.0,
+    speedMax = 1.3,
+    fontFamily,
+  } = footageConfig ?? {};
+
+  const n = sceneNumber(scene.sceneId);
+  const padded = String(n).padStart(2, "0");
+  const compositionId = `scene-${padded}`;
+  const classPrefix = `s${n}`;
+  const outPath = `compositions/scene_${padded}.html`;
+  const { width, height } = dimensionsForFormat(format);
+
+  const sceneDuration = sceneTiming?._audio?.scene_duration ?? scene.duration;
+  const footageDir = join(projectDir, "assets", "footage");
+  mkdirSync(footageDir, { recursive: true });
+  const finalVideoPath = `assets/footage/scene_${padded}.mp4`;
+  const finalVideoAbsPath = join(projectDir, finalVideoPath);
+
+  if (!existsSync(finalVideoAbsPath)) {
+    const clipCount = Math.round(randomInRange(minClipsPerScene, maxClipsPerScene));
+    const clipDurations = splitDuration(sceneDuration, clipCount, minClipSeconds, maxClipSeconds);
+    const picks = await pickRandomClips({ projectDir, count: clipCount });
+
+    const tempClipPaths = [];
+    for (let i = 0; i < clipCount; i++) {
+      const pick = picks[i % picks.length]; // guard: pool smaller than clipCount shouldn't happen given hundreds of files, but never crash on it
+      const outputDurationSec = clipDurations[i];
+      const flip = flipEnabled && Math.random() < 0.5;
+      const speedFactor = speedEnabled ? randomInRange(speedMin, speedMax) : 1;
+
+      // Clamp the raw source cut to what the file actually has available — a source
+      // shorter than `outputDurationSec * speedFactor` would otherwise make ffmpeg
+      // fail outright; recompute the effective speed to match what's actually cut so
+      // the output still lands on `outputDurationSec`.
+      const desiredRawCut = outputDurationSec * speedFactor;
+      const rawCut = Math.min(desiredRawCut, pick.durationSec);
+      const effectiveSpeedFactor = rawCut / outputDurationSec;
+      const startSec = Math.max(0, Math.random() * (pick.durationSec - rawCut));
+
+      const destPath = clipCount === 1 ? finalVideoAbsPath : join(footageDir, `scene_${padded}_clip${i}.mp4`);
+      await cutClip({
+        srcPath: join(FOOTAGE_LIBRARY_DIR, pick.file),
+        destPath,
+        startSec,
+        outputDurationSec,
+        width,
+        height,
+        flip,
+        speedFactor: effectiveSpeedFactor,
+        signal,
+      });
+      onEvent?.({ type: "footage-clip", sourceFile: pick.file, startSec, outputDurationSec, flip, speedFactor: effectiveSpeedFactor });
+      if (clipCount > 1) tempClipPaths.push(destPath);
+    }
+
+    if (clipCount > 1) {
+      await concatClips({ clipPaths: tempClipPaths, destPath: finalVideoAbsPath, signal });
+    }
+    onEvent?.({ type: "write", outPath: finalVideoPath });
+  } else {
+    onEvent?.({ type: "footage-skip", outPath: finalVideoPath });
+  }
+
+  ensureFontCopied(projectDir, fontFamily || DEFAULT_FONT);
+
+  const html = footageStyle.render({
+    compositionId,
+    classPrefix,
+    width,
+    height,
+    videoPath: finalVideoPath,
+    wordTimestamps: sceneTiming?._audio?.word_timestamps ?? [],
+    sceneDuration,
+    narration: sceneTiming?.narration ?? "",
+    ...(fontFamily ? { fontFamily } : {}),
+  });
+
+  mkdirSync(join(projectDir, "compositions"), { recursive: true });
+  writeFileSync(join(projectDir, outPath), html, "utf-8");
+  onEvent?.({ type: "write", outPath });
+
+  const lintResult = await lint(projectDir);
+  const outFileAbs = resolve(projectDir, outPath);
+  const ownFindings = (lintResult.findings ?? []).filter((f) => f.file && resolve(f.file) === outFileAbs);
+  const ownErrors = ownFindings.filter((f) => f.severity === "error");
+  const ownWarnings = ownFindings.filter((f) => f.severity !== "error");
+  if (ownWarnings.length) onEvent?.({ type: "static-check", outPath, staticWarnings: ownWarnings });
+  if (ownErrors.length) {
+    return { ok: false, outPath, error: `Lint lỗi trên ${outPath}`, findings: ownErrors, usage: null };
+  }
+
+  return { ok: true, outPath, staticWarnings: ownWarnings, usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0, apiCalls: 0 } };
+}

@@ -1,5 +1,111 @@
 # Plan: Web UI fallback (DashScope + Edge TTS) khi hết credit Claude
 
+## Blur Card — thẻ ảnh vuông thỉnh thoảng không xuất hiện trong render (lỗi KHÔNG ỔN ĐỊNH, đã xác nhận qua bằng chứng đối lập) (phiên 2026-08-05)
+
+User báo 2 lần trên 2 project khác nhau (project 1: clock icon/wan2.6-image
+1024×1024; project 2: bedroom photo/qwen-image family 1328×1328) rằng ảnh vuông (thẻ
+ảnh nét ở giữa) hoàn toàn KHÔNG xuất hiện trong video render thật, chỉ còn thấy nền
+mờ. Ban đầu kết luận nhầm đây là bug DETERMINISTIC (luôn xảy ra) sau nhiều lần render
+lại project 2 đều thất bại, và đã tạm ẩn style này khỏi UI — nhưng user chỉ ra bằng
+chứng đối lập: `video_2026-08-05_15-37-08.mp4` (cùng project 1/clock icon, TRƯỚC lúc
+tạm dừng) render ĐÚNG hoàn toàn — thẻ ảnh hiện rõ, đã tự trích frame xác nhận lại. Vậy
+đây là lỗi **KHÔNG ỔN ĐỊNH** (intermittent) — CÙNG 1 đoạn code, CÙNG 1 project, có lần
+đúng có lần sai — không phải deterministic như đánh giá ban đầu. Đã **bật lại** style
+này trong UI theo yêu cầu user, sửa lại toàn bộ phần dưới cho khớp thực tế.
+
+**Bài học rút ra**: với lỗi không ổn định, MỘT lần render thất bại sau khi sửa code
+KHÔNG chứng minh được sửa sai — cần render nhiều lần (không chỉ 1 lần) mới đủ tin cậy
+để kết luận 1 hướng fix có tác dụng hay không. Các lần "loại trừ giả thuyết" bên dưới
+(mỗi giả thuyết chỉ test 1 lần) vì vậy KHÔNG đủ chắc chắn như đã viết ban đầu — giữ
+lại làm tham khảo nhưng không nên coi là kết luận cuối cùng.
+
+### Đã xác nhận chắc chắn: đây là bug render-pipeline, KHÔNG phải lỗi cấu trúc HTML
+
+`hyperframes snapshot --at 3.0` trên đúng project lỗi cho kết quả ĐÚNG 100% — thẻ ảnh
+vuông hiện đúng vị trí/kích thước/bo góc/shadow, caption cũng hiện đúng (chỉ garble
+encoding riêng của snapshot, lỗi đã biết từ trước, không liên quan). Nhưng
+`hyperframes render` (pipeline thật, dùng để xuất video cuối) thì thẻ ảnh KHÔNG BAO
+GIỜ xuất hiện suốt cả scene — không phải nhấp nháy, không phải lỗi timing, mà hoàn
+toàn vắng mặt từ đầu tới cuối. Cùng PHẠM TRÙ bug với "kinetic_typography" (render vs
+snapshot lệch nhau) nhưng nguyên nhân gốc khác — kinetic_typography không có ảnh AI
+thật (nghi vấn liên quan flex/kích thước tự nhiên), còn blur_card CÓ 2 ảnh `<img>`
+thật, đúng pattern đã verify ổn định ở `image-full-focus.mjs`.
+
+### 2 lần fix ĐÃ THỬ và ĐỀU THẤT BẠI khi verify lại bằng render thật + trích frame
+
+1. **Fix v1 — khác `src` bằng query string** (`?bg`/`?card` trên cùng 1 file): dựa
+   trên cảnh báo lint `duplicate_media_discovery_risk`. Xoá được cảnh báo lint, và
+   VERIFY THÀNH CÔNG trên project 1 (clock icon) — đo brightness trước/sau fix, bước
+   nhảy 135→182 biến mất hoàn toàn, xem frame thật thấy thẻ ảnh hiện đúng. NHƯNG khi
+   áp dụng y hệt cho project 2 (bedroom photo), thẻ ảnh vẫn hoàn toàn không xuất hiện
+   — fix này KHÔNG đủ tổng quát, có vẻ chỉ "vô tình" hoạt động cho 1 trường hợp.
+2. **Fix v2 — 2 file thật riêng biệt trên đĩa** (copy vật lý
+   `scene_XX.png` → `scene_XX_card.png`, không chỉ khác query string): lý luận chặt
+   hơn v1 (loại bỏ hoàn toàn nghi vấn "discovery" theo path). Vẫn KHÔNG fix được —
+   render lại project 2 với 2 file thật khác nhau hoàn toàn, thẻ ảnh vẫn không hiện.
+
+### Điều tra sâu hơn — dựng lại bug trong project rút gọn (1 scene, ~8s render) để
+lặp thử nhanh, loại trừ từng giả thuyết bằng render thật (KHÔNG đoán):
+
+- Byte nội dung 2 file ảnh giống hệt nhau (copy nguyên) → re-encode để bytes khác hẳn
+  nhau (dùng `-compression_level 9`) → **vẫn không fix** (loại giả thuyết "dedupe theo
+  content hash").
+- Bỏ `overflow:hidden` + `border-radius` khỏi `.{p}-card-wrap` → **vẫn không fix**
+  (loại giả thuyết liên quan bo góc/clip container).
+- Lệch `data-start` của card-image 0.01s so với bg-image (phá vỡ timing trùng khớp
+  tuyệt đối) → **vẫn không fix** (loại giả thuyết "2 clip cùng khung thời gian chính
+  xác gây xung đột").
+- `--no-browser-gpu` (chuyển từ capture mode "beginframe" sang "screenshot") →
+  **vẫn không fix** (loại giả thuyết liên quan GPU compositing).
+- `--low-memory-mode` (1 worker, screenshot capture, tránh tranh chấp tài nguyên khi
+  ảnh nặng) → **vẫn không fix** (loại giả thuyết tranh chấp bộ nhớ/worker).
+- Bỏ HẲN bg-image (thay bằng div tĩnh không `class="clip"`) → gãy TOÀN BỘ composition
+  (mất luôn cả caption) — hoá ra do chính div thay thế của tôi vi phạm convention
+  `class="clip"` bắt buộc, không phải phát hiện thật về nguyên nhân gốc. Thử lại sạch
+  hơn (bỏ bg-image, KHÔNG thêm gì thay thế) → thẻ ảnh + caption xuất hiện nhưng KHÔNG
+  có CSS áp dụng (ảnh/chữ hiện ở góc trên trái, kích thước tự nhiên, font mặc định
+  trình duyệt) — kết quả này TỰ NÓ khó hiểu (style block vẫn nguyên vẹn, đã kiểm tra),
+  nghi ngờ do chính các lần sửa tay liên tiếp qua regex đã làm hỏng cấu trúc file theo
+  cách khác không liên quan tới bug gốc — KHÔNG tin cậy để kết luận thêm, dừng lại ở
+  đây thay vì tiếp tục đoán.
+- Không có Docker trong máy này nên chưa thử được `--docker` (giải pháp render
+  deterministic mà troubleshooting docs của HyperFrames gợi ý cho đúng loại vấn đề
+  "render khác preview/snapshot").
+
+### Quyết định (đã sửa lại sau khi user cung cấp bằng chứng đối lập)
+
+**Đã BẬT LẠI `image_blur_card` trong UI** — không còn ẩn. Fix v1 (query string) + v2
+(2 file thật riêng biệt) vẫn giữ nguyên trong code — không loại bỏ, vì rất có thể đã
+làm GIẢM tần suất lỗi dù không (và có lẽ không thể) chứng minh hết 100% với 1 bug
+không ổn định. Project user báo lỗi đã regenerate 7 scene bằng fix v2, khôi phục
+`index.html` gốc, dọn sạch mọi file/render test tạm.
+
+**Khuyến nghị thực tế cho user**: nếu gặp lại tình trạng thẻ ảnh không xuất hiện, thử
+**render lại (không cần sửa gì)** trước — vì lỗi không ổn định, có khả năng lần render
+tiếp theo sẽ đúng. Nếu lặp lại nhiều lần liên tiếp trên cùng project, đó mới là tín
+hiệu đáng báo lại.
+
+**Nếu muốn điều tra tiếp cho triệt để** (chưa thử, không lặp lại các hướng đã thử ở
+dưới — nhưng lưu ý mỗi hướng dưới đây chỉ được test 1 lần nên độ tin cậy thấp hơn khi
+biết lỗi không ổn định):
+0. **Render CÙNG 1 project/code nhiều lần liên tiếp** (vd 5-10 lần) để đo tần suất lỗi
+   thật (vd "3/10 lần" thay vì có/không) — bắt buộc phải làm điều này TRƯỚC khi kết
+   luận bất kỳ hướng fix nào có tác dụng hay không, do bản chất không ổn định của bug.
+1. `--docker` render mode thật (cần cài Docker trước) — nếu fix được, xác nhận đây là
+   vấn đề môi trường Chrome/font cục bộ, không phải bug composition.
+2. So sánh kỹ hơn 2 project THÀNH CÔNG vs THẤT BẠI — không chỉ khác model ảnh
+   (wan2.6-image 1024² vs qwen-image 1328²), mà còn khác về SỐ SCENE thật sự wired
+   vào root lúc test (1 scene vs 7 scene) — chưa cô lập được biến này triệt để (lần
+   thử isolate ở project rút gọn vẫn tái hiện được bug với chỉ 1 scene, nên nhiều khả
+   năng KHÔNG phải do multi-scene, nhưng chưa loại trừ 100%).
+3. Dựng lại bug trên project rút gọn 1 scene MỘT LẦN NỮA, cẩn thận hơn (không dùng
+   regex sửa tay chồng chéo nhiều lần lên cùng 1 file — mỗi giả thuyết nên test trên
+   1 bản copy sạch riêng, đúng phương pháp khoa học hơn lần thử này).
+4. Cân nhắc hỏi thẳng HyperFrames (nếu có kênh hỗ trợ) với repro case cụ thể: 2
+   `<img class="clip">` cùng `data-track-index` khác nhau, cùng `data-start`/
+   `data-duration`, 1 cái full-bleed + 1 cái trong wrapper `position:absolute` có
+   `border-radius`/`overflow:hidden` — snapshot đúng, render sai.
+
 ## TẠM DỪNG — Kinetic Typography (sub-style mới, dính bug render chưa tìm ra root cause) (phiên 2026-08-04)
 
 User yêu cầu thêm 1 dạng video mới bên cạnh "animation"/"sub": chữ động toàn màn
@@ -3236,3 +3342,187 @@ Tạo 1 project test thật (`qwen3.7-flash`), chạy qua route HTTP thật:
 - server/templates/sub-styles/image-life-insights-light.mjs (mới)
 - server/templates/sub-styles/index.mjs (đăng ký 2 style)
 - web/src/components/Pipeline.jsx (thêm 2 option vào dropdown)
+
+---
+
+## Fix — Bug thật user báo trên `image_blur_card`: nền mất blur/sáng lên giữa scene (phiên 2026-08-05, ngay sau khi ship)
+
+User render 1 video thật (`3 điều nhỏ bé mỗi tối giúp bạn ngủ ngon và thức dậy...`,
+subStyle `image_blur_card`) và báo: gần cuối mỗi scene, nền mờ phía sau đột nhiên bớt
+mờ / sáng hơn bình thường 1 chút, ngay trước khi chuyển sang scene tiếp theo. Kèm 2
+ảnh chụp màn hình từ chính video render của họ.
+
+### Chẩn đoán — đo khách quan, không đoán
+
+Trích frame thật bằng ffmpeg tại nhiều mốc thời gian quanh biên scene_01→scene_02, đo
+độ sáng trung bình (`crop` 1 vùng nền cố định + `format=gray`) thay vì chỉ nhìn bằng
+mắt:
+
+```
+t=3.50..3.85  → avgY=135.00 (ổn định, đúng suốt từ đầu scene)
+t=3.90..4.10  → avgY=182.00 (nhảy bậc đột ngột, +47, giữ nguyên 0.2s)
+t=4.13+       → avgY=122.12 (crossfade thật do root-composer bắt đầu, đúng thiết kế)
+```
+
+Bước nhảy 135→182 xảy ra **đột ngột giữa 3.85s và 3.90s** — không có GSAP tween nào
+trong toàn bộ `index.html` (root) hay `scene_01.html` chạm tới thời điểm này (xác nhận
+bằng grep script; caption chunk boundary gần nhất là 3.243s/4.032s, không khớp).
+Không phải crossfade thật (crossfade root chỉ bắt đầu ở 4.13s, đã xác nhận qua
+`tl.to('#scene-01', {opacity:0}, 4.13)`).
+
+**Nguyên nhân**: `image-blur-card.mjs` dùng 2 thẻ `<img class="clip">` trỏ CÙNG 1 file
+ảnh, CÙNG `data-start="0"` và CÙNG `data-duration`, chỉ khác style (1 cái blur làm
+nền, 1 cái nét làm thẻ ảnh giữa). Đây CHÍNH XÁC là điều `hyperframes lint`'s
+`duplicate_media_discovery_risk` đã cảnh báo từ lúc code xong nhưng bị đánh giá nhầm
+là "chỉ advisory, cần render thật để xác nhận" — giờ có bằng chứng thật: HyperFrames
+dường như coi 2 clip có cùng {src, start, duration} là CÙNG 1 asset lúc discovery/
+compile, và có thể share nhầm render state giữa 2 instance trong 1 khoảng ngắn của
+timeline, khiến lớp NỀN hiển thị nhầm bản KHÔNG BLUR trong ~0.2s.
+
+### Fix
+
+`image-blur-card.mjs`: thêm query suffix khác nhau vào `src` của 2 thẻ `<img>`
+(`${imagePath}?bg` và `${imagePath}?card`) — vẫn trỏ đúng 1 file thật trên đĩa (query
+string không đổi đường dẫn file được resolve), chỉ để chuỗi `src` khác nhau về mặt
+văn bản, tránh bị nhận diện trùng lặp lúc discovery/compile.
+
+### Verify thật — trên ĐÚNG project user báo lỗi (không phải project test riêng)
+
+1. Regenerate `compositions/scene_01-03.html` bằng module đã sửa, gọi trực tiếp qua
+   script Node độc lập (KHÔNG qua server đang chạy — tránh động vào server user có thể
+   đang dùng).
+2. `hyperframes lint`: warning `duplicate_media_discovery_risk` biến mất hoàn toàn cho
+   cả 3 scene.
+3. Render lại thật qua `npx hyperframes render --no-experimental-fast-capture` (CLI
+   trực tiếp), đo lại đúng các mốc thời gian cũ: **bước nhảy 135→182 biến mất hoàn
+   toàn** — giữ nguyên 135.00 suốt 3.50–4.10s, chỉ đổi ở 4.13s (đúng crossfade thật).
+   Xem frame thật ở 3.9s bằng mắt: nền mờ đều, không còn hoạ tiết sắc nét lộ ra.
+4. Đã khôi phục `index.html` gốc của project (xem mục dưới) và xoá render test
+   tạm — project user không bị thay đổi ngoài ý muốn, chỉ 3 file `compositions/
+   scene_0{1,2,3}.html` được cập nhật để chứa fix (an toàn, không LLM/ảnh, thuần
+   deterministic).
+
+### Phát hiện phụ, RIÊNG BIỆT với bug trên — user cần biết
+
+`assets/music/` (thư viện nhạc nền chung của workspace) đang **trống hoàn toàn** trên
+máy này. Render lần đầu của user (`video_2026-08-05_15-02-35.mp4`) vẫn ra được — chưa
+rõ vì sao (có thể lúc đó file nhạc còn tồn tại rồi bị dọn, hoặc route render qua server
+xử lý khác CLI trực tiếp). Nhưng khi tôi thử render lại NGUYÊN VẸN `index.html` (có
+tham chiếu `assets/music/default.mp3`) qua CLI, gặp lỗi cứng
+`audio_processing_failed / source_not_found` — **render KHÔNG ra được** cho tới khi
+nhạc nền tồn tại. Nếu user render lại video này (hoặc bất kỳ video "sub" nào dùng
+nhạc nền) mà gặp lỗi tương tự, đây là nguyên nhân — cần chạy lại
+`node --env-file=.env scripts/setup-music-library.mjs` hoặc kiểm tra tại sao thư mục
+trống. KHÔNG tự ý sửa trong phiên này (ngoài phạm vi bug được báo, cần user xác nhận
+trước).
+
+### Critical Files (fix này)
+- server/templates/sub-styles/image-blur-card.mjs (2 dòng `src`, + doc comment giải
+  thích nguyên nhân/bằng chứng)
+- output/2026-08-05/3-dieu-nho-be-moi-toi-giup-ban-ngu-ngon-va-thuc-da/video/
+  compositions/scene_01.html, scene_02.html, scene_03.html (regenerate, không phải
+  code base — chỉ áp fix cho project thật của user)
+
+---
+
+## Mới — Template "footage": ghép video từ kho footage ngẫu nhiên + sub karaoke (phiên 2026-08-05)
+
+User muốn 1 hướng tạo video hoàn toàn khác 2 hướng hiện có: ghép các đoạn cắt ngẫu
+nhiên từ kho video thật (user tự cung cấp, có thể hàng trăm file) thành từng scene, đè
+sub karaoke lên trên — **không cần AI hiểu nội dung video**. Tham khảo tinh thần
+MoneyPrinterTurbo (đã đọc code thật `video.py`'s `combine_videos()` qua WebFetch:
+chọn theo shuffle + ưu tiên nguồn chưa dùng, cộng dồn thời lượng khớp audio, ghép bằng
+ffmpeg concat demuxer — không dùng nhiều clip trong 1 timeline render).
+
+Yêu cầu chốt: mỗi scene lấy 1-3 video (cấu hình được), mỗi video cắt 1 đoạn 3-6s (cấu
+hình được), điểm cắt ngẫu nhiên TRONG nguồn (không chỉ từ đầu); tuỳ chọn lật ngang +
+tăng tốc (mục đích: tránh trùng lặp footage giữa các video sinh ra, KHÔNG phải hiệu
+ứng thẩm mỹ). User tự bỏ ý tưởng "ghép 2 video trên/dưới" vì thấy không đáng công.
+
+### Kiến trúc
+
+**Không LLM nào tham gia bước video-plan** — đúng tinh thần "không quan tâm nội
+dung": `content-planner` đã hoàn toàn template-agnostic từ trước. `build-footage-
+plan.mjs` (mới) chỉ copy scene list từ `scenes-with-timing.json` sang
+`video-plan.json` kèm `footageConfig` — không gọi DashScope, chạy xong trong ~2s
+(verify thật: `usage` toàn 0).
+
+**Mỗi scene ghép ra ĐÚNG 1 file `.mp4` bằng ffmpeg TRƯỚC khi HyperFrames thấy nó** —
+quyết định trực tiếp từ bài học `image-blur-card.mjs` cùng phiên này (2
+`<img class="clip">` trên 2 track gây bug render không ổn định). Ghép sẵn bằng
+ffmpeg rồi chỉ đưa 1 `<video class="clip">` vào composition — quay lại pattern đã
+proven ổn định của `image-full-focus.mjs`.
+
+**Không dùng Node ffmpeg wrapper** — `ffmpeg-cli.mjs` (mới) gọi thẳng binary qua
+`execFile` + `signal`/`CancelledError`, đúng pattern `hyperframes-cli.mjs`'s
+`render()` đã có.
+
+File mới: `server/lib/footage-library.mjs` (scan kho `assets/footage-library/`,
+manifest cache duration qua `ffprobe`, `pickRandomClips` ưu tiên tránh trùng nguồn
+trong cùng project), `server/tools/ffmpeg-cli.mjs` (`probeDuration`/`cutClip`/
+`concatClips`), `server/pipeline/build-footage-plan.mjs`, `server/templates/
+footage-style.mjs` (mirror `image-full-focus.mjs`, `<video muted playsinline>` thay
+`<img>`, tái dùng nguyên `karaoke-captions.mjs`), `server/agents/footage-scene-
+writer.mjs` (mirror `sub-scene-writer.mjs`: pick clip → cut/flip/speed từng đoạn →
+concat → render → lint).
+
+File sửa: `server/jobs/queue.mjs` (thêm `queues.ffmpeg`, tránh spawn ffmpeg không
+giới hạn khi "Generate tất cả"), `server/routes.mjs` (nhánh template==="footage" ở
+2 route sẵn có + 2 route mới: serve file `.mp4` + `GET /footage-library` báo số
+lượng), `server/lib/profiles.mjs` (thêm field footage vào `PROFILE_FIELDS`),
+`web/src/api.js`/`Pipeline.jsx`/`SceneGrid.jsx` (template thứ 3 trong dropdown, khối
+cấu hình riêng, thumbnail đổi sang `<video>`).
+
+### Bug thật tìm thấy khi verify — thứ tự `-ss`/`-t` trong ffmpeg
+
+`cutClip` ban đầu đặt `-ss`/`-t` SAU `-i` — verify thật bằng cách cắt 1 đoạn với
+`speedFactor:1.5, outputDurationSec:3` rồi `ffprobe` lại: ra **4.5s** (đúng bằng raw
+cut TRƯỚC khi speed, không phải 3s mong đợi). Nguyên nhân: `-t` đặt SAU `-i` bị
+ffmpeg hiểu là giới hạn OUTPUT duration (không phải input), vô hiệu hoá hiệu ứng
+`setpts` speed-up hoàn toàn im lặng (không lỗi, không cảnh báo). Fix: chuyển
+`-ss`/`-t` lên TRƯỚC `-i` (input-side option đúng) — verify lại: ra 3.067s (khớp
+target, sai số nhỏ do làm tròn 30fps, chấp nhận được, cùng triết lý buffer 0.1s
+MoneyPrinterTurbo tự áp dụng).
+
+### Verify thật — đầy đủ, không đoán
+
+1. `ffmpeg-cli.mjs`: tạo 2 clip synthetic (`testsrc`/`smptebars`, khác resolution/fps)
+   bằng chính ffmpeg, test `probeDuration` (đúng 10s/8s), `cutClip` plain/flip/speed
+   (tất cả đúng duration + kích thước 1080×1920 sau khi verify+fix bug trên), trích
+   frame xác nhận `hflip` đảo đúng chiều ngang (dải màu cầu vồng đảo hướng). `concat
+   Clips` ra đúng tổng duration.
+2. `footage-library.mjs`: populate thật `assets/footage-library/` bằng 3 clip test,
+   `scanFootageLibrary` ra đúng duration qua `ffprobe`, `pickRandomClips` ưu tiên
+   tránh trùng đúng như thiết kế (xác nhận qua state file `footage-used-state.json`).
+3. Toàn bộ pipeline qua route HTTP thật: chạy server test riêng (`PORT=3099`, không
+   đụng server thật của user) — content-plan → audio → **video-plan (usage=0, done
+   trong ~2s, xác nhận không tốn LLM)** → 6 scene generate (tất cả xong gần như tức
+   thì, chỉ ffmpeg cục bộ) → root → **render thật** (không chỉ snapshot). `hyperframes
+   lint` chỉ còn lỗi font-path đã biết (không có `duplicate_media_discovery_risk` —
+   đúng dự đoán, chỉ 1 `<video>` mỗi scene) + warning `timeline_track_too_dense` (do
+   nhiều caption chunk, đã biết là advisory).
+4. Trích 3 frame thật từ video render, xem bằng mắt: video footage full-bleed đúng
+   (crop/scale đúng cho từng scene khác resolution nguồn), sub karaoke hiện đúng vị
+   trí/style/highlight-theo-từ, KHÔNG có hiện tượng thiếu media như blur_card từng
+   gặp — xác nhận kiến trúc "ghép trước, chỉ 1 `<video>`" tránh được đúng loại bug đó.
+5. Dọn sạch: xoá project test, xoá `assets/footage-library/` test data, dừng server
+   test riêng — không đụng gì tới server/dữ liệu thật của user.
+
+### Chưa test / biết trước
+- Chưa test qua UI trình duyệt thật (chỉ verify qua route trực tiếp).
+- Chưa test trường hợp kho rỗng/rất ít file (< số clip cần cho 1 scene) qua UI — logic
+  fallback trong `pickRandomClips` đã verify qua code trực tiếp nhưng chưa qua UI.
+- Chưa test kỹ trường hợp source video RẤT NGẮN (ngắn hơn cả đoạn raw cut cần) — có
+  logic clamp trong `footage-scene-writer.mjs` (`rawCut = Math.min(...)`) nhưng chưa
+  có bằng chứng sống với file nguồn thật sự ngắn.
+
+### Critical Files
+- server/lib/footage-library.mjs (mới)
+- server/tools/ffmpeg-cli.mjs (mới)
+- server/pipeline/build-footage-plan.mjs (mới)
+- server/templates/footage-style.mjs (mới)
+- server/agents/footage-scene-writer.mjs (mới)
+- server/jobs/queue.mjs (thêm `queues.ffmpeg`)
+- server/routes.mjs (nhánh template footage + 2 route mới)
+- server/lib/profiles.mjs (thêm field footage vào PROFILE_FIELDS)
+- web/src/api.js, web/src/components/Pipeline.jsx, web/src/components/SceneGrid.jsx

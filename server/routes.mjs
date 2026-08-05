@@ -23,6 +23,9 @@ import { runSceneWriter } from "./agents/scene-writer.mjs";
 import { runSubSceneWriter } from "./agents/sub-scene-writer.mjs";
 import { runRootComposer } from "./agents/root-composer.mjs";
 import { runCaptionWriter } from "./agents/caption-writer.mjs";
+import { buildFootagePlan } from "./pipeline/build-footage-plan.mjs";
+import { runFootageWriter } from "./agents/footage-scene-writer.mjs";
+import { scanFootageLibrary } from "./lib/footage-library.mjs";
 import { render } from "./tools/hyperframes-cli.mjs";
 import { readJobStatus, runStep, getEmitter, emitProgress } from "./jobs/job-status.mjs";
 import { queues } from "./jobs/queue.mjs";
@@ -389,8 +392,24 @@ router.post("/projects/:id/audio", withProjectDir, (req, res) => {
 router.post("/projects/:id/video-plan", withProjectDir, (req, res) => {
   const {
     visualStyle, template, subStyle, imageStylePrefix, fontFamily, model, cheapModel, imageModel,
-    imageLibraryEnabled, imageLibraryMaxReuse, profileSlug, kenBurns, grain,
+    imageLibraryEnabled, imageLibraryMaxReuse, profileSlug, kenBurns, grain, footageConfig, format,
   } = req.body ?? {};
+
+  // "footage" needs no LLM call at all — see build-footage-plan.mjs's own doc comment
+  // (the whole template is "don't care about video content", nothing for a model to
+  // write per scene) — so it doesn't go through queues.dashscope, and doesn't need
+  // `signal` (nothing to cancel, this returns near-instantly). Unlike "motion"/"sub"
+  // (whose video-plan LLM infers `format` itself from DESIGN.md's own content, which
+  // was generated with the project's platform baked in), this deterministic path has
+  // no LLM to read that context — the caller must pass `format` directly (Pipeline.jsx
+  // already tracks it as the same `platform` prop used for the content-planner call).
+  if (template === "footage") {
+    runInBackground(req.projectDir, "video-plan", (onEvent) =>
+      buildFootagePlan({ projectDir: req.projectDir, format: format || "9:16", footageConfig, onEvent })
+    );
+    return res.status(202).json({ step: "video-plan", status: "running" });
+  }
+
   runInBackground(req.projectDir, "video-plan", (onEvent, signal) =>
     queues.dashscope.run(() =>
       runVideoPlanner({
@@ -468,6 +487,30 @@ router.post("/projects/:id/scenes/:sceneId/generate", withProjectDir, (req, res)
           imageLibrary: videoPlan.imageLibrary,
           kenBurns: videoPlan.kenBurns,
           grain: videoPlan.grain,
+          onEvent,
+          signal,
+        })
+      )
+    );
+    return res.status(202).json({ step: `scene:${sceneId}`, status: "running" });
+  }
+
+  if (videoPlan.template === "footage") {
+    const timingFile = join(req.projectDir, "scenes-with-timing.json");
+    if (!existsSync(timingFile)) return res.status(400).json({ error: "scenes-with-timing.json not found — run /audio first" });
+    const sceneTiming = JSON.parse(readFileSync(timingFile, "utf-8")).scenes?.find((s) => s.sceneId === sceneId);
+    if (!sceneTiming) return res.status(404).json({ error: `Scene "${sceneId}" not found in scenes-with-timing.json` });
+
+    // queues.ffmpeg, not queues.dashscope — no DashScope call involved, just local
+    // ffmpeg processes; still queued to cap parallel ffmpeg spawns from "Generate tất cả".
+    runInBackground(req.projectDir, `scene:${sceneId}`, (onEvent, signal) =>
+      queues.ffmpeg.run(() =>
+        runFootageWriter({
+          projectDir: req.projectDir,
+          scene,
+          sceneTiming,
+          format: videoPlan.format,
+          footageConfig: videoPlan.footageConfig,
           onEvent,
           signal,
         })
@@ -621,6 +664,34 @@ router.get("/projects/:id/audio/:name", withProjectDir, (req, res) => {
   if (escapes || !name.endsWith(".mp3")) return res.status(400).json({ error: "Invalid audio filename" });
   if (!existsSync(file)) return res.status(404).json({ error: `${name} not found` });
   res.sendFile(file);
+});
+
+// Serves a scene's ffmpeg-assembled footage clip (assets/footage/scene_XX.mp4) for
+// the "footage" template's SceneGrid preview — `res.sendFile` (not a raw stream) for
+// the same Range-request reason as /renders/:name above, since this is previewed in
+// an HTML5 <video> element too.
+router.get("/projects/:id/footage/:name", withProjectDir, (req, res) => {
+  const { name } = req.params;
+  const footageDir = join(req.projectDir, "assets", "footage");
+  const file = resolve(footageDir, name);
+  const rel = relative(footageDir, file);
+  const escapes = rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel);
+  if (escapes || !name.endsWith(".mp4")) return res.status(400).json({ error: "Invalid footage filename" });
+  if (!existsSync(file)) return res.status(404).json({ error: `${name} not found` });
+  res.sendFile(file);
+});
+
+// Global (not project-scoped) — reports the size of the shared stock-footage pool so
+// the UI can confirm it's pointed at a populated folder before the user tries to
+// generate a "footage" template scene. See lib/footage-library.mjs's own doc comment
+// for why this is one shared pool, not scoped per-project/profile.
+router.get("/footage-library", async (req, res) => {
+  try {
+    const files = await scanFootageLibrary();
+    res.json({ count: files.length });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Ensures an on-demand `hyperframes preview` dev server is running for this project

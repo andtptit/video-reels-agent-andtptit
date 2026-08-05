@@ -17,6 +17,23 @@
  * without a real `<img>`'s "natural size". Both image layers here are real
  * `<img class="clip">` elements with `object-fit`, exactly image-full-focus.mjs's own
  * proven pattern — blur is a `filter:` on the `<img>` itself, not a background layer.
+ *
+ * The two `<img>` tags MUST point at two physically separate files with identical
+ * content — see `needsDuplicateImage` below. Found live via a real user-reported
+ * render: with byte-identical {src, data-start, data-duration} on both (exactly what
+ * `hyperframes lint`'s `duplicate_media_discovery_risk` warns about), the background
+ * layer would briefly render UNBLURRED partway through the scene on one real project
+ * (measured via frame extraction: a flat top-left brightness sample jumped 135→182
+ * for a ~0.2s window with no corresponding GSAP tween anywhere in the timeline). A
+ * first fix attempt just gave the two `<img>` tags different `?bg`/`?card` query
+ * suffixes on the SAME underlying file — this cleared the lint warning and fixed that
+ * first project, but a SECOND real project (different AI-image model, 1328×1328
+ * instead of 1024×1024) still rendered the card completely invisible for the whole
+ * scene even with the query suffix, confirming query-string differentiation isn't
+ * reliably enough — HyperFrames' asset discovery/compile step seems to key on the
+ * file path independent of query string in at least some code path. Two genuinely
+ * separate files on disk removes the ambiguity entirely, regardless of which internal
+ * fingerprinting HyperFrames uses.
  */
 import { renderKaraokeCaptions } from "../../lib/karaoke-captions.mjs";
 import { fontFaceCss } from "../../lib/fonts.mjs";
@@ -26,6 +43,10 @@ export const label = "Blur Card — ảnh vuông nổi bật + nền mờ cùng 
 // Square image regardless of the video's own canvas format (9:16/16:9) — see
 // sub-scene-writer.mjs's `imageFormat = style.imageAspect || format`.
 export const imageAspect = "1:1";
+// Tells sub-scene-writer.mjs to physically copy the generated image to a second
+// file and pass it as `cardImagePath` — see this file's header comment for why a
+// query-string-only distinction on one shared file wasn't reliable enough.
+export const needsDuplicateImage = true;
 
 const DEFAULT_FONT = "Itim"; // must match image-full-focus.mjs's own default
 
@@ -36,7 +57,11 @@ const DEFAULT_FONT = "Itim"; // must match image-full-focus.mjs's own default
  * @param {number} params.width
  * @param {number} params.height
  * @param {string} params.imagePath - project-relative path to the pre-downloaded
- *   square AI image — reused for BOTH the blurred background and the sharp card.
+ *   square AI image, used for the blurred background layer.
+ * @param {string} [params.cardImagePath] - project-relative path to a SEPARATE COPY
+ *   of the same image content, used for the sharp card layer. Defaults to `imagePath`
+ *   if not given, but callers should always pass a real second file — see
+ *   `needsDuplicateImage` below for why.
  * @param {{word: string, start: number, end: number}[]} params.wordTimestamps
  * @param {number} params.sceneDuration - composition's data-duration
  * @param {string} [params.narration]
@@ -53,6 +78,7 @@ export function render({
   width,
   height,
   imagePath,
+  cardImagePath = imagePath,
   wordTimestamps,
   sceneDuration,
   narration = "",
@@ -119,7 +145,7 @@ export function render({
          style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:0; filter:blur(${Math.round(width * 0.022)}px) brightness(0.85); transform:scale(1.1);">
     <div class="${p}-bg-dim"></div>
     <div class="${p}-card-wrap">
-      <img id="${p}-card-image" class="clip" src="${imagePath}" data-start="0" data-duration="${sceneDuration}"
+      <img id="${p}-card-image" class="clip" src="${cardImagePath}" data-start="0" data-duration="${sceneDuration}"
            data-track-index="1" alt=""
            style="width:100%; height:100%; object-fit:cover; display:block;">
     </div>

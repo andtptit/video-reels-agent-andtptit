@@ -51,6 +51,15 @@ const PROFILE_FIELDS = [
   "plannerModel",
   "cheapModel",
   "imgModel",
+  // Template "footage" config — see pipeline/build-footage-plan.mjs.
+  "footageMinClips",
+  "footageMaxClips",
+  "footageMinSeconds",
+  "footageMaxSeconds",
+  "footageFlipEnabled",
+  "footageSpeedEnabled",
+  "footageSpeedMin",
+  "footageSpeedMax",
   // Batch idea-generation prefill only (see components/Batch.jsx) — pure convenience,
   // never required. `defaultAudience` bends the "audience is per-video, not
   // per-channel" rule this file's own doc comment states, but only as an editable
