@@ -3124,3 +3124,115 @@ elevenlabs.mjs, server/pipeline/generate-audio.mjs, server/tools/hyperframes-cli
 8 file agent (content-planner/video-planner/scene-writer/sub-scene-writer/root-
 composer/remix-scenes/idea-generator/caption-writer.mjs), web/src/api.js,
 web/src/components/StatusBadge.jsx, Pipeline.jsx, SceneGrid.jsx, Batch.jsx.
+
+---
+
+## Mới — 2 subStyle mới cho "sub" template: Blur Card / Life Insights Light (phiên 2026-08-05)
+
+User muốn thêm subStyle cho template "sub" theo hướng "chỉ đổi ảnh AI hiển thị — có
+background nền, ảnh có thể vuông thay vì dọc, cơ chế sub text giữ nguyên". Tham khảo
+layout từ Pixelle-Video (repo khác, đọc trực tiếp `templates/1080x1920/*.html` — hệ
+template `{{placeholder}}` tĩnh, không animation/timing, khác hẳn engine HyperFrames)
+— thu hẹp từ ~19 template xuống 2 cái được chọn: `image_blur_card` (nền = chính ảnh đó
+nhưng blur+zoom, ảnh nét đặt giữa) và `image_life_insights_light` (nền kem ấm + hoạ
+tiết CSS thuần, ảnh vuông cố định giữa). Loại `image_elegant` vì dùng `backdrop-filter`
++ nhiều lớp `position:absolute` — rủi ro render giống bug Kinetic Typography đã gặp.
+
+2 quyết định chốt qua AskUserQuestion: (1) sub-caption vẫn đặt ở **đáy toàn màn hình**
+(không đè lên đáy ảnh như bản gốc Pixelle); (2) **cả 2 style đều dùng ảnh vuông**.
+
+### Kiến trúc
+
+**Tách "định dạng ảnh AI" khỏi "định dạng khung video"** — trước đây `format` dùng
+chung cho cả kích thước composition (`dimensionsForFormat`) lẫn kích thước ảnh sinh ra
+(`generateAndSaveImage`/`findReusableImage`/`addToLibrary`). Style mới có thể export
+`imageAspect` (vd `"1:1"`) — `sub-scene-writer.mjs` dùng
+`const imageFormat = style.imageAspect || format` cho 3 lệnh gọi ảnh, còn
+`dimensionsForFormat(format)` (khung composition) giữ nguyên format gốc của video —
+2 khái niệm tách biệt hoàn toàn. Chỉ 1 call site cần sửa (`scene-writer.mjs`, dùng cho
+template "motion", không liên quan).
+
+**`server/providers/image/dashscope-image.mjs`** — thêm key `"1:1"` vào `SIZE_TABLES`:
+`wan2.6-image: "1024*1024"` (verify thật qua API — trả đúng ảnh 1024×1024, xác nhận
+bằng ffprobe, không đoán ngân sách pixel), `qwen-image`/`qwen-image-2.0`/
+`z-image-turbo: "1328*1328"` (giá trị đã biết hợp lệ từ error message API sẵn có).
+
+**`server/lib/karaoke-captions.mjs`** (mới) — tách nguyên logic chunk-hoá + `<span>` +
+GSAP tween karaoke từ `image-full-focus.mjs` (không đổi hành vi, chỉ refactor) thành
+`renderKaraokeCaptions({classPrefix, width, height, wordTimestamps, sceneDuration,
+narration, trackIndex})` dùng chung cho cả 3 style — tránh copy-paste 3 lần logic non-
+trivial (nguy cơ lệch tinh vi). Thêm `trackIndex` (mặc định 1, giữ đúng hành vi cũ của
+`image_full_focus`) vì 2 style mới có nhiều hơn 1 lớp `<img>`, cần track riêng.
+`image-full-focus.mjs` refactor sang gọi helper này — verify bằng cách gọi trực tiếp
+`render()` với input giả, xác nhận HTML sinh ra không lỗi, đủ mọi phần tử/tween.
+
+**Nguyên tắc thiết kế 2 style mới — chỉ dùng kỹ thuật đã verify sống ổn định trong
+`image-full-focus.mjs`**, phản ứng trực tiếp với bug Kinetic Typography (xem mục "TẠM
+DỪNG" đầu file: nghi vấn liên quan phần tử không có "kích thước tự nhiên" +
+`backdrop-filter`/`display:flex` lạ): mọi lớp ảnh (kể cả nền blur) đều là
+`<img class="clip">` THẬT với `object-fit`, filter CSS áp trực tiếp lên `<img>` —
+KHÔNG dùng `background-image: url()`, KHÔNG `backdrop-filter`, KHÔNG `display:flex`
+mới trong `<style>`.
+
+- **`image-blur-card.mjs`** (mới) — 2 lớp `<img>` cùng trỏ 1 ảnh: nền phủ kín
+  (`object-fit:cover` + `filter:blur()brightness()` + `transform:scale(1.1)` che rìa
+  blur), thẻ ảnh nét vuông giữa màn hình (border-radius + box-shadow). `kenBurns` áp
+  lên lớp ảnh NÉT (chủ thể chính), không áp lên nền blur.
+- **`image-life-insights-light.mjs`** (mới) — nền kem (`#F5F1E8`) + hoạ tiết chấm/vòng
+  tròn thuần CSS (`radial-gradient`, không `class="clip"`, cùng loại phần tử tĩnh với
+  `.{p}-shade` đã ổn định của `image-full-focus.mjs`), 1 `<img>` vuông giữa màn hình.
+  Bỏ hẳn `{{title}}` của bản gốc Pixelle — data model hiện tại không có headline riêng.
+- Cả 2 đăng ký vào `sub-styles/index.mjs`, thêm option vào dropdown `Pipeline.jsx`
+  (không comment-out như `kinetic_typography` — 2 style này không có bug đã biết).
+
+### Verify thật — real render, không chỉ snapshot (đúng bài học Kinetic Typography)
+
+Tạo 1 project test thật (`qwen3.7-flash`), chạy qua route HTTP thật:
+
+- **video-plan gặp lại đúng bug có sẵn đã biết** (agent không xác nhận output file —
+  xem mục "Bug có sẵn" ở phần Chạy hàng loạt phía trên): model trả JSON hợp lệ trong
+  text thay vì gọi `write_file`, **2 LẦN LIÊN TIẾP** kể cả sau khi tôi tự tay retry
+  (không phải bug do subStyle mới — không liên quan tính năng đang làm). Model còn
+  claim "Tôi đã viết vào file video-plan.json" dù chưa từng gọi tool — bằng chứng cụ
+  thể mới cho bug đã biết. Để không mất kết quả LLM thật đã sinh ra, trích JSON từ text
+  response + tự vá đúng các field CODE-owned (`template`/`subStyle`/`fontFamily`/
+  `kenBurns`/`grain`/`imageLibrary` — đúng logic `video-planner.mjs:184-198` lẽ ra tự
+  chạy) để tiếp tục pipeline trung thực, không tự chế dữ liệu.
+- `assets/images/scene_01.png` sinh ra đúng **1024×1024 thật** (ffprobe xác nhận) cho
+  cả 2 style (ảnh dùng chung do cùng `imageAspect:"1:1"`, style thứ 2 tái dùng ảnh có
+  sẵn — không tốn thêm 1 lần gọi API).
+- `hyperframes lint`: `image_blur_card` có 1 warning `duplicate_media_discovery_risk`
+  (2 `<img>` cùng trỏ 1 ảnh — đúng thiết kế, không phải lỗi) + 1 lỗi
+  `invalid_parent_traversal_in_asset_path` (`../assets/fonts/...` từ `fontFaceCss()` +
+  `../assets/grain-texture.png` từ CSS grain copy nguyên) — xác nhận qua grep: cả 4
+  path lỗi đều từ code CHUNG/COPY NGUYÊN từ `image-full-focus.mjs` không đổi, không
+  phải regression mới; không chặn pipeline thật (gate lỗi của `sub-scene-writer.mjs`
+  chỉ xét severity error trong `ownFindings`, nhưng lint NỘI BỘ của bước generate-scene
+  không thấy lỗi này dù `npx hyperframes lint` ở CLI thấy — chưa rõ nguyên nhân chênh
+  lệch, có thể do phạm vi/thời điểm discovery của rule; không ảnh hưởng tới việc
+  render/hiển thị thật, đã verify bằng mắt qua frame thật bên dưới).
+- **`hyperframes render` thật (không chỉ snapshot)** cho cả 2 style, trích frame thật
+  bằng ffmpeg, xem trực tiếp qua Read tool:
+  - `image_blur_card`: nền mờ phủ kín canvas đúng, thẻ ảnh vuông nét nổi giữa có bo
+    góc + shadow, caption đáy màn hình đọc rõ với highlight karaoke đúng vị trí —
+    KHÔNG lặp lại bug Kinetic Typography (không có hiện tượng size/position sai giữa
+    render thật và thiết kế), không có artefact nào từ warning "2 ảnh trùng nguồn".
+  - `image_life_insights_light`: nền kem + hoạ tiết chấm/vòng tròn hiện đúng, ảnh vuông
+    bo góc + shadow nổi giữa, caption đáy đọc rõ trên nền sáng.
+- Dọn sạch project test sau khi verify xong.
+
+### Chưa test / biết trước
+- Chưa test qua UI trình duyệt thật (chỉ verify qua gọi route trực tiếp).
+- Nguyên nhân chênh lệch lint nội bộ (generate-scene) vs `npx hyperframes lint` CLI cho
+  cùng 1 lỗi `invalid_parent_traversal_in_asset_path` chưa được điều tra tới cùng — ghi
+  nhận hiện tượng, không ảnh hưởng kết quả render thật đã verify bằng mắt.
+
+### Critical Files
+- server/providers/image/dashscope-image.mjs (thêm size "1:1")
+- server/agents/sub-scene-writer.mjs (tách `imageFormat` khỏi `format`)
+- server/lib/karaoke-captions.mjs (mới)
+- server/templates/sub-styles/image-full-focus.mjs (refactor dùng helper)
+- server/templates/sub-styles/image-blur-card.mjs (mới)
+- server/templates/sub-styles/image-life-insights-light.mjs (mới)
+- server/templates/sub-styles/index.mjs (đăng ký 2 style)
+- web/src/components/Pipeline.jsx (thêm 2 option vào dropdown)

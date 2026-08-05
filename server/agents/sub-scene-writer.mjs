@@ -52,6 +52,11 @@ export async function runSubSceneWriter({
   if (needsImage && !scene.image_prompt) {
     throw new Error(`Scene "${scene.sceneId}" thiếu image_prompt — style "${subStyle}" bắt buộc cần ảnh AI từ video-planner`);
   }
+  // A style may want a different AI-image aspect than the video's own canvas format
+  // (e.g. a square 1:1 image inside a 9:16 video) — `format` below still drives the
+  // COMPOSITION's width/height via dimensionsForFormat; `imageFormat` drives only
+  // what's requested from the image provider/library, kept deliberately separate.
+  const imageFormat = style.imageAspect || format;
 
   const n = sceneNumber(scene.sceneId);
   const padded = String(n).padStart(2, "0");
@@ -73,7 +78,7 @@ export async function runSubSceneWriter({
       // library-reuse path below never even considers a scene that's already settled.
       imageResult = { destPath: imageAbsPath, bytes: statSync(imageAbsPath).size, skipped: true };
     } else if (imageLibrary?.enabled) {
-      const match = findReusableImage({ profileSlug: imageLibrary.profileSlug, format, tags: scene.image_tags });
+      const match = findReusableImage({ profileSlug: imageLibrary.profileSlug, format: imageFormat, tags: scene.image_tags });
       if (match && tryReserveReuseSlot(projectDir, imageLibrary.maxReuse)) {
         imageResult = copyFromLibrary(match, imageAbsPath);
       }
@@ -81,7 +86,7 @@ export async function runSubSceneWriter({
     if (!imageResult) {
       imageResult = await generateAndSaveImage({
         prompt: scene.image_prompt,
-        format,
+        format: imageFormat,
         destPath: imageAbsPath,
         signal,
         ...(imageModel ? { model: imageModel } : {}),
@@ -92,7 +97,7 @@ export async function runSubSceneWriter({
       if (!imageResult.skipped && imageLibrary?.enabled) {
         addToLibrary({
           profileSlug: imageLibrary.profileSlug,
-          format,
+          format: imageFormat,
           tags: scene.image_tags,
           prompt: scene.image_prompt,
           srcImagePath: imageAbsPath,

@@ -37,10 +37,17 @@ const DEFAULT_IMAGE_MODEL = process.env.DASHSCOPE_MODEL_IMAGE || "wan2.6-image";
 // values too, so they share qwen-image's table rather than each getting probed
 // separately — narrow the assumption if a future model in this family rejects it.
 const SIZE_TABLES = {
-  "wan2.6-image": { "9:16": "864*1536", "16:9": "1536*864" },
-  "qwen-image": { "9:16": "928*1664", "16:9": "1664*928" },
-  "qwen-image-2.0": { "9:16": "928*1664", "16:9": "1664*928" },
-  "z-image-turbo": { "9:16": "928*1664", "16:9": "1664*928" },
+  // "1:1" for wan2.6-image: 1024*1024 = 1,048,576px, comfortably inside the
+  // documented [589824, 1638400] pixel budget (see file header) — this model has no
+  // fixed size table (accepts arbitrary sizes within budget), unlike the qwen-image
+  // family below.
+  "wan2.6-image": { "9:16": "864*1536", "16:9": "1536*864", "1:1": "1024*1024" },
+  // "1:1" for the qwen-image family: 1328*1328 is one of the exact values the API
+  // itself listed as allowed (see SIZE_TABLES comment above / dashscope-image.mjs
+  // header), not guessed.
+  "qwen-image": { "9:16": "928*1664", "16:9": "1664*928", "1:1": "1328*1328" },
+  "qwen-image-2.0": { "9:16": "928*1664", "16:9": "1664*928", "1:1": "1328*1328" },
+  "z-image-turbo": { "9:16": "928*1664", "16:9": "1664*928", "1:1": "1328*1328" },
 };
 const DEFAULT_SIZE_TABLE = SIZE_TABLES["wan2.6-image"];
 
