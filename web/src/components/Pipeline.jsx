@@ -558,6 +558,12 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, onProjectCrea
             <>
               <select value={subStyle} onChange={(e) => setSubStyle(e.target.value)}>
                 <option value="image_full_focus">Full Focus (ảnh full-bleed + sub đáy)</option>
+                {/* "kinetic_typography" tạm ẩn khỏi UI — code vẫn còn nguyên trong
+                    templates/sub-styles/kinetic-typography.mjs (đã đăng ký ở
+                    index.mjs), nhưng đang dính 1 bug render thật chưa tìm ra root
+                    cause (chữ hiện nhỏ/lệch góc thay vì to & giữa màn hình như
+                    thiết kế) — xem plan.md. Tạm dừng theo yêu cầu user, không xoá,
+                    chỉ không cho chọn nhầm qua UI cho tới khi sửa xong. */}
               </select>
               <select value={fontFamily} onChange={(e) => setFontFamily(e.target.value)} title="Font phụ đề (đã xác nhận hỗ trợ tiếng Việt)">
                 <option value="Itim">Itim (viết tay, tròn — mặc định)</option>
@@ -569,7 +575,7 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, onProjectCrea
               </select>
             </>
           )}
-          {(template === "sub" || visualStyle === "ai-image") && (
+          {((template === "sub" && subStyle !== "kinetic_typography") || visualStyle === "ai-image") && (
             <>
               <textarea
                 placeholder='Phong cách ảnh AI (để trống = "minimalist matchstick figure") — vd chủ thể, chất liệu, tông màu...'
@@ -614,7 +620,7 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, onProjectCrea
               )}
             </>
           )}
-          {template === "sub" && (
+          {template === "sub" && subStyle !== "kinetic_typography" && (
             <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
               <span>Effect:</span>
               <label style={{ display: "inline-flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
@@ -647,12 +653,12 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, onProjectCrea
           {effectsMsg && <p style={{ fontSize: "0.85em", opacity: 0.85 }}>{effectsMsg}</p>}
           <ModelSelect value={plannerModel} onChange={setPlannerModel} options={EXPENSIVE_MODELS} title="Model (đắt) cho content-planner + video-planner" />
           <ModelSelect value={cheapModel} onChange={setCheapModel} options={CHEAP_MODELS} title="Model (rẻ) cho scene-writer + ghép video" />
-          {(template === "sub" || visualStyle === "ai-image") && (
+          {((template === "sub" && subStyle !== "kinetic_typography") || visualStyle === "ai-image") && (
             <ModelSelect value={imgModel} onChange={setImgModel} options={IMAGE_MODELS} title="Model sinh ảnh AI" />
           )}
         </div>
 
-        {(template === "sub" || visualStyle === "ai-image") && (
+        {((template === "sub" && subStyle !== "kinetic_typography") || visualStyle === "ai-image") && (
           <div className="inline-form" style={{ marginTop: "8px" }}>
             <label style={{ display: "inline-flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
               <input

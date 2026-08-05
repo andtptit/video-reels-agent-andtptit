@@ -5,9 +5,11 @@
  * just a new file in this directory + one line registering it here.
  */
 import * as imageFullFocus from "./image-full-focus.mjs";
+import * as kineticTypography from "./kinetic-typography.mjs";
 
 export const SUB_STYLES = {
   [imageFullFocus.id]: imageFullFocus,
+  [kineticTypography.id]: kineticTypography,
 };
 
 export const DEFAULT_SUB_STYLE = imageFullFocus.id;

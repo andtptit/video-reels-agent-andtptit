@@ -1,5 +1,79 @@
 # Plan: Web UI fallback (DashScope + Edge TTS) khi hết credit Claude
 
+## TẠM DỪNG — Kinetic Typography (sub-style mới, dính bug render chưa tìm ra root cause) (phiên 2026-08-04)
+
+User yêu cầu thêm 1 dạng video mới bên cạnh "animation"/"sub": chữ động toàn màn
+hình, không cần ảnh AI, kiểu "trend chữ" TikTok/Reels — đã đề xuất trước đó (độ phức
+hợp "trung bình") và được duyệt triển khai.
+
+**Đã làm xong (giữ nguyên trong code, KHÔNG xoá)**:
+- `server/templates/sub-styles/kinetic-typography.mjs` (mới) — subStyle mới đăng ký
+  trong `sub-styles/index.mjs`, `needsImage = false`. 3 kiểu chuyển động xen kẽ theo
+  chunk (pop-scale/slide-up/slide-side), animation vào/ra co giãn theo chunkDuration
+  (tránh chunk quá ngắn bị animation nuốt hết thời gian đứng yên), word-highlight
+  karaoke giữ nguyên convention cũ.
+- `server/lib/kinetic-bg.mjs` (mới) + `assets/kinetic-bg/bg-0.png`,`bg-1.png` (2 ảnh
+  gradient pastel tĩnh, sinh 1 lần) — dùng `<img class="clip">` THẬT thay vì CSS
+  `background:` thuần (lý do xem bug bên dưới).
+- `sub-scene-writer.mjs` — bỏ qua toàn bộ bước sinh/tái dùng ảnh AI khi
+  `style.needsImage === false`; gọi `ensureKineticBgCopied` thay thế.
+- `video-planner.mjs` — chỉ bắt buộc `image_prompt`/`ai-image` prompt override khi
+  subStyle thật sự cần ảnh (`SUB_STYLES[subStyle]?.needsImage`), không hardcode theo
+  `template==="sub"` nữa.
+- Đã verify: video-plan.json sinh đúng (không có `image_prompt` nào), sub-scene-
+  writer chạy không lỗi, `hyperframes lint` sạch (chỉ còn lỗi font-path đã biết).
+
+**BUG CHƯA SỬA — user quyết định tạm dừng, không tiếp tục đào sâu ngay**: file
+composition đúng 100% cấu trúc (verify bằng `hyperframes snapshot`: gradient nền,
+cỡ chữ 140px, animation, karaoke color đều đúng) — nhưng qua `hyperframes render`
+(pipeline THẬT, khác code path với snapshot), chữ hiện ra nhỏ xíu, lệch góc trên-
+trái, như thể `<style>` block của composition này không được áp dụng.
+
+Đã cô lập qua >10 thử nghiệm thật (không đoán):
+1. Trích frame từ video render thật (phải phát hiện + tránh 1 lỗi ffmpeg `-update`
+   flag gặp lại nhiều lần trong phiên) → xác nhận lỗi lặp lại 100%, KHÔNG phải race
+   condition ngẫu nhiên (khác 1 bug trước đó tưởng do font Charm nhưng hoá ra chỉ là
+   race — lần này test lại nhiều lần, luôn lỗi y hệt).
+2. `hyperframes snapshot` cùng thời điểm → composition ĐÚNG cấu trúc/style hoàn
+   toàn (chỉ bị lỗi encoding riêng của snapshot, không liên quan — đã biết từ trước).
+3. Loại trừ GSAP `transform` (scale/x/y) — sửa lại chỉ dùng `opacity` → vẫn lỗi y hệt.
+4. Loại trừ cấu trúc "GSAP animate trực tiếp lên phần tử `class=clip`" — tách ra
+   wrapper `<div>` con không phải clip để animate riêng (đúng gợi ý của chính lint
+   cho lỗi `gsap_exit_missing_hard_kill` gặp giữa chừng, đã sửa xong lỗi lint đó) →
+   vẫn lỗi y hệt.
+5. Loại trừ "thiếu phần tử media" — thêm hẳn `<img>` full-bleed (ẩn rồi hiện) → ảnh
+   nền tĩnh (dùng inline `style=`) hiện ĐÚNG kích thước, nhưng `.{p}-chunk`/`.{p}-
+   chunk-inner` (định nghĩa trong `<style>` block) vẫn KHÔNG áp dụng — cỡ chữ, vị
+   trí giữa màn hình đều sai.
+6. Loại trừ `@font-face` (bỏ hẳn) → không đổi gì.
+7. Nghi vấn cuối: `display: flex` trong `<style>` — thuộc tính duy nhất trong file
+   này chưa từng được dùng ở bất kỳ style nào khác đã verify ổn định cả phiên
+   (`image_full_focus.mjs` không dùng flex ở đâu cả). Bỏ flex → MỘT PHẦN cải thiện
+   (màu chữ trắng/cam áp dụng đúng) nhưng cỡ chữ/vị trí vẫn sai — chưa kết luận được
+   chắc chắn, và lần test này bị lẫn nhiều thay đổi thủ công chồng lên nhau trên
+   cùng 1 file (không còn sạch để tin tưởng 100%).
+
+**Quyết định của user**: tạm dừng, không đào sâu thêm ngay. Giữ nguyên code (không
+xoá) — `web/src/components/Pipeline.jsx`'s subStyle dropdown đã COMMENT bỏ option
+"Kinetic Typography" ra khỏi UI (không cho chọn nhầm 1 style đang biết lỗi), nhưng
+route/agent code vẫn nguyên vẹn nếu quay lại làm tiếp sau.
+
+**Nếu quay lại làm tiếp, nên thử theo thứ tự**:
+1. Test sạch riêng biệt "bỏ flex hoàn toàn, dùng đúng pattern position:absolute
+   top/left/right/bottom giống hệt `image_full_focus.mjs`'s `.{p}-subtitle-area`"
+   trên 1 file HOÀN TOÀN MỚI (không chồng nhiều edit thủ công như lần test cuối).
+2. Nếu vẫn lỗi, cân nhắc khả năng: HyperFrames' `render` composite `class="clip"`
+   elements như các LAYER/canvas riêng trước khi ghép vào khung hình chính (khác
+   `snapshot`'s cách chụp), và có bug SIZE/SCALE khi layer đó chứa phần tử
+   `position:absolute` không có kích thước tự nhiên rõ ràng (full-screen text không
+   có kích thước "natural" như 1 `<img>` có width/height thật) — nếu đúng, hướng sửa
+   khả thi nhất là bắt buộc mọi sub-style mới đều PHẢI có 1 `<img>` xác định kích
+   thước ngay từ đầu (đã làm ở bg image, nhưng có thể cần áp cho CHÍNH class=clip
+   element chứa chữ luôn, không chỉ ảnh nền).
+3. Cân nhắc hỏi thẳng HyperFrames (nếu có kênh hỗ trợ) hoặc thử phiên bản CLI mới
+   hơn (`npx hyperframes@latest upgrade` — dự án đang pin `0.7.88`, bản mới nhất là
+   `0.7.90`, README cảnh báo có delta).
+
 ## Đã sửa — tăng khoảng nghỉ giữa các scene (phiên 2026-08-03)
 
 User cảm thấy voice "nhanh" chỗ chuyển cảnh. Kiểm tra thật: khoảng lặng giữa 2 scene

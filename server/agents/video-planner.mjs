@@ -9,7 +9,7 @@ import { join } from "path";
 import { runAgent, DEFAULT_MODEL } from "./run-agent.mjs";
 import { createFsTools } from "../tools/fs-tools.mjs";
 import { checkDurationSum, checkImagePromptHygiene } from "../tools/validators.mjs";
-import { DEFAULT_SUB_STYLE } from "../templates/sub-styles/index.mjs";
+import { DEFAULT_SUB_STYLE, SUB_STYLES } from "../templates/sub-styles/index.mjs";
 
 const SKILL_PATH = join(import.meta.dirname, "..", "..", ".agents", "skills", "video-planner", "SKILL.md");
 
@@ -86,7 +86,13 @@ export async function runVideoPlanner({
   onEvent,
   signal,
 }) {
-  const effectiveVisualStyle = template === "sub" ? "ai-image" : visualStyle;
+  // "sub" template forces the ai-image prompt-writing path UNLESS the chosen
+  // subStyle explicitly opts out (kinetic_typography — full-screen text, no
+  // background image at all, see its own `needsImage = false` export). Checking
+  // the registry here instead of hardcoding a style-id list means a future
+  // no-image sub-style only needs the one `needsImage` export to also skip this.
+  const subStyleNeedsImage = template !== "sub" || (SUB_STYLES[subStyle]?.needsImage ?? true);
+  const effectiveVisualStyle = template === "sub" && subStyleNeedsImage ? "ai-image" : visualStyle;
   const skill = readFileSync(SKILL_PATH, "utf-8");
   const design = readFileSync(join(projectDir, "DESIGN.md"), "utf-8");
   const scenesWithTiming = readFileSync(join(projectDir, "scenes-with-timing.json"), "utf-8");

@@ -16,6 +16,7 @@ import { lint } from "../tools/hyperframes-cli.mjs";
 import { SUB_STYLES, DEFAULT_SUB_STYLE } from "../templates/sub-styles/index.mjs";
 import { ensureFontCopied } from "../lib/fonts.mjs";
 import { ensureGrainCopied } from "../lib/grain.mjs";
+import { ensureKineticBgCopied } from "../lib/kinetic-bg.mjs";
 import { findReusableImage, addToLibrary, copyFromLibrary, tryReserveReuseSlot } from "../lib/image-library.mjs";
 
 const DEFAULT_FONT = "Itim"; // must match templates/sub-styles/image-full-focus.mjs's own default
@@ -47,8 +48,9 @@ export async function runSubSceneWriter({
 }) {
   const style = SUB_STYLES[subStyle];
   if (!style) throw new Error(`Unknown sub style: "${subStyle}" (available: ${Object.keys(SUB_STYLES).join(", ")})`);
-  if (!scene.image_prompt) {
-    throw new Error(`Scene "${scene.sceneId}" thiếu image_prompt — style "sub" bắt buộc cần ảnh AI từ video-planner`);
+  const needsImage = style.needsImage !== false;
+  if (needsImage && !scene.image_prompt) {
+    throw new Error(`Scene "${scene.sceneId}" thiếu image_prompt — style "${subStyle}" bắt buộc cần ảnh AI từ video-planner`);
   }
 
   const n = sceneNumber(scene.sceneId);
@@ -59,46 +61,49 @@ export async function runSubSceneWriter({
   const { width, height } = dimensionsForFormat(format);
 
   const imagePath = `assets/images/scene_${padded}.png`;
-  const imageAbsPath = join(projectDir, imagePath);
-  mkdirSync(join(projectDir, "assets", "images"), { recursive: true });
 
-  let imageResult;
-  if (existsSync(imageAbsPath)) {
-    // Already generated (or already reused) in a prior run — same skip-if-exists
-    // convention generateAndSaveImage itself uses, checked here first so the
-    // library-reuse path below never even considers a scene that's already settled.
-    imageResult = { destPath: imageAbsPath, bytes: statSync(imageAbsPath).size, skipped: true };
-  } else if (imageLibrary?.enabled) {
-    const match = findReusableImage({ profileSlug: imageLibrary.profileSlug, format, tags: scene.image_tags });
-    if (match && tryReserveReuseSlot(projectDir, imageLibrary.maxReuse)) {
-      imageResult = copyFromLibrary(match, imageAbsPath);
+  if (needsImage) {
+    const imageAbsPath = join(projectDir, imagePath);
+    mkdirSync(join(projectDir, "assets", "images"), { recursive: true });
+
+    let imageResult;
+    if (existsSync(imageAbsPath)) {
+      // Already generated (or already reused) in a prior run — same skip-if-exists
+      // convention generateAndSaveImage itself uses, checked here first so the
+      // library-reuse path below never even considers a scene that's already settled.
+      imageResult = { destPath: imageAbsPath, bytes: statSync(imageAbsPath).size, skipped: true };
+    } else if (imageLibrary?.enabled) {
+      const match = findReusableImage({ profileSlug: imageLibrary.profileSlug, format, tags: scene.image_tags });
+      if (match && tryReserveReuseSlot(projectDir, imageLibrary.maxReuse)) {
+        imageResult = copyFromLibrary(match, imageAbsPath);
+      }
     }
-  }
-  if (!imageResult) {
-    imageResult = await generateAndSaveImage({
-      prompt: scene.image_prompt,
-      format,
-      destPath: imageAbsPath,
-      signal,
-      ...(imageModel ? { model: imageModel } : {}),
-    });
-    // Only a genuinely FRESH generation (not skip-if-exists) is worth banking —
-    // re-adding an already-reused or already-existing image would just bloat the
-    // manifest with duplicates of images already in it.
-    if (!imageResult.skipped && imageLibrary?.enabled) {
-      addToLibrary({
-        profileSlug: imageLibrary.profileSlug,
-        format,
-        tags: scene.image_tags,
+    if (!imageResult) {
+      imageResult = await generateAndSaveImage({
         prompt: scene.image_prompt,
-        srcImagePath: imageAbsPath,
+        format,
+        destPath: imageAbsPath,
+        signal,
+        ...(imageModel ? { model: imageModel } : {}),
       });
+      // Only a genuinely FRESH generation (not skip-if-exists) is worth banking —
+      // re-adding an already-reused or already-existing image would just bloat the
+      // manifest with duplicates of images already in it.
+      if (!imageResult.skipped && imageLibrary?.enabled) {
+        addToLibrary({
+          profileSlug: imageLibrary.profileSlug,
+          format,
+          tags: scene.image_tags,
+          prompt: scene.image_prompt,
+          srcImagePath: imageAbsPath,
+        });
+      }
     }
+    onEvent?.({
+      type: imageResult.reusedFromLibrary ? "image-reused" : imageResult.skipped ? "image-skip" : "image",
+      outPath: imagePath,
+    });
   }
-  onEvent?.({
-    type: imageResult.reusedFromLibrary ? "image-reused" : imageResult.skipped ? "image-skip" : "image",
-    outPath: imagePath,
-  });
 
   const wordTimestamps = sceneTiming?._audio?.word_timestamps ?? [];
   const sceneDuration = sceneTiming?._audio?.scene_duration ?? scene.duration;
@@ -110,6 +115,10 @@ export async function runSubSceneWriter({
   // cheap — same convention as generate-audio.mjs copying shared music/sfx once.
   ensureFontCopied(projectDir, fontFamily || DEFAULT_FONT);
   if (grain) ensureGrainCopied(projectDir);
+  // kinetic_typography has no AI image but still needs a real <img> for the render
+  // pipeline to correctly size/paint the composition (see its own doc comment) —
+  // a static gradient PNG stands in for the missing AI background.
+  const kineticBgPath = !needsImage ? ensureKineticBgCopied(projectDir, padded, n) : undefined;
 
   const html = style.render({
     compositionId,
@@ -117,12 +126,14 @@ export async function runSubSceneWriter({
     width,
     height,
     imagePath,
+    ...(kineticBgPath ? { bgImagePath: kineticBgPath } : {}),
     wordTimestamps,
     sceneDuration,
     narration: sceneTiming?.narration ?? "",
     ...(fontFamily ? { fontFamily } : {}),
     kenBurns,
     grain,
+    sceneIndex: n,
   });
 
   mkdirSync(join(projectDir, "compositions"), { recursive: true });
