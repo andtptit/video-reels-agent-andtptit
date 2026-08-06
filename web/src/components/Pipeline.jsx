@@ -388,11 +388,24 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, onProjectCrea
 
   /** Runs a step only if it isn't already "done" — lets runAll() resume cleanly
    *  whether starting fresh or continuing after some steps were already run
-   *  manually (the per-step buttons stay usable alongside this). */
+   *  manually (the per-step buttons stay usable alongside this). Retries once on
+   *  a genuine failure before giving up — mirrors Batch.jsx's runStepWithRetry.
+   *  Added after confirming live (via job-status.json usage on real projects)
+   *  that root-composer has a real, if modest, non-convergence rate: a manual
+   *  re-click of "Ghép video" always absorbed it silently, but "Chạy toàn bộ
+   *  pipeline" had zero recovery, so a batch of unattended runs surfaced it as
+   *  "lỗi thường xuyên". Skips the retry on a user-initiated cancel (chạy
+   *  "Huỷ" mid-step) — retrying past an explicit stop would defeat the button. */
   async function ensureStepDone(stepKey, fireFn) {
     if (stepsRef.current[stepKey]?.status === "done") return;
-    await fireFn();
-    await waitForStep(stepKey);
+    try {
+      await fireFn();
+      await waitForStep(stepKey);
+    } catch (err) {
+      if (stepsRef.current[stepKey]?.status === "cancelled") throw err;
+      await fireFn();
+      await waitForStep(stepKey);
+    }
   }
 
   async function runAllPipeline({ skipPause = false } = {}) {

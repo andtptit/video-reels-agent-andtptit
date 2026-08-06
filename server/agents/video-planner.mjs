@@ -94,7 +94,20 @@ export async function runVideoPlanner({
   const subStyleNeedsImage = template !== "sub" || (SUB_STYLES[subStyle]?.needsImage ?? true);
   const effectiveVisualStyle = template === "sub" && subStyleNeedsImage ? "ai-image" : visualStyle;
   const skill = readFileSync(SKILL_PATH, "utf-8");
-  const design = readFileSync(join(projectDir, "DESIGN.md"), "utf-8");
+  // DESIGN.md is a single file shared verbatim across every project (new-video.mjs
+  // just copies it, never authored per-video) and its entire content is a CSS/GSAP
+  // visual spec for template "motion" (colors, easing, atmosphere) — it carries no
+  // actual per-video mood/content signal despite what the imageStyleOverride text
+  // below used to claim. Confirmed live via user report: real image_prompts for a
+  // "sub" project came back with "neon green"/"glowing steam" baked into the SUBJECT
+  // description (checkImagePromptHygiene below caught it, but only as a passive
+  // warning) — the model was pulling straight from this file's neon-dark palette
+  // despite the explicit "don't" instruction. Only reading/sending it for "motion"
+  // (the one template whose scene-writer.mjs LLM step actually needs it to author
+  // matching CSS/GSAP) removes the leak at the source instead of just detecting it
+  // after the fact.
+  const hasDesign = template === "motion";
+  const design = hasDesign ? readFileSync(join(projectDir, "DESIGN.md"), "utf-8") : null;
   const scenesWithTiming = readFileSync(join(projectDir, "scenes-with-timing.json"), "utf-8");
   const tools = createFsTools(projectDir);
 
@@ -108,13 +121,15 @@ Style video này dùng ẢNH NỀN SINH BẰNG AI cho mỗi scene (không phải
 Với MỖI scene trong \`video-plan.json\`, thêm field \`"image_prompt"\`: 1 câu mô tả ảnh
 nền (tiếng Anh, để model sinh ảnh hiểu đúng) theo đúng các quy tắc sau:
 
-- KHÔNG dùng màu sắc/mood/phong cách đọc từ DESIGN.md bên dưới cho \`image_prompt\` —
+- Phong cách ẢNH AI do DUY NHẤT cụm \`imageStylePrefix\` bên dưới quyết định.${
+            hasDesign
+              ? ` KHÔNG dùng màu sắc/mood/phong cách đọc từ DESIGN.md bên dưới cho \`image_prompt\` —
   DESIGN.md ở đây là bảng màu neon-xanh-tối mặc định của workspace cho style "motion"
-  (CSS/GSAP thuần), HOÀN TOÀN KHÔNG áp dụng cho ảnh AI của style này. Phong cách ẢNH
-  AI do DUY NHẤT cụm \`imageStylePrefix\` bên dưới quyết định — chỉ đọc DESIGN.md để
-  hiểu MOOD/NỘI DUNG của video (phục vụ chọn chủ thể/composition từng scene), tuyệt
-  đối không lấy màu sắc/ánh sáng (vd "neon", "glow", "dark background") từ đó đưa vào
-  \`image_prompt\`.
+  (CSS/GSAP thuần), HOÀN TOÀN KHÔNG áp dụng cho ảnh AI của style này, tuyệt đối không
+  lấy màu sắc/ánh sáng (vd "neon", "glow", "dark background") từ DESIGN.md đưa vào
+  \`image_prompt\`.`
+              : ""
+          }
 - Chỉ mô tả CHỦ THỂ THỊ GIÁC THUẦN TUÝ (đồ vật, khung cảnh, biểu tượng, con người,
   bố cục minh hoạ) — TUYỆT ĐỐI KHÔNG mô tả ảnh có chứa chữ/từ/câu dưới bất kỳ hình
   thức nào, kể cả đặt trong ngoặc kép (vd KHÔNG viết "text saying '...'", "glowing
@@ -135,8 +150,8 @@ nền (tiếng Anh, để model sinh ảnh hiểu đúng) theo đúng các quy t
 - Chừa khoảng trống thị giác (negative space) ở giữa hoặc 1 phía cho text overlay đọc
   được — nói rõ trong prompt (vd \`"empty center for text overlay"\`).
 - BẮT BUỘC kết thúc MỌI prompt của video này bằng ĐÚNG NGUYÊN VĂN cụm sau (không tự
-  đổi, không tự diễn giải lại, không tự bịa cụm khác dù DESIGN.md nói gì) —
-  \`"${imageStylePrefix}"\` — chỉ phần trước đó (chủ thể/composition) mới đổi theo từng scene.
+  đổi, không tự diễn giải lại, không tự bịa cụm khác) — \`"${imageStylePrefix}"\` —
+  chỉ phần trước đó (chủ thể/composition) mới đổi theo từng scene.
 - 1 câu, súc tích, không quá 300 ký tự.
 
 Với MỖI scene, thêm CẢ field \`"image_tags"\`: mảng 2-4 tag mô tả Ý NGHĨA hình ảnh của
@@ -154,10 +169,13 @@ Bạn đang chạy tự động (non-interactive). Dùng tool \`write_file\` đ�
 vào project root (path tương đối, không tiền tố project): \`video-plan.json\`. Sau khi
 ghi xong, trả lời bằng 1 câu tóm tắt — không tool call nào nữa.
 
-DESIGN.md và scenes-with-timing.json đã được nhúng đầy đủ trong user message bên dưới
-— KHÔNG gọi \`read_file\` cho 2 file này nữa, chỉ lãng phí turn.${imageStyleOverride}`;
+${hasDesign ? "DESIGN.md và scenes-with-timing.json đã" : "scenes-with-timing.json đã"} được nhúng đầy đủ
+trong user message bên dưới — KHÔNG gọi \`read_file\` cho ${hasDesign ? "2 file này" : "file này"} nữa,
+chỉ lãng phí turn.${imageStyleOverride}`;
 
-  const userPrompt = `DESIGN.md:\n${design}\n\n---\n\nscenes-with-timing.json:\n${scenesWithTiming}`;
+  const userPrompt = hasDesign
+    ? `DESIGN.md:\n${design}\n\n---\n\nscenes-with-timing.json:\n${scenesWithTiming}`
+    : `scenes-with-timing.json:\n${scenesWithTiming}`;
 
   // Heaviest single-call task in the pipeline (detailed visual_brief + elements +
   // sfx_picks per scene, often 8+ scenes) — confirmed live that the DashScope global
