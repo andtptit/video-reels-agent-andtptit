@@ -1,226 +1,241 @@
-<!doctype html>
-<html lang="vi">
-<head>
-<meta charset="UTF-8">
-<title>Scene 02</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@700;900&family=Inter:wght@400;500;600&family=Playfair+Display:ital,wght@1,400;1,700&display=swap" rel="stylesheet">
-<style>
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+<template id="scene_02-template">
+  <div id="scene-02" data-composition-id="scene-02" data-width="1080" data-height="1920">
+    <style>
+      /* --- Fonts --- */
+      @import url('https://fonts.googleapis.com/css2?family=Exo+2:wght@700;900&family=Inter:wght@400;600&family=Playfair+Display:ital,wght@1,400&display=swap');
 
-body {
-  background-color: #060810;
-  overflow: hidden;
-  font-family: 'Inter', sans-serif;
-}
+      /* --- Composition Base --- */
+      #scene-02 {
+        background-color: #060810;
+        position: relative;
+        overflow: hidden;
+        width: 100%;
+        height: 100%;
+      }
 
-/* Wrapper phải là root duy nhất */
-#scene-02 {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  gap: 24px;
-  padding: 80px 100px;
+      /* --- Atmosphere & Design Tokens --- */
+      .s2-bg-dot-grid {
+        position: absolute;
+        inset: 0;
+        background-image: radial-gradient(rgba(255, 255, 255, 0.2) 1px, transparent 1px);
+        background-size: 48px 48px;
+        opacity: 0.35;
+        pointer-events: none;
+      }
 
-  background-color: #060810;
-  background-image:
-    radial-gradient(circle at 50% 40%, rgba(57,255,20,0.15) 0%, transparent 60%),
-    radial-gradient(rgba(255,255,255,0.28) 1px, transparent 1px);
-  background-size: auto, 48px 48px;
-}
+      .s2-radial-glow {
+        position: absolute;
+        top: 40%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 800px;
+        height: 800px;
+        background: radial-gradient(circle, rgba(57, 255, 20, 0.08) 0%, transparent 60%);
+        pointer-events: none;
+      }
 
-/* ---- Atmosphere ---- */
-.s2-scanlines {
-  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-  background: repeating-linear-gradient(0deg,
-    rgba(0,0,0,0.15), rgba(0,0,0,0.15) 1px,
-    transparent 1px, transparent 3px
-  );
-  pointer-events: none; z-index: 50; mix-blend-mode: overlay;
-}
+      .s2-scanlines {
+        position: absolute;
+        inset: 0;
+        background: repeating-linear-gradient(
+          to bottom,
+          transparent,
+          transparent 2px,
+          rgba(0, 0, 0, 0.4) 2px,
+          rgba(0, 0, 0, 0.4) 4px
+        );
+        opacity: 0.2;
+        pointer-events: none;
+        z-index: 10;
+      }
 
-.s2-corner {
-  position: absolute;
-  width: 56px; height: 56px;
-  border-color: rgba(255,255,255,0.5);
-  border-style: solid; border-width: 0;
-  pointer-events: none; z-index: 40;
-}
-.s2-corner-tl { top: 40px; left: 40px; border-top-width:3px; border-left-width:3px; }
-.s2-corner-tr { top: 40px; right:40px; border-top-width:3px; border-right-width:3px; }
-.s2-corner-bl { bottom:40px; left: 40px; border-bottom-width:3px; border-left-width:3px; }
-.s2-corner-br { bottom:40px; right:40px;border-bottom-width:3px; border-right-width:3px; }
+      /* --- Layout Wrapper --- */
+      .s2-content {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-start;
+        padding-top: 240px;
+        box-sizing: border-box;
+        z-index: 5;
+      }
 
-.s2-tech-tag {
-  position: absolute;
-  top: 100px; left: 40px;
-  font-family: 'Inter', monospace;
-  font-size: 12px; color: rgba(255,255,255,0.3);
-  letter-spacing: 2px; text-transform: uppercase;
-  writing-mode: vertical-rl; z-index: 40;
-}
+      /* --- Typography Components --- */
+      .s2-counter {
+        font-family: 'Exo 2', sans-serif;
+        font-weight: 900;
+        font-size: 160px;
+        color: #39FF14;
+        line-height: 1;
+        text-shadow: 0 0 40px rgba(57, 255, 20, 0.5);
+        margin-bottom: 24px;
+        will-change: transform, opacity, color;
+      }
 
-.s2-indicator {
-  position: absolute;
-  bottom: 100px; right: 40px;
-  display: flex; gap: 4px; align-items: center; z-index: 40;
-}
-.s2-dot {
-  width: 6px; height: 6px; background: #39FF14; border-radius: 50%; opacity: 0.3;
-}
-.s2-dot.active { opacity: 1; box-shadow: 0 0 8px #39FF14; }
+      .s2-label {
+        font-family: 'Inter', sans-serif;
+        font-weight: 600;
+        font-size: 34px;
+        color: #FFFFFF;
+        letter-spacing: 0.5px;
+        margin-bottom: 80px;
+        will-change: transform, opacity;
+      }
 
-/* ---- Content ---- */
-.scene-content {
-  width: 100%; height: 100%;
-  display: flex; flex-direction: column;
-  justify-content: center; align-items: center;
-  gap: 24px; z-index: 10;
-}
+      .s2-reality {
+        font-family: 'Playfair Display', serif;
+        font-style: italic;
+        font-weight: 400;
+        font-size: 28px;
+        line-height: 1.4;
+        color: rgba(255, 255, 255, 0.55);
+        text-align: center;
+        max-width: 800px;
+        will-change: transform, opacity;
+      }
 
-.s2-header-row {
-  display: flex; align-items: baseline; justify-content: center;
-  width: 100%; gap: 32px;
-}
+      .s2-question {
+        position: absolute;
+        right: 220px;
+        bottom: 280px;
+        font-family: 'Exo 2', sans-serif;
+        font-weight: 700;
+        font-size: 90px;
+        color: #39FF14;
+        filter: drop-shadow(0 0 20px rgba(57, 255, 20, 0.6));
+        opacity: 0;
+        will-change: transform, opacity;
+      }
 
-.s2-counter {
-  font-family: 'Exo 2', sans-serif;
-  font-weight: 900; font-size: 160px; line-height: 1;
-  color: #39FF14;
-  text-shadow: 0 0 20px rgba(57,255,20,0.7),
-               0 0 50px rgba(57,255,20,0.4),
-               0 0 80px rgba(57,255,20,0.2);
-  letter-spacing: -4px;
-  min-width: 160px; text-align: center;
-}
+      /* Helper */
+      .clip { display: block; }
+    </style>
 
-.s2-label {
-  font-family: 'Inter', sans-serif;
-  font-weight: 600; font-size: 42px;
-  color: #FFFFFF; white-space: nowrap;
-}
+    <!-- Visual Background Elements -->
+    <div class="s2-bg-dot-grid"></div>
+    <div class="s2-radial-glow"></div>
+    <div class="s2-scanlines"></div>
 
-.s2-divider {
-  width: 120px; height: 2px;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
-  transform: scaleX(0);
-}
-
-.s2-reality {
-  font-family: 'Playfair Display', serif;
-  font-style: italic; font-weight: 400; font-size: 36px;
-  line-height: 1.4;
-  color: rgba(255,255,255,0.55);
-  text-align: center; max-width: 800px;
-}
-
-.s2-question {
-  font-family: 'Exo 2', sans-serif;
-  font-weight: 900; font-size: 90px;
-  color: #39FF14;
-  text-shadow: 0 0 30px rgba(57,255,20,0.8);
-  opacity: 0; margin-top: 40px;
-}
-</style>
-</head>
-<body>
-
-<div id="scene-02" data-composition-id="scene-02" data-width="1080" data-height="1920">
-
-  <div class="s2-scanlines"></div>
-  <div class="s2-corner s2-corner-tl"></div>
-  <div class="s2-corner s2-corner-tr"></div>
-  <div class="s2-corner s2-corner-bl"></div>
-  <div class="s2-corner s2-corner-br"></div>
-  <div class="s2-tech-tag">System Override // v2.4</div>
-  <div class="s2-indicator">
-    <div class="s2-dot"></div>
-    <div class="s2-dot"></div>
-    <div class="s2-dot active"></div>
-  </div>
-
-  <div class="scene-content">
-    <div class="s2-header-row">
-      <span id="el-counter" class="s2-counter clip">0</span>
-      <span class="s2-label clip">model AI mới/tháng</span>
+    <!-- Scene Content -->
+    <div class="s2-content">
+      <div id="el-counter" class="clip s2-counter">0</div>
+      <div id="el-label" class="clip s2-label">model AI mới/tháng</div>
+      <div id="el-reality" class="clip s2-reality">
+        Nhưng chẳng cái nào<br>thông minh hơn.
+      </div>
     </div>
 
-    <div id="el-divider" class="s2-divider clip"></div>
+    <div id="el-question" class="clip s2-question">?</div>
 
-    <div id="el-reality" class="s2-reality clip">
-      Nhưng chẳng cái nào<br>thông minh hơn.
-    </div>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <script>
+      // --- Rolling Counter Logic ---
+      const elCounter = document.getElementById('el-counter');
+      let currentValue = 0;
+      const targetValue = 5;
 
-    <div id="el-question" class="s2-question clip">?</div>
+      // --- Timeline Construction ---
+      const tl = gsap.timeline({ paused: true });
+
+      // 1. ENTRANCE: Counter snaps in
+      tl.from("#el-counter", { 
+        y: -40, 
+        opacity: 0, 
+        scale: 0.8, 
+        duration: 0.7, 
+        ease: "expo.out" 
+      }, 0.3);
+
+      // 2. COUNTER ROLLING: 0 → 5 over ~1.2s
+      // Runs concurrently with entrance, settles when number hits 5
+      tl.to({}, {
+        duration: 1.3, // Starts at 0.3, ends at 1.6
+        ease: "none",
+        onUpdate: function() {
+          const v = Math.floor(this.progress() * targetValue);
+          if (v !== currentValue) {
+            currentValue = v;
+            elCounter.textContent = currentValue;
+          }
+        }
+      }, 0.3);
+
+      // 3. ENTRANCE: Label drifts up (after counter established)
+      tl.from("#el-label", { 
+        y: 60, 
+        opacity: 0, 
+        duration: 0.8, 
+        ease: "power3.out" 
+      }, 1.6);
+
+      // 4. ENTRANCE: Reality text reveals (cinematic slow wipe)
+      tl.from("#el-reality", { 
+        y: 40, 
+        opacity: 0, 
+        duration: 1.2, 
+        ease: "power2.inOut" 
+      }, 2.4);
+
+      // 5. PUNCTUATION: SFX Visual Feedback (matches audio cues at 0.8, 1.4, 2.0)
+      // Quick scale/color flashes on the counter to simulate clicks
+      tl.to("#el-counter", { 
+        scale: 1.1, 
+        color: "#ffffff", 
+        duration: 0.1, 
+        yoyo: true, 
+        repeat: 1,
+        overwrite: "auto"
+      }, 0.8);
+
+      tl.to("#el-counter", { 
+        scale: 1.1, 
+        color: "#ffffff", 
+        duration: 0.1, 
+        yoyo: true, 
+        repeat: 1,
+        overwrite: "auto"
+      }, 1.4);
+
+      tl.to("#el-counter", { 
+        scale: 1.15, 
+        color: "#ffffff", 
+        duration: 0.12, 
+        yoyo: true, 
+        repeat: 1,
+        overwrite: "auto"
+      }, 2.0);
+
+      // Reset color to neon green after flash sequence finishes
+      tl.set("#el-counter", { color: "#39FF14", scale: 1 }, 2.2);
+
+      // 6. END SCENE: Question Mark appears
+      tl.from("#el-question", { 
+        scale: 0, 
+        opacity: 0, 
+        rotation: -20, 
+        duration: 0.6, 
+        ease: "back.out(1.7)" 
+      }, 4.5);
+
+      // 7. AMBIENT: Question mark floats subtly after appearing
+      const floatCycle = 0.8;
+      const floatRepeat = Math.ceil((5.71 - 5.1) / floatCycle) - 1;
+      if (floatRepeat >= 0) {
+        tl.to("#el-question", { 
+          y: -15, 
+          duration: floatCycle / 2, 
+          ease: "sine.inOut", 
+          yoyo: true, 
+          repeat: floatRepeat 
+        }, 5.1);
+      }
+
+      // Register timeline with matching ID
+      window.__timelines = window.__timelines || {};
+      window.__timelines["scene-02"] = tl;
+    </script>
   </div>
-
-</div>
-
-<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
-<script>
-window.__timelines = window.__timelines || {};
-
-var SCENE_DURATION = 5.71;
-var tl = gsap.timeline({ paused: true });
-
-function q(sel) {
-  return document.querySelector(sel);
-}
-
-// Counter
-var counterObj = { val: 0 };
-
-tl.to(counterObj, {
-  val: 5,
-  duration: 1.2,
-  ease: "power1.in",
-  onUpdate: function() {
-    var el = q("#el-counter");
-    if (!el) return;
-    el.textContent = Math.floor(counterObj.val);
-
-    var cur = Math.floor(counterObj.val);
-    var last = parseInt(el.dataset.lastVal);
-    if (!el.dataset.lastVal || cur !== last) {
-      el.style.textShadow = "0 0 40px rgba(57,255,20,1)";
-      setTimeout(function() {
-        var t = q("#el-counter");
-        if (t) t.style.textShadow = "";
-      }, 80);
-      el.dataset.lastVal = cur;
-    }
-  }
-}, 0);
-
-tl.from("#el-counter", { scale: 0.5, opacity: 0, duration: 0.6, ease: "back.out(1.7)" }, 0);
-
-tl.from(".s2-label", { y: 40, opacity: 0, duration: 0.8, ease: "power2.out" }, 1.5);
-
-tl.to("#el-divider", { scaleX: 1, duration: 0.8, ease: "power2.inOut" }, 2.3);
-
-tl.from("#el-reality", { y: 30, opacity: 0, duration: 1.0, ease: "power2.out" }, 2.5);
-
-tl.set("#el-question", { opacity: 1 });
-tl.fromTo("#el-question",
-  { y: 20, opacity: 0, scale: 0.8 },
-  { y: 0, opacity: 1, scale: 1, duration: 0.8, ease: "elastic.out(1, 0.5)" },
-  4.0
-);
-
-tl.to("#el-question", {
-  scale: 1.1,
-  duration: 1.2,
-  ease: "sine.inOut",
-  yoyo: true,
-  repeat: Math.floor(SCENE_DURATION / 1.2) - 1
-}, 4.8);
-
-window.__timelines["scene-02"] = tl;
-</script>
-</body>
-</html>
+</template>

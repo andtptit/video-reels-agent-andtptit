@@ -79,5 +79,57 @@
     ],
     "prompt": "Smiling face with sun rays and notebook, soft pastel color palette, minimalist line art, warm and gentle mood, simple shapes, plain solid background, no text, no watermark",
     "createdAt": "2026-08-02T06:31:19.122Z"
+  },
+  {
+    "id": "3d9b7488-7ec3-4b1f-92d2-a86b407a254e",
+    "file": "3d9b7488-7ec3-4b1f-92d2-a86b407a254e.png",
+    "profileSlug": "profile-1",
+    "format": "1:1",
+    "tags": [
+      "coffee-cup",
+      "food-meal",
+      "warning-sign"
+    ],
+    "prompt": "Coffee cup in center with glowing steam, slice of bread on left side slightly faded, bold headline text in white above, empty center for text overlay, Flat illustration, soft pastel color palette, minimalist line art, warm and gentle mood, simple shapes, plain solid background, no text, no watermark",
+    "createdAt": "2026-08-06T04:48:36.643Z"
+  },
+  {
+    "id": "fe0acd1d-b1cc-4acb-9686-8e442f3bb563",
+    "file": "fe0acd1d-b1cc-4acb-9686-8e442f3bb563.png",
+    "profileSlug": "profile-1",
+    "format": "1:1",
+    "tags": [
+      "big-number",
+      "food-meal",
+      "brain"
+    ],
+    "prompt": "Big number '30%' in neon green at center with radial glow, vertical label 'ENERGY' on right side, soft text 'brain power from breakfast' below, centered composition for text overlay, Flat illustration, soft pastel color palette, minimalist line art, warm and gentle mood, simple shapes, plain solid background, no text, no watermark",
+    "createdAt": "2026-08-06T04:48:45.810Z"
+  },
+  {
+    "id": "6e5756ce-11d3-441e-acfa-7992c797c013",
+    "file": "6e5756ce-11d3-441e-acfa-7992c797c013.png",
+    "profileSlug": "profile-1",
+    "format": "1:1",
+    "tags": [
+      "step-by-step",
+      "food-meal",
+      "quick-meal"
+    ],
+    "prompt": "Three step cards vertically aligned with neon green step numbers, egg icon on first card, toast on second, banana on third, soft text '3 minutes for a day of alertness' below, centered layout for text overlay, Flat illustration, soft pastel color palette, minimalist line art, warm and gentle mood, simple shapes, plain solid background, no text, no watermark",
+    "createdAt": "2026-08-06T04:48:55.089Z"
+  },
+  {
+    "id": "f9e10f8f-41a0-40f2-8edf-51072c5e5ac6",
+    "file": "f9e10f8f-41a0-40f2-8edf-51072c5e5ac6.png",
+    "profileSlug": "profile-1",
+    "format": "1:1",
+    "tags": [
+      "motivation-determination",
+      "call-to-action",
+      "positive-change"
+    ],
+    "prompt": "Bold headline 'Today, give it a try' in white centered, subhead 'One small change. One big result.' below in muted color, empty center for text overlay, Flat illustration, soft pastel color palette, minimalist line art, warm and gentle mood, simple shapes, plain solid background, no text, no watermark",
+    "createdAt": "2026-08-06T04:49:03.882Z"
   }
 ]
