@@ -5,17 +5,32 @@ function formatDate(mtime) {
   return new Date(mtime).toLocaleString("vi-VN");
 }
 
+// Small grid card (video + caption if any) — same compact style as the "Kết quả" grid
+// in Hook.jsx's "Đọc Caption" tab (components/Hook.jsx's HookResultPreview), applied
+// here for every template (motion/sub/footage/hook all write caption.md the same way
+// via caption-writer.mjs/hook-content-writer.mjs) instead of just one tab's results.
 function HistoryItem({ project, onDeleted }) {
   const [renders, setRenders] = useState(null);
+  const [caption, setCaption] = useState(null);
+  const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     api.listRenders(project.id).then((r) => setRenders(r.renders)).catch(() => setRenders([]));
+    api.getFile(project.id, "caption.md").then(setCaption).catch(() => setCaption(null));
   }, [project.id]);
 
   // routes.mjs's GET /projects/:id/renders already sorts newest-mtime-first.
   const latest = renders?.[0];
+
+  function copyCaption() {
+    if (!caption) return;
+    navigator.clipboard.writeText(caption).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
 
   async function openFolder() {
     setError(null);
@@ -46,15 +61,19 @@ function HistoryItem({ project, onDeleted }) {
   }
 
   return (
-    <div className="card history-item">
-      <div className="step-row-head">
-        <strong>{project.slug}</strong>
-        <span className="muted">{project.date} · {formatDate(project.mtime)}</span>
-      </div>
+    <div className="scene-card">
+      <strong>{project.slug}</strong>
+      <span className="muted">{project.date} · {formatDate(project.mtime)}</span>
       {project.remixedFrom && <p className="muted">remix từ {project.remixedFrom.split("/")[1]}</p>}
       {renders === null && <p className="muted">Đang tải render…</p>}
-      {latest && <video controls className="render-video" src={api.renderUrl(project.id, latest.name)} />}
-      {renders?.length > 1 && <p className="muted">+{renders.length - 1} bản render khác trong thư mục (đang xem bản mới nhất)</p>}
+      {latest && <video controls src={api.renderUrl(project.id, latest.name)} style={{ width: "100%", display: "block", borderRadius: "8px" }} />}
+      {renders?.length > 1 && <p className="muted">+{renders.length - 1} bản render khác (đang xem bản mới nhất)</p>}
+      {caption && (
+        <div>
+          <button type="button" className="linklike" onClick={copyCaption}>{copied ? "Đã copy caption ✓" : "Copy caption"}</button>
+          <pre className="checkpoint">{caption}</pre>
+        </div>
+      )}
       <div className="inline-form">
         <button type="button" onClick={openFolder}>Mở thư mục output</button>
         <button type="button" className="linklike" onClick={deleteProject} disabled={busy}>
@@ -90,11 +109,13 @@ export function History({ onProjectDeleted }) {
   if (!projects.length) return <p className="muted">Chưa có video nào render xong.</p>;
 
   return (
-    <div>
+    <div className="card">
       <p className="muted">{projects.length} video đã render xong</p>
-      {projects.map((p) => (
-        <HistoryItem key={p.id} project={p} onDeleted={handleDeleted} />
-      ))}
+      <div className="scene-grid">
+        {projects.map((p) => (
+          <HistoryItem key={p.id} project={p} onDeleted={handleDeleted} />
+        ))}
+      </div>
     </div>
   );
 }

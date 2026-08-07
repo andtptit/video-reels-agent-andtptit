@@ -47,6 +47,25 @@ async function createProjectWithRetry(ideaText, orientation, attempt = 0) {
   }
 }
 
+// Remembers the LAST ideation batch PER PROFILE across reloads — same mechanism
+// Hook.jsx now has for its own single global "last batch", keyed per-profile here
+// instead since a user switches between several channel profiles in this tab and
+// expects picking one to bring back whatever ideas (done or not-yet-run) were
+// generated for it, not just whichever profile was used most recently overall.
+// Without this, selecting a profile always started from a blank ideation form even
+// though that profile's ideas.json was still sitting on disk untouched.
+function batchStorageKey(profileSlug) {
+  return `video-reels-agent:batchIdForProfile:${profileSlug}`;
+}
+function loadStoredBatchId(profileSlug) {
+  return profileSlug ? localStorage.getItem(batchStorageKey(profileSlug)) : null;
+}
+function saveStoredBatchId(profileSlug, id) {
+  if (!profileSlug) return;
+  if (id) localStorage.setItem(batchStorageKey(profileSlug), id);
+  else localStorage.removeItem(batchStorageKey(profileSlug));
+}
+
 const BATCH_STEP_TIMEOUT_MS = 15 * 60 * 1000; // generous shared ceiling — this runs
 // unattended, so a uniform 15min per step (well above render's own 10min server-side
 // cap) is simpler than tuning a tighter timeout per step type.
@@ -69,6 +88,7 @@ export function Batch({ onProjectCreated }) {
 
   const [batchId, setBatchId] = useState(null);
   const [ideasMeta, setIdeasMeta] = useState(null); // full ideas.json envelope
+  const [restoring, setRestoring] = useState(false);
   const [approving, setApproving] = useState(false);
   const [formError, setFormError] = useState(null);
 
@@ -106,11 +126,48 @@ export function Batch({ onProjectCreated }) {
     }
   }, [ideateStatus, batchId]);
 
+  /** Runs once per `batchId` change — a direct GET rather than waiting on the
+   *  SSE-driven effect above, so restoring a profile's saved batch shows its ideas
+   *  immediately (no waiting on an SSE "snapshot" round-trip) AND so a stale/deleted
+   *  batch id (profile's saved id points at a batch dir that no longer exists) gets
+   *  detected and cleared instead of leaving `restoring` spinning forever — an SSE
+   *  connection to a 404 batch fails silently, useEventStream has no onerror
+   *  handling. Same pattern as Hook.jsx's own restore effect. */
+  useEffect(() => {
+    if (!batchId) {
+      setRestoring(false);
+      return;
+    }
+    let cancelled = false;
+    setRestoring(true);
+    api
+      .getBatch(batchId)
+      .then((r) => {
+        if (!cancelled) setIdeasMeta(r.ideas);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        saveStoredBatchId(profileSlug, null);
+        setBatchId(null);
+        setIdeasMeta(null);
+      })
+      .finally(() => {
+        if (!cancelled) setRestoring(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [batchId]);
+
   function onSelectProfile(slug) {
     setProfileSlug(slug);
+    setFormError(null);
     const p = profiles.find((x) => x.slug === slug);
     if (p?.channelTheme !== undefined) setChannelTheme(p.channelTheme);
     if (p?.defaultAudience !== undefined) setAudience(p.defaultAudience);
+    const stored = loadStoredBatchId(slug);
+    setBatchId(stored);
+    if (!stored) setIdeasMeta(null);
   }
 
   // saveProfile() overwrites the whole profile with exactly the fields sent — spread
@@ -137,6 +194,7 @@ export function Batch({ onProjectCreated }) {
     try {
       const { batchId: id } = await api.startBatch({ channelTheme, audience, count: Number(count) || 10, profileSlug });
       setBatchId(id);
+      saveStoredBatchId(profileSlug, id);
     } catch (err) {
       setFormError(err.message);
     }
@@ -364,8 +422,10 @@ export function Batch({ onProjectCreated }) {
         <h2>Hàng loạt — sinh nhiều ý tưởng video từ 1 chủ đề kênh</h2>
         <p className="muted">
           Chọn 1 channel profile, nhập chủ đề kênh cố định + đối tượng xem, hệ thống tự sinh N ý tưởng khác nhau để anh
-          duyệt/sửa/xoá trước khi tạo project thật.
+          duyệt/sửa/xoá trước khi tạo project thật. Mỗi profile tự nhớ danh sách ý tưởng đã sinh (chưa chạy vẫn còn) —
+          chọn lại profile là thấy lại, không cần sinh lại.
         </p>
+        {restoring && <p className="muted">Đang khôi phục danh sách ý tưởng của profile này…</p>}
 
         <select value={profileSlug} onChange={(e) => onSelectProfile(e.target.value)} disabled={approving}>
           <option value="">— Chọn channel profile (bắt buộc) —</option>
@@ -433,9 +493,19 @@ export function Batch({ onProjectCreated }) {
         <div className="card">
           <div className="step-row-head">
             <h3>Ý tưởng ({ideas.length}) — giữ {keptCount}</h3>
-            <button type="button" disabled={!keptCount || approving} onClick={runApproval}>
-              {approving ? "Đang tạo project…" : `Duyệt & tạo project (${keptCount})`}
-            </button>
+            <div style={{ display: "flex", gap: "8px" }}>
+              <button
+                type="button"
+                className="linklike"
+                disabled={approving}
+                onClick={() => { saveStoredBatchId(profileSlug, null); setBatchId(null); setIdeasMeta(null); }}
+              >
+                Bắt đầu batch mới
+              </button>
+              <button type="button" disabled={!keptCount || approving} onClick={runApproval}>
+                {approving ? "Đang tạo project…" : `Duyệt & tạo project (${keptCount})`}
+              </button>
+            </div>
           </div>
           <div className="idea-grid">
             {ideas.map((idea) => (

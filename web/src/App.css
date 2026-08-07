@@ -52,10 +52,6 @@ header {
   font-weight: 600;
 }
 
-.history-item {
-  margin-bottom: 12px;
-}
-
 .card {
   border: 1px solid var(--border);
   border-radius: 10px;
@@ -170,6 +166,21 @@ header {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  overflow: hidden;
+  min-width: 0; /* grid items default to min-width:auto (won't shrink below content's
+    natural size) — a wide child (video, long caption line) would otherwise force this
+    card past its own grid column, misaligning/overlapping the row instead of wrapping
+    inside it. This is the actual root cause of the reported layout glitch; fixed-px
+    max-width on the child elements alone (see Hook.jsx's HookResultPreview) wasn't
+    enough without this. */
+}
+
+.hook-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+  min-width: 0;
 }
 
 .preview-frame {
