@@ -72,7 +72,15 @@ const PROFILE_FIELDS = [
 export function listProfiles() {
   ensureDir();
   return readdirSync(PROFILES_DIR)
-    .filter((f) => f.endsWith(".json") && !f.startsWith("._"))
+    // idea-history.mjs writes `{slug}-ideas-history.json` into this SAME directory
+    // (see its own doc comment on why — a plain array, not a profile object) —
+    // exclude by filename first (cheap), then a content-shape check below as a
+    // second line of defense against any other stray non-profile .json file, so a
+    // parsed-but-malformed entry can never reach `.name.localeCompare` and crash the
+    // whole route for every profile at once (confirmed live: this exact crash was
+    // silently emptying the profile dropdown everywhere `listProfiles()` is called,
+    // the moment any profile had ever had ideas generated for it).
+    .filter((f) => f.endsWith(".json") && !f.endsWith("-ideas-history.json") && !f.startsWith("._"))
     .map((f) => {
       try {
         return JSON.parse(readFileSync(join(PROFILES_DIR, f), "utf-8"));
@@ -80,7 +88,7 @@ export function listProfiles() {
         return null;
       }
     })
-    .filter(Boolean)
+    .filter((p) => p && typeof p.name === "string" && typeof p.slug === "string")
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
