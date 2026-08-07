@@ -1,9 +1,12 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { api } from "./api.js";
 import { ProjectForm } from "./components/ProjectForm.jsx";
 import { ProjectPicker } from "./components/ProjectPicker.jsx";
+import { ProfileManager } from "./components/ProfileManager.jsx";
 import { Pipeline } from "./components/Pipeline.jsx";
 import { History } from "./components/History.jsx";
 import { Batch } from "./components/Batch.jsx";
+import { Hook } from "./components/Hook.jsx";
 import { RunningBanner } from "./components/RunningBanner.jsx";
 import "./App.css";
 
@@ -19,7 +22,20 @@ function loadStored() {
 
 export default function App() {
   const [project, setProject] = useState(loadStored);
-  const [tab, setTab] = useState("pipeline"); // "pipeline" | "history" | "batch"
+  const [tab, setTab] = useState("pipeline"); // "pipeline" | "history" | "batch" | "hook"
+
+  // Channel profiles list, lifted up here so ProjectForm's dropdown and
+  // ProfileManager's own editor (both rendered on the "no project yet" screen) stay
+  // in sync without a page reload — ProfileManager calls refreshProfiles() after any
+  // save/delete instead of each component fetching its own independent copy.
+  // Pipeline.jsx still fetches its own (unrelated screen, no sync need there).
+  const [profiles, setProfiles] = useState([]);
+  function refreshProfiles() {
+    api.listProfiles().then((r) => setProfiles(r.profiles ?? [])).catch(() => {});
+  }
+  useEffect(() => {
+    refreshProfiles();
+  }, []);
 
   function handleCreated(id, idea, platform, profileSlug) {
     const next = { id, idea, platform, profileSlug };
@@ -58,6 +74,9 @@ export default function App() {
           <button type="button" className={tab === "batch" ? "active" : ""} onClick={() => setTab("batch")}>
             Hàng loạt
           </button>
+          <button type="button" className={tab === "hook" ? "active" : ""} onClick={() => setTab("hook")}>
+            Đọc Caption
+          </button>
         </nav>
         {project && tab === "pipeline" && (
           <button type="button" className="linklike" onClick={handleReset}>
@@ -70,9 +89,12 @@ export default function App() {
         <History onProjectDeleted={handleProjectDeletedInHistory} />
       ) : tab === "batch" ? (
         <Batch onProjectCreated={handleCreated} />
+      ) : tab === "hook" ? (
+        <Hook />
       ) : !project ? (
         <>
-          <ProjectForm onCreated={handleCreated} />
+          <ProjectForm onCreated={handleCreated} profiles={profiles} />
+          <ProfileManager profiles={profiles} onProfilesChanged={refreshProfiles} />
           <ProjectPicker onSelect={handleSelect} />
         </>
       ) : (
