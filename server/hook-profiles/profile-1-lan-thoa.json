@@ -1,0 +1,19 @@
+{
+  "name": "Profile 1: Lan Thoa",
+  "slug": "profile-1-lan-thoa",
+  "updatedAt": "2026-08-07T04:22:19.963Z",
+  "nicheDescription": "Cách phụ nữ trung niên giữ chồng, chăm sóc cơ thể, giữ gìn hạnh phúc gia đình",
+  "audience": "phụ nữ lập gia đình, 25 đến 40 tuổi",
+  "ctaText": "ĐỌC CAPTION",
+  "highlightColor": "#ffb020",
+  "videoDurationSec": 10,
+  "footageMinClips": 1,
+  "footageMaxClips": 3,
+  "footageMinSeconds": 3,
+  "footageMaxSeconds": 6,
+  "footageFlipEnabled": false,
+  "footageSpeedEnabled": false,
+  "footageSpeedMin": 1,
+  "footageSpeedMax": 1.3,
+  "musicVolume": 0.18
+}

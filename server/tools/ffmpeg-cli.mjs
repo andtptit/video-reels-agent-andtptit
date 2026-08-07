@@ -11,7 +11,7 @@
 import { execFile } from "child_process";
 import { promisify } from "util";
 import { writeFileSync, mkdtempSync, rmSync } from "fs";
-import { join } from "path";
+import { join, extname } from "path";
 import { tmpdir } from "os";
 import { CancelledError } from "../jobs/cancel-registry.mjs";
 
@@ -20,6 +20,11 @@ const execFileAsync = promisify(execFile);
 const PROBE_TIMEOUT_MS = 15_000;
 const CUT_TIMEOUT_MS = 60_000;
 const CONCAT_TIMEOUT_MS = 30_000;
+
+// Duplicated from footage-library.mjs's own set rather than imported — that module
+// already imports probeDuration FROM this file, so importing back would be a
+// circular dependency for the sake of one small constant.
+const IMAGE_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".webp"]);
 
 function throwIfCancelled(err, signal) {
   if (signal?.aborted) throw signal.reason instanceof CancelledError ? signal.reason : new CancelledError();
@@ -48,24 +53,61 @@ export async function probeDuration(filePath, { signal } = {}) {
  * — regardless of source resolution/aspect — comes out identical dimensions, which
  * `concatClips` below relies on for a clean `-c copy` concat) with optional flip/speed.
  *
+ * If `srcPath` is a still image (the "Đọc Caption" tab's footage pool can mix images
+ * in, see lib/footage-library.mjs's `includeImages`), takes a completely different
+ * ffmpeg path: `-loop 1` turns the image into an "infinite" input, so `-t` placed
+ * AFTER `-i` correctly caps just the OUTPUT to `outputDurationSec` — the opposite
+ * placement rule from the video path below, but not a re-run of that bug: this only
+ * matters when a REAL input duration + speed filter are both in play, neither of
+ * which applies to a looped still. `startSec`/`speedFactor` are meaningless for a
+ * static image and silently ignored.
+ *
  * @param {object} params
  * @param {string} params.srcPath
  * @param {string} params.destPath
  * @param {number} params.startSec - offset into the SOURCE file to start cutting
+ *   (video only — ignored for images)
  * @param {number} params.outputDurationSec - desired duration of the OUTPUT clip
  * @param {number} params.width
  * @param {number} params.height
  * @param {boolean} [params.flip]
- * @param {number} [params.speedFactor] - e.g. 1.3 = 30% faster; omit/1 for no change.
- *   The RAW source cut is `outputDurationSec * speedFactor` seconds (caller must
- *   ensure the source has that much material available from `startSec`), sped up via
- *   `setpts` to land back on exactly `outputDurationSec`.
+ * @param {number} [params.speedFactor] - e.g. 1.3 = 30% faster; omit/1 for no change
+ *   (video only — ignored for images). The RAW source cut is
+ *   `outputDurationSec * speedFactor` seconds (caller must ensure the source has that
+ *   much material available from `startSec`), sped up via `setpts` to land back on
+ *   exactly `outputDurationSec`.
  * @param {AbortSignal} [params.signal]
  */
 export async function cutClip({ srcPath, destPath, startSec, outputDurationSec, width, height, flip = false, speedFactor = 1, signal }) {
-  const rawCutDurationSec = outputDurationSec * speedFactor;
   const filters = [`scale=${width}:${height}:force_original_aspect_ratio=increase`, `crop=${width}:${height}`];
   if (flip) filters.push("hflip");
+
+  if (IMAGE_EXTENSIONS.has(extname(srcPath).toLowerCase())) {
+    try {
+      await execFileAsync(
+        "ffmpeg",
+        [
+          "-y",
+          "-loop", "1",
+          "-i", srcPath,
+          "-t", String(outputDurationSec),
+          "-vf", filters.join(","),
+          "-an",
+          "-r", "30",
+          "-c:v", "libx264",
+          "-preset", "veryfast",
+          "-pix_fmt", "yuv420p",
+          destPath,
+        ],
+        { timeout: CUT_TIMEOUT_MS, signal, maxBuffer: 1024 * 1024 * 10 }
+      );
+    } catch (err) {
+      throwIfCancelled(err, signal);
+    }
+    return;
+  }
+
+  const rawCutDurationSec = outputDurationSec * speedFactor;
   if (speedFactor !== 1) filters.push(`setpts=${(1 / speedFactor).toFixed(6)}*PTS`);
 
   try {

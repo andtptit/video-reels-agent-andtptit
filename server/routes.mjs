@@ -36,6 +36,13 @@ import { readIdeaHistory, appendIdeaHistory } from "./lib/idea-history.mjs";
 import { runIdeaGenerator } from "./agents/idea-generator.mjs";
 import { generateImage } from "./providers/image/dashscope-image.mjs";
 import { cancelStep } from "./jobs/cancel-registry.mjs";
+// "Đọc Caption" tab — fully separate video format (no voiceover, blurred footage
+// card + static hook/CTA text), own profile store. See plan.md.
+import { listHookProfiles, saveHookProfile, deleteHookProfile } from "./lib/hook-profiles.mjs";
+import { runHookContentWriter } from "./agents/hook-content-writer.mjs";
+import { buildHookVideoPlan } from "./pipeline/build-hook-video-plan.mjs";
+import { runHookSceneWriter } from "./agents/hook-scene-writer.mjs";
+import { buildHookRoot } from "./pipeline/build-hook-root.mjs";
 
 startIdleSweep();
 
@@ -132,6 +139,25 @@ router.post("/profiles/:slug/idea-history", (req, res) => {
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
+});
+
+// "Đọc Caption" tab's own niche profiles — see lib/hook-profiles.mjs doc comment for
+// why this is a fully separate store from /profiles above, not a variant of it.
+router.get("/hook-profiles", (req, res) => {
+  res.json({ profiles: listHookProfiles() });
+});
+
+router.put("/hook-profiles/:name", (req, res) => {
+  try {
+    res.json(saveHookProfile(req.params.name, req.body ?? {}));
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+router.delete("/hook-profiles/:slug", (req, res) => {
+  deleteHookProfile(req.params.slug);
+  res.status(204).end();
 });
 
 // "Hàng loạt" (Batch) tab — see agents/idea-generator.mjs and web/src/components/
@@ -590,6 +616,98 @@ router.post("/projects/:id/root", withProjectDir, (req, res) => {
   res.status(202).json({ step: "root", status: "running", sceneIds: doneSceneIds });
 });
 
+// "Đọc Caption" tab's own 4-step chain — deliberately separate route names/step keys
+// from the "plan"/"audio"/"video-plan"/"root" routes above (no audio, no narration,
+// always 1 scene) rather than branching those existing routes on `template` — see
+// plan.md's "Quyết định kiến trúc" for why this format doesn't share content-planner/
+// root-composer at all. `POST /projects/:id/render` above (unchanged) finishes the
+// chain — it's already fully generic (just runs `hyperframes render`).
+router.post("/projects/:id/hook/content", withProjectDir, (req, res) => {
+  const { idea, nicheDescription, ctaText, model } = req.body ?? {};
+  if (!idea) return res.status(400).json({ error: "idea is required" });
+
+  runInBackground(req.projectDir, "hook-content", (onEvent, signal) =>
+    queues.dashscope.run(() =>
+      runHookContentWriter({ projectDir: req.projectDir, idea, nicheDescription, ctaText, model, onEvent, signal })
+    )
+  );
+  res.status(202).json({ step: "hook-content", status: "running" });
+});
+
+router.post("/projects/:id/hook/video-plan", withProjectDir, (req, res) => {
+  const { format, videoDurationSec, ctaText, highlightColor, blurPercent, footageFolder, footageConfig, musicTrack, musicVolume } = req.body ?? {};
+  if (!existsSync(join(req.projectDir, "hook-plan.json"))) {
+    return res.status(400).json({ error: "hook-plan.json not found — run /hook/content first" });
+  }
+
+  runInBackground(req.projectDir, "hook-video-plan", (onEvent) =>
+    buildHookVideoPlan({
+      projectDir: req.projectDir,
+      format: format || "9:16",
+      videoDurationSec: videoDurationSec || 9,
+      ctaText,
+      highlightColor,
+      blurPercent,
+      footageFolder,
+      footageConfig,
+      musicTrack,
+      musicVolume,
+      onEvent,
+    })
+  );
+  res.status(202).json({ step: "hook-video-plan", status: "running" });
+});
+
+router.post("/projects/:id/hook/scene", withProjectDir, (req, res) => {
+  const videoPlanFile = join(req.projectDir, "video-plan.json");
+  if (!existsSync(videoPlanFile)) return res.status(400).json({ error: "video-plan.json not found — run /hook/video-plan first" });
+  const videoPlan = JSON.parse(readFileSync(videoPlanFile, "utf-8"));
+
+  // queues.ffmpeg, not queues.dashscope — no LLM call here, just local ffmpeg
+  // processes (same reasoning as the "footage" template's own scene route).
+  runInBackground(req.projectDir, "hook-scene", (onEvent, signal) =>
+    queues.ffmpeg.run(() =>
+      runHookSceneWriter({
+        projectDir: req.projectDir,
+        format: videoPlan.format,
+        videoDurationSec: videoPlan.total_duration,
+        hookContent: videoPlan.hookContent,
+        ctaText: videoPlan.ctaText,
+        highlightColor: videoPlan.highlightColor,
+        blurPercent: videoPlan.blurPercent,
+        footageFolder: videoPlan.footageFolder,
+        footageConfig: videoPlan.footageConfig,
+        onEvent,
+        signal,
+      })
+    )
+  );
+  res.status(202).json({ step: "hook-scene", status: "running" });
+});
+
+router.post("/projects/:id/hook/root", withProjectDir, (req, res) => {
+  const videoPlanFile = join(req.projectDir, "video-plan.json");
+  if (!existsSync(videoPlanFile)) return res.status(400).json({ error: "video-plan.json not found — run /hook/video-plan first" });
+  const videoPlan = JSON.parse(readFileSync(videoPlanFile, "utf-8"));
+
+  const { steps } = readJobStatus(req.projectDir);
+  if (steps["hook-scene"]?.status !== "done") {
+    return res.status(400).json({ error: "Scene chưa generate xong — chạy /hook/scene trước" });
+  }
+
+  runInBackground(req.projectDir, "hook-root", (onEvent) =>
+    buildHookRoot({
+      projectDir: req.projectDir,
+      format: videoPlan.format,
+      videoDurationSec: videoPlan.total_duration,
+      musicTrack: videoPlan.musicTrack,
+      musicVolume: videoPlan.musicVolume,
+      onEvent,
+    })
+  );
+  res.status(202).json({ step: "hook-root", status: "running" });
+});
+
 router.post("/projects/:id/render", withProjectDir, (req, res) => {
   runInBackground(req.projectDir, "render", (onEvent, signal) => render(req.projectDir, { signal }));
   res.status(202).json({ step: "render", status: "running" });
@@ -691,6 +809,29 @@ router.get("/footage-library", async (req, res) => {
     res.json({ count: files.length });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// "Đọc Caption" tab's per-profile footage folder override (see lib/hook-profiles.mjs's
+// `footageFolder`) — separate route from the one above (which always scans the shared
+// pool) so Hook.jsx can check "does this custom path actually have media in it" before
+// the user runs a real generation. Counts images/videos separately since that's the
+// whole point of the check (confirming the mix, not just a raw file count).
+router.get("/footage-library/scan", async (req, res) => {
+  const dir = req.query.dir;
+  if (!dir) return res.status(400).json({ error: "dir is required" });
+  // scanFootageLibrary() itself mkdir's a missing dir (correct for the real
+  // generation path — the shared library should always exist) — but this route is
+  // hit live while the user is still typing/pasting a path, so a typo shouldn't
+  // create a stray folder on their disk. Check first, don't let the scan do it.
+  if (!existsSync(dir)) return res.json({ count: 0, images: 0, videos: 0, error: "Thư mục không tồn tại" });
+  try {
+    const files = await scanFootageLibrary(dir, { includeImages: true });
+    const images = files.filter((f) => f.kind === "image").length;
+    const videos = files.filter((f) => f.kind === "video").length;
+    res.json({ count: files.length, images, videos });
+  } catch (err) {
+    res.json({ count: 0, images: 0, videos: 0, error: err.message });
   }
 });
 

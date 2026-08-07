@@ -48,4 +48,14 @@ export const api = {
   saveBatchIdeas: (id, ideas) => request(`/batches/${encodeURIComponent(id)}/ideas`, { method: "PUT", body: JSON.stringify({ ideas }) }),
   batchEventsUrl: (id) => `${API_BASE}/batches/${encodeURIComponent(id)}/events`,
   appendIdeaHistory: (slug, entry) => request(`/profiles/${encodeURIComponent(slug)}/idea-history`, { method: "POST", body: JSON.stringify(entry) }),
+  // "Đọc Caption" tab — see components/Hook.jsx. Own profile store + own 4-step
+  // chain (no audio/plan/root reuse — see plan.md).
+  listHookProfiles: () => request("/hook-profiles"),
+  saveHookProfile: (name, data) => request(`/hook-profiles/${encodeURIComponent(name)}`, { method: "PUT", body: JSON.stringify(data) }),
+  deleteHookProfile: (slug) => request(`/hook-profiles/${encodeURIComponent(slug)}`, { method: "DELETE" }),
+  runHookContent: (id, params) => request(`/projects/${encodeURIComponent(id)}/hook/content`, { method: "POST", body: JSON.stringify(params ?? {}) }),
+  runHookVideoPlan: (id, params) => request(`/projects/${encodeURIComponent(id)}/hook/video-plan`, { method: "POST", body: JSON.stringify(params ?? {}) }),
+  runHookScene: (id) => request(`/projects/${encodeURIComponent(id)}/hook/scene`, { method: "POST" }),
+  runHookRoot: (id) => request(`/projects/${encodeURIComponent(id)}/hook/root`, { method: "POST" }),
+  scanFootageFolder: (dir) => request(`/footage-library/scan?dir=${encodeURIComponent(dir)}`),
 };
