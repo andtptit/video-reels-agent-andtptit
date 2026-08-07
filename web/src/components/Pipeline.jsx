@@ -8,33 +8,8 @@ import { SceneGrid } from "./SceneGrid.jsx";
 import { LiveLog } from "./LiveLog.jsx";
 import { PreviewFrame } from "./PreviewFrame.jsx";
 import { RenderPlayer } from "./RenderPlayer.jsx";
-
-// Chỉ liệt kê model đã xác nhận hoạt động thật (gọi thử tool_calls/image-gen thật) —
-// đã loại: qwen-vl-ocr (cần ảnh đầu vào, không phải model chat), qwen-mt-flash
-// (không hỗ trợ tool_calls, chỉ dịch), wan2.1-kf2v-plus/wan2.7-i2v/wan2.6-t2v (model
-// SINH VIDEO, không tương thích endpoint sinh ảnh tĩnh hiện tại — cần tích hợp riêng).
-// vi-VN-HoaiMyNeural (nữ, mặc định cũ) + vi-VN-NamMinhNeural (nam) — cả 2 đều là
-// giọng Azure Neural miễn phí qua edge-tts, giữ cả 2 để chọn thay vì thay hẳn giọng
-// cũ (user muốn nghe thử giọng nam nhưng không muốn mất lựa chọn giọng nữ).
-const EDGE_TTS_VOICES = [
-  ["vi-VN-HoaiMyNeural", "HoaiMy (nữ) — mặc định"],
-  ["vi-VN-NamMinhNeural", "NamMinh (nam)"],
-];
-
-const EXPENSIVE_MODELS = ["qwen3.5-plus", "qwen-plus-2025-04-28"];
-const CHEAP_MODELS = ["qwen3.6-flash", "qwen-flash", "deepseek-v4-flash", "qwen3-vl-flash"];
-const IMAGE_MODELS = ["wan2.6-image", "qwen-image", "qwen-image-2.0", "z-image-turbo"];
-
-function ModelSelect({ value, onChange, options, title }) {
-  return (
-    <select value={value} onChange={(e) => onChange(e.target.value)} title={title}>
-      <option value="">Model mặc định (.env)</option>
-      {options.map((m) => (
-        <option key={m} value={m}>{m}</option>
-      ))}
-    </select>
-  );
-}
+import { ModelSelect } from "./ModelSelect.jsx";
+import { EDGE_TTS_VOICES, EXPENSIVE_MODELS, CHEAP_MODELS, IMAGE_MODELS, FONT_OPTIONS } from "../lib/pipelineOptions.js";
 
 const NAV_DOT_COLOR = { running: "#d68a10", done: "#1a8f4c", error: "#c62828" };
 
@@ -119,15 +94,6 @@ function CaptionPanel({ id, refreshKey }) {
   );
 }
 
-const FONT_OPTIONS = [
-  ["Itim", "Itim (viết tay, tròn)"],
-  ["Mali", "Mali (viết tay, nhiều độ đậm)"],
-  ["Pacifico", "Pacifico (script mềm mại)"],
-  ["Charm", "Charm (thư pháp, thanh)"],
-  ["Sriracha", "Sriracha (bút lông, khoẻ)"],
-  ["Amatic SC", "Amatic SC (marker, cô đặc)"],
-];
-
 export function Pipeline({ id, idea, platform, initialProfileSlug, onProjectCreated }) {
   const { steps, totalUsage, events } = useJobStatus(id);
   const [audience, setAudience] = useState("");
@@ -210,6 +176,13 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, onProjectCrea
   const renderStatus = steps.render?.status;
   const captionStatus = steps.caption?.status;
   const doneSceneCount = Object.entries(steps).filter(([key, s]) => key.startsWith("scene:") && s.status === "done").length;
+
+  // Audience field is per-video and optional — content-planner still requires a
+  // non-empty value server-side (routes.mjs's POST /plan), so an untyped field falls
+  // back to the selected profile's defaultAudience instead of forcing manual entry
+  // every time a channel's audience rarely changes video to video.
+  const selectedProfile = profiles.find((p) => p.slug === selectedProfileSlug);
+  const effectiveAudience = audience.trim() || selectedProfile?.defaultAudience || "";
 
   const stepsRef = useRef(steps);
   useEffect(() => {
@@ -413,7 +386,7 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, onProjectCrea
     setRunAllActive(true);
     try {
       await ensureStepDone("plan", () =>
-        api.runPlan(id, { idea, audience, platform: platform ?? undefined, model: plannerModel || undefined })
+        api.runPlan(id, { idea, audience: effectiveAudience, platform: platform ?? undefined, model: plannerModel || undefined })
       );
       if (!autoRunAll && !skipPause) {
         setRunAllPaused(true);
@@ -554,10 +527,13 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, onProjectCrea
         </div>
         {profileMsg && <p className={profileMsg.ok ? "muted" : "error"}>{profileMsg.text}</p>}
 
-        <p className="muted" style={{ marginTop: "12px" }}>Đối tượng xem — riêng cho video này, không lưu vào profile</p>
+        <p className="muted" style={{ marginTop: "12px" }}>
+          Đối tượng xem — riêng cho video này, không lưu vào profile. Để trống sẽ dùng đối
+          tượng mặc định của profile{selectedProfile?.defaultAudience ? ` ("${selectedProfile.defaultAudience}")` : ""}.
+        </p>
         <div className="inline-form">
           <input
-            placeholder="Đối tượng xem (audience) — bắt buộc"
+            placeholder="Đối tượng xem (audience) — để trống = dùng mặc định của profile"
             value={audience}
             onChange={(e) => setAudience(e.target.value)}
           />
@@ -802,7 +778,7 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, onProjectCrea
         </p>
         <button
           type="button"
-          disabled={!audience.trim() || runAllActive}
+          disabled={!effectiveAudience || runAllActive}
           onClick={() => runAllPipeline()}
         >
           {runAllActive ? "Đang chạy..." : "Chạy toàn bộ pipeline"}
@@ -824,8 +800,8 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, onProjectCrea
         {planStatus !== "done" && planStatus !== "running" && (
           <button
             type="button"
-            disabled={!audience.trim()}
-            onClick={() => run(() => api.runPlan(id, { idea, audience, platform: platform ?? undefined, model: plannerModel || undefined }))}
+            disabled={!effectiveAudience}
+            onClick={() => run(() => api.runPlan(id, { idea, audience: effectiveAudience, platform: platform ?? undefined, model: plannerModel || undefined }))}
           >
             Chạy content-planner
           </button>
