@@ -74,6 +74,20 @@ function formatEvent(e) {
       return e.issue === "count-mismatch"
         ? `Cảnh báo: sinh ${e.actual} ý tưởng thay vì ${e.expected} yêu cầu`
         : `Cảnh báo: ý tưởng #${(e.index ?? 0) + 1} trùng hookStyle với ý tưởng trước`;
+    case "transcribe-start":
+      return "Đang phiên âm audio (whisper local, có thể mất vài phút)...";
+    case "transcribe-done":
+      return `Phiên âm xong: ${e.wordCount} từ${e.garbageRatio ? ` (${Math.round(e.garbageRatio * 100)}% token rác)` : ""}`;
+    case "scene-cut-retry":
+      return `Cắt cảnh lỗi, thử lại (lần ${e.attempt}): ${e.error}`;
+    case "scene-cut-done":
+      return `Đã cắt ${e.sceneCount} scene theo ý nghĩa`;
+    case "scene-audio-cut-start":
+      return `Bắt đầu cắt audio gốc cho ${e.sceneCount} scene...`;
+    case "scene-audio-cut-done":
+      return `${e.sceneId}: đã cắt audio`;
+    case "scene-audio-cut-error":
+      return `${e.sceneId}: LỖI cắt audio — ${e.error}`;
     default:
       return null;
   }

@@ -125,6 +125,46 @@ const RENDER_TIMEOUT_MS = Number(process.env.RENDER_TIMEOUT_MS) || 10 * 60 * 100
  */
 const RENDER_ARGS = ["render", "--no-experimental-fast-capture"];
 
+// Confirmed live (no audio dependency needed to hit this path): whisper-cpp isn't
+// installed on this machine, and `hyperframes transcribe --json` reports that as
+// `{"ok":false,"error":"whisper-cpp not found. Install: ..."}` on stdout with a
+// non-zero exit — same "stdout still has the JSON report" shape lint/validate use
+// above. On success the CLI's own doc (.agents/skills/hyperframes/references/
+// transcript-guide.md) shows the output is a BARE array of `{text, start, end}`
+// entries, not wrapped in `{ok, ...}` — both shapes are handled below rather than
+// assuming one.
+const TRANSCRIBE_TIMEOUT_MS = Number(process.env.HYPERFRAMES_TRANSCRIBE_TIMEOUT_MS) || 5 * 60 * 1000;
+
+/**
+ * @param {string} srcPath - absolute path to the audio file to transcribe
+ * @param {{engine?: string, model?: string, language?: string, signal?: AbortSignal}} [opts]
+ * @returns {Promise<{ok: true, words: {text: string, start: number, end: number}[]}>}
+ *   throws with the CLI's own error message on failure (e.g. missing whisper-cpp).
+ */
+export async function transcribe(srcPath, { engine = "whisper", model = "small", language, signal } = {}) {
+  const args = ["transcribe", srcPath, "--engine", engine, "--model", model, "--json"];
+  if (language) args.push("--language", language);
+
+  let stdout;
+  try {
+    ({ stdout } = await execHyperframes(args, { maxBuffer: 1024 * 1024 * 20, timeout: TRANSCRIBE_TIMEOUT_MS, signal }));
+  } catch (err) {
+    if (signal?.aborted) throw signal.reason instanceof CancelledError ? signal.reason : new CancelledError();
+    if (!err.stdout) throw new Error(`hyperframes transcribe failed to run: ${err.message}`);
+    stdout = err.stdout;
+  }
+
+  let parsed;
+  try {
+    parsed = JSON.parse(stdout);
+  } catch {
+    throw new Error(`hyperframes transcribe trả về output không phải JSON: ${stdout.slice(0, 200)}`);
+  }
+  if (Array.isArray(parsed)) return { ok: true, words: parsed };
+  if (parsed.ok === false) throw new Error(parsed.error || "hyperframes transcribe thất bại");
+  return { ok: true, words: parsed.words ?? parsed };
+}
+
 /** Render doesn't support --json; resolve/reject on process exit and surface stderr on failure. */
 export async function render(projectDir, { signal } = {}) {
   try {

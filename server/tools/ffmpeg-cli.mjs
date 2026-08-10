@@ -142,6 +142,41 @@ export async function cutClip({ srcPath, destPath, startSec, outputDurationSec, 
 }
 
 /**
+ * Cuts a segment out of a real audio file (the "tạo từ audio có sẵn" flow's per-scene
+ * split — see audio-import.mjs) — `cutClip` above is video-only (`-an`, scale/crop,
+ * `libx264`), not reusable here. Re-encodes via `libmp3lame` rather than `-c copy`:
+ * stream-copy can only cut on codec frame boundaries, not precise enough to land on
+ * the exact word-boundary timestamp the scene-cutter agent chose — captions are keyed
+ * to those same timestamps, so drift here would misalign them.
+ * @param {object} params
+ * @param {string} params.srcPath
+ * @param {string} params.destPath
+ * @param {number} params.startSec
+ * @param {number} params.endSec
+ * @param {AbortSignal} [params.signal]
+ */
+export async function cutAudioClip({ srcPath, destPath, startSec, endSec, signal }) {
+  try {
+    await execFileAsync(
+      "ffmpeg",
+      [
+        "-y",
+        // Same `-ss`/`-t` BEFORE `-i` rule as cutClip above (input-side trim).
+        "-ss", String(startSec),
+        "-t", String(Math.max(endSec - startSec, 0.01)),
+        "-i", srcPath,
+        "-acodec", "libmp3lame",
+        "-q:a", "2",
+        destPath,
+      ],
+      { timeout: CUT_TIMEOUT_MS, signal, maxBuffer: 1024 * 1024 * 10 }
+    );
+  } catch (err) {
+    throwIfCancelled(err, signal);
+  }
+}
+
+/**
  * Concatenates already-normalized clips (same resolution/fps/codec — see `cutClip`)
  * into one file via ffmpeg's concat demuxer with `-c copy` (no re-encode, since the
  * inputs are already uniform).

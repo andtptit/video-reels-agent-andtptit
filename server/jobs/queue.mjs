@@ -41,4 +41,10 @@ export const queues = {
   // external API involved, but "Generate tất cả" firing every scene at once would
   // otherwise spawn unbounded parallel ffmpeg processes.
   ffmpeg: new ConcurrencyQueue(Number(process.env.FFMPEG_CONCURRENCY) || 2),
+  // "Tạo từ audio có sẵn" (audio-import.mjs) — local Whisper inference is materially
+  // heavier/longer than the footage template's short ffmpeg cuts (see hyperframes-cli
+  // transcribe()'s own 5min default timeout), so it gets a separate, more conservative
+  // queue instead of sharing `ffmpeg` and making unrelated footage-cut requests wait
+  // behind it.
+  audioImport: new ConcurrencyQueue(Number(process.env.AUDIO_IMPORT_CONCURRENCY) || 1),
 };

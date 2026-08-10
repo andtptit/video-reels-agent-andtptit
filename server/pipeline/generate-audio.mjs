@@ -4,57 +4,24 @@
  * Behavior is unchanged from the original script; only console.log calls became
  * onEvent(...) calls so callers (CLI printer vs job-status/SSE) can format them
  * however they need.
+ *
+ * The "assemble scenes-with-timing.json" tail (buffer math, `_audio` shape, music/SFX
+ * copy, failedSceneIds convention) lives in scene-timing-assembler.mjs, shared with
+ * server/pipeline/audio-import.mjs's ffmpeg-cut-based producer — this file only owns
+ * what's genuinely TTS-specific: provider selection, per-scene synthesis + retries,
+ * and the skip-if-already-on-disk rerun convention.
  */
-import { writeFileSync, mkdirSync, existsSync, readFileSync, copyFileSync } from "fs";
+import { mkdirSync, existsSync, readFileSync, writeFileSync } from "fs";
 import { join, resolve } from "path";
 import * as elevenlabs from "../providers/tts/elevenlabs.mjs";
 import * as edgeTts from "../providers/tts/edge-tts.mjs";
 import { CancelledError } from "../jobs/cancel-registry.mjs";
+import { assembleScenesWithTiming } from "./scene-timing-assembler.mjs";
 
-const ROOT = resolve(import.meta.dirname, "..", "..");
 const TTS_PROVIDERS = { elevenlabs, "edge-tts": edgeTts };
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const TTS_RETRIES = 2; // total 3 attempts per scene before giving up — matches dashscope.mjs's convention
-
-function findWordTime(wordTimestamps, target) {
-  const norm = (s) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
-  const t = norm(target);
-  const single = wordTimestamps.find((w) => norm(w.word) === t);
-  if (single) return single;
-  const firstWord = t.split(" ")[0];
-  return wordTimestamps.find((w) => norm(w.word) === firstWord);
-}
-
-function resolveTimingAnchors(brief = "", wordTimestamps = [], onEvent) {
-  if (!wordTimestamps.length) return {};
-  const anchors = {};
-  const patterns = [
-    /khi từ ['"](.+?)['"] được nói/gi,
-    /khi nói ['"](.+?)['"]/gi,
-    /at word ['"](.+?)['"]/gi,
-  ];
-  for (const pattern of patterns) {
-    let match;
-    while ((match = pattern.exec(brief)) !== null) {
-      const target = match[1];
-      const found = findWordTime(wordTimestamps, target);
-      if (found) anchors[target] = found.start;
-      else onEvent({ type: "anchor-not-found", target });
-    }
-  }
-  return anchors;
-}
-
-const MOOD_TO_MUSIC = {
-  explosive: "upbeat-tech", snappy: "upbeat-tech",
-  cinematic: "cinematic-dark", fluid: "fluid-ambient", technical: "technical-pulse",
-};
-
-function selectMusic(plans) {
-  const dominant = plans.plans?.[0]?.mood ?? "fluid";
-  return MOOD_TO_MUSIC[dominant] ?? "fluid-ambient";
-}
 
 /**
  * @param {string} projectDir
@@ -67,7 +34,7 @@ function selectMusic(plans) {
  *   entirely when given; `musicVolume` is 0-1 (UI sends a 0-100 percent, divided
  *   before it gets here — see routes.mjs).
  */
-export async function runGenerateAudio(projectDir, { ttsProvider: providerId = process.env.TTS_PROVIDER || "elevenlabs", ttsRate, ttsVoice, musicTrack: musicTrackOverride, musicVolume, onEvent = () => {}, signal } = {}) {
+export async function runGenerateAudio(projectDir, { ttsProvider: providerId = process.env.TTS_PROVIDER || "elevenlabs", ttsRate, ttsVoice, musicTrack, musicVolume, onEvent = () => {}, signal } = {}) {
   const ttsProvider = TTS_PROVIDERS[providerId];
   if (!ttsProvider) {
     throw new Error(`Unknown TTS_PROVIDER "${providerId}". Valid: ${Object.keys(TTS_PROVIDERS).join(", ")}`);
@@ -167,125 +134,12 @@ export async function runGenerateAudio(projectDir, { ttsProvider: providerId = p
 
   onEvent({ type: "start", provider: providerId, sceneCount: plans.scenes.length });
 
-  const output = { ...raw, scenes: [] };
-  let cursor = 0;
-  // Scenes whose TTS call threw (network hiccup, provider error, etc) — generateVoiceover
-  // swallows the error and returns null so 1 bad scene doesn't kill the whole batch, but
-  // that must not mean the failure vanishes: confirmed live (user report) a project shipped
-  // with 2 scenes silently missing both audio AND captions (word_timestamps stays `[]`,
-  // so the "sub" style's caption chunker has nothing to chunk) while job-status still
-  // showed "audio: done". Collected here so the caller can fail the whole step loudly.
-  const failedSceneIds = [];
-
-  // Buffer between vo_duration and scene_duration — combined with root-composer's
-  // 0.3s crossfade overlap, the actual silent gap between scenes' voiceovers is
-  // (SCENE_DURATION_BUFFER - 0.3). Was 0.5 (→ 0.2s gap); bumped to 0.7 (→ 0.4s gap)
-  // per user request — the 0.2s gap technically existed but wasn't perceptible since
-  // bg-music never pauses through it, masking the silence.
-  const SCENE_DURATION_BUFFER = 0.7;
-
-  for (const scene of plans.scenes) {
+  async function getSceneAudio(scene) {
     if (signal?.aborted) throw signal.reason instanceof CancelledError ? signal.reason : new CancelledError();
     const result = await generateVoiceover(scene);
-    if (scene.narration && !result) failedSceneIds.push(scene.sceneId);
-    const wordTimestamps = result?.wordTimestamps ?? null;
-    const voDuration = result?.voDuration ?? scene.estimated_duration ?? scene.duration ?? 5;
-    const sceneDuration = Math.round((voDuration + SCENE_DURATION_BUFFER) * 100) / 100;
-
-    const timingAnchors = resolveTimingAnchors(scene.visual_brief ?? scene.creative_brief ?? "", wordTimestamps ?? [], onEvent);
-
-    output.scenes.push({
-      ...scene,
-      _audio: {
-        // `result` truthy means generateVoiceover() either just synthesized the
-        // file or found it already on disk from a prior run — both mean the mp3
-        // genuinely exists. Gating on `scene.narration` ALONE (the old code) was a
-        // real bug found live: when TTS failed transiently (edge-tts "Stream
-        // closed"), this field still claimed a path that was never written, so
-        // every downstream consumer (root-composer, scene-writer) trusted a
-        // phantom file — hyperframes lint only caught it much later as
-        // `audio_src_not_found` on the FINAL rendered index.html, after wasting a
-        // root-composer LLM retry loop chasing what looked like a missing-<audio>-
-        // tag bug but was actually "the file this tag correctly doesn't exist for
-        // doesn't exist either."
-        voiceover: scene.narration && result ? `assets/audio/${scene.sceneId}_vo.mp3` : null,
-        voiceover_start: cursor,
-        vo_duration: voDuration,
-        scene_duration: sceneDuration,
-        word_timestamps: wordTimestamps ?? [],
-        timing_anchors: timingAnchors,
-      },
-    });
-
-    onEvent({ type: "scene-done", sceneId: scene.sceneId, voDuration, sceneDuration });
-
-    cursor += sceneDuration;
-    if (scene.narration) await sleep(800);
+    if (scene.narration) await sleep(800); // pace TTS calls — unrelated to the assembler's own bookkeeping
+    return result;
   }
 
-  // Confirmed live (user report): assets/music/ shipped EMPTY in this workspace —
-  // setup-music-library.mjs needs ElevenLabs Sound Generation, which the Free plan
-  // blocks (401 missing_permissions, see plan.md Phase 0). Every past render in this
-  // workspace silently had NO background music at all: `music_track` pointed at a
-  // mood-specific file that never existed, so the copy step below no-opped and
-  // root-composer just omitted the track entirely — no error anywhere. User has since
-  // manually added a single catch-all `assets/music/default.mp3` (not the 4 mood-
-  // specific names) — fall back to it whenever the mood-specific file is missing,
-  // rather than silently going music-less again.
-  // `musicTrackOverride` (from UI, see Pipeline.jsx) skips the mood auto-pick
-  // entirely — user explicitly chose a track, don't second-guess it.
-  let musicTrack = musicTrackOverride || selectMusic(plans);
-  if (!existsSync(join(ROOT, "assets", "music", `${musicTrack}.mp3`)) && existsSync(join(ROOT, "assets", "music", "default.mp3"))) {
-    onEvent({ type: "music-fallback", requested: musicTrack, using: "default" });
-    musicTrack = "default";
-  }
-  output._audio = { music_track: `assets/music/${musicTrack}.mp3`, music_volume: musicVolume ?? raw.music?.volume ?? 0.2 };
-  onEvent({ type: "music-selected", track: musicTrack });
-
-  const sfxNeeded = new Set(plans.scenes.flatMap((s) => (s.sfx_picks ?? []).map((p) => p.id)));
-  if (sfxNeeded.size) {
-    mkdirSync(join(projectAbs, "assets", "sfx"), { recursive: true });
-    for (const id of sfxNeeded) {
-      const src = join(ROOT, "assets", "sfx", `${id}.mp3`);
-      const dst = join(projectAbs, "assets", "sfx", `${id}.mp3`);
-      if (existsSync(src) && !existsSync(dst)) {
-        copyFileSync(src, dst);
-        onEvent({ type: "sfx-copied", id });
-      } else if (!existsSync(src)) {
-        onEvent({ type: "sfx-missing", id });
-      }
-    }
-  }
-
-  mkdirSync(join(projectAbs, "assets", "music"), { recursive: true });
-  const musicSrc = join(ROOT, "assets", "music", `${musicTrack}.mp3`);
-  const musicDst = join(projectAbs, "assets", "music", `${musicTrack}.mp3`);
-  if (existsSync(musicSrc) && !existsSync(musicDst)) {
-    copyFileSync(musicSrc, musicDst);
-    onEvent({ type: "music-copied", track: musicTrack });
-  }
-
-  const outFile = join(projectAbs, "scenes-with-timing.json");
-  writeFileSync(outFile, JSON.stringify(output, null, 2));
-
-  const totalDuration = output.scenes.reduce((sum, s) => sum + (s._audio?.scene_duration ?? 0), 0);
-  onEvent({ type: "done", totalDuration, outFile, failedSceneIds });
-
-  // scenes-with-timing.json is already written above even on partial failure — so a
-  // retry (POST /audio again) is cheap: generateVoiceover's existsSync(dest) check
-  // skips every scene that already has real audio, only retrying the ones that
-  // failed. Surfacing this as `ok: false` (runStep/job-status.mjs treats that the
-  // same as a thrown error) makes the "audio" step show "error" instead of silently
-  // "done" with 2 scenes missing voice + captions — matches the same convention
-  // scene-writer/render already use for "resolved but actually failed" results.
-  if (failedSceneIds.length) {
-    return {
-      ...output,
-      ok: false,
-      error: `TTS thất bại cho scene: ${failedSceneIds.join(", ")} — không có audio/word-timestamps thật (không có phụ đề). Chạy lại bước Audio để retry (các scene đã xong sẽ được bỏ qua, không tốn phí lại).`,
-      failedSceneIds,
-    };
-  }
-
-  return output;
+  return assembleScenesWithTiming(projectDir, plans, getSceneAudio, { musicTrackOverride: musicTrack, musicVolume, onEvent });
 }
