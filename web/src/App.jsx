@@ -7,6 +7,8 @@ import { Pipeline } from "./components/Pipeline.jsx";
 import { History } from "./components/History.jsx";
 import { Batch } from "./components/Batch.jsx";
 import { Hook } from "./components/Hook.jsx";
+import { AudioImport } from "./components/AudioImport.jsx";
+import { Investigation } from "./components/Investigation.jsx";
 import { RunningBanner } from "./components/RunningBanner.jsx";
 import "./App.css";
 
@@ -22,7 +24,7 @@ function loadStored() {
 
 export default function App() {
   const [project, setProject] = useState(loadStored);
-  const [tab, setTab] = useState("pipeline"); // "pipeline" | "history" | "batch" | "hook"
+  const [tab, setTab] = useState("pipeline"); // "pipeline" | "history" | "batch" | "hook" | "audio-import" | "investigation"
 
   // Channel profiles list, lifted up here so ProjectForm's dropdown and
   // ProfileManager's own editor (both rendered on the "no project yet" screen) stay
@@ -77,6 +79,12 @@ export default function App() {
           <button type="button" className={tab === "hook" ? "active" : ""} onClick={() => setTab("hook")}>
             Đọc Caption
           </button>
+          <button type="button" className={tab === "audio-import" ? "active" : ""} onClick={() => setTab("audio-import")}>
+            Từ audio có sẵn
+          </button>
+          <button type="button" className={tab === "investigation" ? "active" : ""} onClick={() => setTab("investigation")}>
+            Bảng điều tra
+          </button>
         </nav>
         {project && tab === "pipeline" && (
           <button type="button" className="linklike" onClick={handleReset}>
@@ -91,6 +99,10 @@ export default function App() {
         <Batch onProjectCreated={handleCreated} />
       ) : tab === "hook" ? (
         <Hook />
+      ) : tab === "audio-import" ? (
+        <AudioImport onProjectCreated={handleCreated} />
+      ) : tab === "investigation" ? (
+        <Investigation profiles={profiles} onProjectCreated={handleCreated} />
       ) : !project ? (
         <>
           <ProjectForm onCreated={handleCreated} profiles={profiles} />

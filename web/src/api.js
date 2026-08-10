@@ -58,4 +58,21 @@ export const api = {
   runHookScene: (id) => request(`/projects/${encodeURIComponent(id)}/hook/scene`, { method: "POST" }),
   runHookRoot: (id) => request(`/projects/${encodeURIComponent(id)}/hook/root`, { method: "POST" }),
   scanFootageFolder: (dir) => request(`/footage-library/scan?dir=${encodeURIComponent(dir)}`),
+  // "Tạo từ audio có sẵn" tab — see components/AudioImport.jsx. Can't reuse request()
+  // here: it always sets Content-Type: application/json, but a multipart body needs
+  // its boundary set BY the browser (setting Content-Type by hand breaks that).
+  runAudioImport: async (id, file, params) => {
+    const form = new FormData();
+    form.append("audio", file);
+    for (const [key, value] of Object.entries(params ?? {})) {
+      if (value !== undefined && value !== "") form.append(key, value);
+    }
+    const res = await fetch(`${API_BASE}/projects/${encodeURIComponent(id)}/audio-import`, { method: "POST", body: form });
+    const isJson = res.headers.get("content-type")?.includes("application/json");
+    const body = isJson ? await res.json() : await res.text();
+    if (!res.ok) throw new Error(body?.error || `${res.status} ${res.statusText}`);
+    return body;
+  },
+  // "Bảng điều tra" tab — see components/Investigation.jsx.
+  runInvestigationPlan: (id, params) => request(`/projects/${encodeURIComponent(id)}/investigation-plan`, { method: "POST", body: JSON.stringify(params ?? {}) }),
 };

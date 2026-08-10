@@ -1,5 +1,136 @@
 # Plan: Web UI fallback (DashScope + Edge TTS) khi hết credit Claude
 
+## Đã làm — "Bảng điều tra" (investigation_board), phase 1 chỉ dùng ảnh Pexels (phiên 2026-08-10)
+
+Triển khai ý tưởng #2 ghi bên dưới (investigation board / trinh thám) — user chốt làm
+phase 1 **chỉ dùng ảnh API free (Pexels)**, chưa dùng AI sinh ảnh (phase 2 sau này).
+Loạt hỏi-đáp trước khi code chốt 2 quyết định kiến trúc quan trọng:
+
+1. **1 subStyle mới trong template "sub" có sẵn** (không phải template ngang hàng
+   motion/sub/footage) — vì style này CÓ giọng đọc (khác hẳn Hook.jsx), tái dùng được
+   toàn bộ hạ tầng "sub" (fetch/reuse ảnh, karaoke caption, lint). Chỉ mới thật sự:
+   nguồn ảnh (Pexels thay AI) + 1 module `render()`.
+2. **Ảnh KHÔNG tách nền** — nhìn lại ảnh tham khảo phát hiện kỹ thuật thật là cắt CẢ
+   khung ảnh chữ nhật theo viền răng cưa (như cắt bằng kéo), không phải silhouette
+   subject — nên dùng CSS `clip-path` polygon răng cưa tính toán trong code (seeded
+   theo sceneIndex, ổn định qua các lần render), không cần asset PNG mask, không cần
+   `remove-background`.
+3. **Bước viết nội dung (thay content-planner) → hand-off vào Pipeline.jsx thật**,
+   giống `AudioImport.jsx`, KHÔNG giống Hook.jsx (Hook.jsx tự chạy hết chuỗi riêng vì
+   format của nó không có giọng đọc — không áp dụng ở đây).
+
+### File mới
+- `.agents/skills/investigation-content-planner/SKILL.md` + `server/agents/
+  investigation-content-planner.mjs` — thay content-planner, viết kịch bản theo mạch
+  điều tra (bí ẩn → timeline → bằng chứng → hệ luỵ), ra ĐÚNG shape master_content.md/
+  scenes.json content-planner vẫn tạo.
+- `server/providers/image/pexels.mjs` — search + tải ảnh theo keyword, mirror đúng
+  shape `dashscope-image.mjs`'s `generateAndSaveImage` (existsSync-skip cache).
+- `server/lib/paper-texture-cache.mjs` — cache nền giấy/bản đồ DÙNG CHUNG workspace
+  (3 keyword cố định), khác ảnh "hero" (fetch riêng theo project, theo chủ đề).
+- `server/templates/sub-styles/investigation-board.mjs` (`id: "investigation_board"`,
+  `imageSource: "stock-photo"` — field mới báo `sub-scene-writer.mjs` dùng nhánh
+  Pexels thay vì AI-gen).
+- `web/src/components/Investigation.jsx` — tab mới "Bảng điều tra".
+
+### File sửa
+- `server/agents/video-planner.mjs` — nhánh mới khi subStyle dùng `imageSource:
+  "stock-photo"`: viết `photo_keyword`/`label_text`/`show_evidence_link` mỗi scene
+  thay vì `image_prompt`/`image_tags`.
+- `server/agents/sub-scene-writer.mjs` — nhánh acquisition mới gọi Pexels + copy paper
+  texture trước khi render.
+- `server/routes.mjs` — route mới `POST /projects/:id/investigation-plan` (step key
+  riêng, `runStep` trực tiếp để chỉ giả `steps.plan` done SAU KHI thành công thật —
+  không giả `steps.audio`, khác AudioImport, vì TTS vẫn chạy thật bình thường sau đó).
+- `web/src/App.jsx`, `Pipeline.jsx`, `ProfileManager.jsx` — tab mới + 1 `<option>`
+  subStyle, không đổi logic khác.
+
+### Verify thật qua HTTP (server test riêng, không chỉ đọc code)
+- `investigation-content-planner` chạy thật (DashScope tự fallback qwen3.6-plus →
+  qwen3.5-plus khi hết quota free) → ra kịch bản Panama Papers đúng mạch điều tra, 7
+  scene, `steps.plan` chỉ được đánh dấu done SAU KHI thành công (xác nhận đúng thời
+  điểm).
+- `video-plan` với subStyle mới → đúng field `photo_keyword`/`label_text`/
+  `show_evidence_link` mỗi scene (không lẫn `image_prompt`/`image_tags`); lần chạy
+  đầu dính lỗi model tự sinh JSON hỏng (thiếu unescape 1 dấu `"`) — retry lại thành
+  công, xác nhận đây là glitch ngẫu nhiên của model (rủi ro có sẵn của MỌI template
+  dùng video-planner, không phải do prompt mới gây ra), không phải bug cần sửa ở đây.
+- Generate scene → dừng đúng ở lỗi rõ ràng `"Missing PEXELS_API_KEY"` — xác nhận dây
+  chuyền route → video-plan → sub-scene-writer → pexels.mjs nối đúng.
+
+### Chưa test / biết trước
+- **Chưa có PEXELS_API_KEY thật trong `.env`** — chưa verify được ảnh tải về/torn-edge
+  clip-path render ra đúng qua `hyperframes lint`/render thật. User cần tự thêm key
+  (free, lấy tại pexels.com/api) rồi test lại.
+- Chưa làm layout con (calendar/document mockup) — để dành phase 1.1 nếu cần.
+- Phase 2 (bổ sung AI cho trường hợp Pexels không có ảnh phù hợp) chưa làm, đúng scope
+  đã chốt với user.
+
+### Critical Files
+- server/agents/investigation-content-planner.mjs, .agents/skills/investigation-content-planner/SKILL.md
+- server/providers/image/pexels.mjs, server/lib/paper-texture-cache.mjs
+- server/templates/sub-styles/investigation-board.mjs (+ index.mjs đăng ký)
+- server/agents/video-planner.mjs, server/agents/sub-scene-writer.mjs
+- server/routes.mjs, web/src/components/Investigation.jsx
+
+## Đã làm — "Tạo từ audio có sẵn" (audio-import): transcribe + tự cắt cảnh (phiên 2026-08-10)
+
+Entry-point mới thay "ý tưởng → content-planner → TTS" bằng "audio có sẵn (tự thu/thuê
+ngoài/podcast) → transcribe → cắt cảnh theo ý nghĩa → cắt audio gốc theo từng cảnh". Từ
+video-plan trở đi pipeline không đổi gì.
+
+### Kiến trúc
+- Transcribe: **local Whisper qua HyperFrames CLI** (`npx hyperframes transcribe`, free,
+  không cần key, hỗ trợ tiếng Việt qua `--language vi`) — KHÔNG dùng DashScope ASR
+  (chưa xác nhận hỗ trợ tiếng Việt) hay ElevenLabs Scribe (để dành provider #2 sau).
+- Cắt cảnh: agent mới (`audio-scene-cutter.mjs`) nhận transcript đã đánh số từ (kèm
+  đánh dấu khoảng lặng >0.4s), trả về **ranh giới theo INDEX từ** (không copy lại
+  text) — tránh việc bắt model chép chính xác text tiếng Việt rồi lại phải fuzzy-match
+  ngược, cắt CHÍNH XÁC từ mảng word thật.
+- Tách phần "lắp scenes-with-timing.json" (buffer thời gian, chọn nhạc, copy SFX...)
+  ra `scene-timing-assembler.mjs` dùng chung giữa `generate-audio.mjs` (TTS) và
+  `audio-import.mjs` (audio thật) — tránh lệch dần 2 bản copy tay.
+- Route `/audio-import` dùng `multer` (upload file đầu tiên trong repo) — `runStep`
+  trực tiếp để chỉ giả `plan`+`audio` done SAU KHI thành công thật (giống pattern
+  `/investigation-plan` ở trên, xây trước).
+
+### Verify thật qua HTTP
+- Multer ghi đúng file vào `assets/source/`; route chạy đúng transcribe → dừng ở lỗi
+  rõ ràng khi thiếu whisper-cpp binary — xác nhận dây chuyền nối đúng, `plan`/`audio`
+  KHÔNG bị đánh dấu done khi thất bại.
+
+### Chưa test / biết trước
+- **whisper-cpp chưa cài trên máy này** (không có qua winget/choco) — chưa verify được
+  transcribe thật + chất lượng cắt cảnh trên audio thật. User cần tự cài (tải bản dựng
+  sẵn từ github.com/ggml-org/whisper.cpp) rồi test lại.
+
+### Critical Files
+- server/pipeline/audio-import.mjs, server/agents/audio-scene-cutter.mjs
+- server/pipeline/scene-timing-assembler.mjs (+ generate-audio.mjs sửa dùng chung)
+- server/providers/transcription/hyperframes-whisper.mjs, server/lib/transcript-clean.mjs
+- server/tools/hyperframes-cli.mjs (thêm transcribe()), server/tools/ffmpeg-cli.mjs (thêm cutAudioClip())
+- server/routes.mjs, web/src/components/AudioImport.jsx
+
+## Ý tưởng tương lai — Map-explainer (bản đồ động), CHƯA LÀM (phiên 2026-08-10)
+
+User tham khảo video "Eo biển Hormuz" (nhà sáng tạo khác, tự nhận làm bằng ChatGPT) —
+đang cân nhắc, chưa quyết định làm.
+
+Pin định vị, đường route nét đứt vẽ dần, callout box bay vào, đường bờ biển giữ đúng
+tỉ lệ và sắc nét ở mọi mức zoom/pan (khác cảnh nhau vẫn cùng 1 bản đồ, không lệch hình
+dạng) → không phải ảnh AI (ảnh AI sẽ méo/lệch khi crop khác nhau ở nhiều cảnh), nhiều
+khả năng là dữ liệu địa lý thật (GeoJSON/TopoJSON kiểu Natural Earth) render bằng code
+(d3-geo + geoPath, hoặc Mapbox GL JS) rồi capture — khớp đúng cách HyperFrames hoạt
+động (HTML/CSS/JS → capture), chỉ khác nguồn dữ liệu.
+
+- **Cần thêm**: tích hợp `d3-geo` + 1 bộ TopoJSON world-map vào sub-composition (build
+  hạ tầng 1 lần, dùng lại được cho mọi chủ đề địa lý/lịch sử/địa chính trị khác nhau).
+- **Animation lõi**: SVG path draw-on (`stroke-dashoffset`) cho route — cùng kỹ thuật
+  đã dùng cho dây đỏ của "Bảng điều tra" ở trên.
+- Phù hợp nội dung: lịch sử địa lý, địa chính trị, tuyến hàng hải/thương mại.
+- Nếu triển khai: đề xuất 1 subStyle mới khác trong template "sub" (theo đúng tiền lệ
+  "Bảng điều tra" vừa làm), không phải template riêng.
+
 ## Đã sửa — template "footage" bị dính atmosphere neon của DESIGN.md (phiên 2026-08-05)
 
 Review code tính năng "footage" mới (không phải user report) — phát hiện

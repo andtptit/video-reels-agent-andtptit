@@ -8,15 +8,18 @@
  * persisted (job-status.json) and streamable (GET /projects/:id/events, SSE).
  */
 import { Router } from "express";
-import { existsSync, readFileSync, writeFileSync, readdirSync, statSync, rmSync, rmdirSync } from "fs";
-import { join, resolve, relative, isAbsolute, sep, dirname } from "path";
+import { existsSync, readFileSync, writeFileSync, readdirSync, statSync, rmSync, rmdirSync, mkdirSync } from "fs";
+import { join, resolve, relative, isAbsolute, sep, dirname, extname } from "path";
 import { execFile } from "child_process";
+import multer from "multer";
 import { resolveProjectDir, toProjectId, listProjects, InvalidProjectIdError } from "./lib/project-id.mjs";
 import { DEFAULT_MODEL, CHEAP_MODEL } from "./agents/run-agent.mjs";
 import { createProject } from "./pipeline/new-project.mjs";
 import { runGenerateAudio } from "./pipeline/generate-audio.mjs";
+import { runAudioImport } from "./pipeline/audio-import.mjs";
 import { createRemixProject } from "./pipeline/remix-project.mjs";
 import { runContentPlanner } from "./agents/content-planner.mjs";
+import { runInvestigationContentPlanner } from "./agents/investigation-content-planner.mjs";
 import { runVideoPlanner } from "./agents/video-planner.mjs";
 import { runRemixScenes } from "./agents/remix-scenes.mjs";
 import { runSceneWriter } from "./agents/scene-writer.mjs";
@@ -80,6 +83,30 @@ function runInBackground(projectDir, step, taskFn) {
     /* already recorded as an error event by runStep — nothing left to do here */
   });
 }
+
+// "Tạo từ audio có sẵn" (audio-import.mjs) upload — the only route in this codebase
+// that accepts a file body, so this is genuinely new infrastructure (no existing
+// multer/formidable/busboy anywhere else). `diskStorage` (not `memoryStorage`):
+// uploaded audio can be tens of MB, streaming straight to disk avoids buffering the
+// whole file in process memory — matches this repo's disk-first philosophy (no DB,
+// everything is files). Written directly to its final resting place
+// (assets/source/source.<ext> inside the project) so audio-import.mjs never needs to
+// copy it again.
+const audioImportUpload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => {
+      try {
+        const dir = join(resolveProjectDir(req.params.id), "assets", "source");
+        mkdirSync(dir, { recursive: true });
+        cb(null, dir);
+      } catch (err) {
+        cb(err);
+      }
+    },
+    filename: (req, file, cb) => cb(null, `source${extname(file.originalname) || ".mp3"}`),
+  }),
+  limits: { fileSize: 200 * 1024 * 1024 }, // 200MB — generous ceiling for a spoken-word upload, not a hard product requirement
+});
 
 router.get("/projects", (req, res) => {
   res.json({ projects: listProjects() });
@@ -344,6 +371,37 @@ router.post("/projects/:id/plan", withProjectDir, (req, res) => {
   res.status(202).json({ step: "plan", status: "running" });
 });
 
+// "Bảng điều tra" tab (Investigation.jsx) — replaces content-planner's job with a
+// specialized investigative-narrative writer, but produces the EXACT SAME
+// master_content.md + scenes.json shape, so everything downstream (audio/TTS,
+// video-plan, scene, root, render) runs completely unmodified. Step key
+// "investigation-plan" (not "plan") — calls `runStep` directly (not the usual
+// `runInBackground` wrapper, whose `.catch(() => {})` would swallow the failure and
+// mark "plan" done even when the real write failed) so `steps.plan` is only faked
+// done AFTER genuine success, same precedent as `/audio-import` below. Unlike
+// `/audio-import`, only "plan" is faked — "audio" is NOT, since this feature only
+// replaces the content step; the real TTS step still runs normally once the user
+// lands in Pipeline.jsx.
+router.post("/projects/:id/investigation-plan", withProjectDir, (req, res) => {
+  const { idea, audience, platform, targetDuration, model } = req.body ?? {};
+  if (!idea) return res.status(400).json({ error: "idea is required" });
+  if (!audience) return res.status(400).json({ error: "audience is required" });
+
+  runStep(req.projectDir, "investigation-plan", (onEvent, signal) =>
+    queues.dashscope.run(() =>
+      runInvestigationContentPlanner({ idea, projectDir: req.projectDir, audience, platform, targetDuration, model, onEvent, signal })
+    )
+  )
+    .then(() => {
+      emitProgress(req.projectDir, { step: "plan", status: "done" });
+    })
+    .catch(() => {
+      /* already recorded as an "investigation-plan" error by runStep — "plan" stays unmarked */
+    });
+
+  res.status(202).json({ step: "investigation-plan", status: "running" });
+});
+
 // Remix — clones a style="sub" project into a NEW project dir, reusing its AI images
 // (the expensive part) unchanged and only rewriting narration via an LLM. See
 // pipeline/remix-project.mjs (sync scaffolding) + agents/remix-scenes.mjs (the LLM
@@ -413,6 +471,49 @@ router.post("/projects/:id/audio", withProjectDir, (req, res) => {
     )
   );
   res.status(202).json({ step: "audio", status: "running" });
+});
+
+// "Tạo từ audio có sẵn" — replaces steps "plan" + "audio" in one go (transcribe →
+// cắt cảnh theo ý nghĩa → cắt audio gốc theo từng cảnh), producing the exact same
+// scenes.json/scenes-with-timing.json shape those 2 steps normally produce. Calls
+// `runStep` directly instead of the usual `runInBackground` wrapper — every other
+// route in this file uses that wrapper's `.catch(() => {})`, which turns a failed
+// step into a silently-resolved promise; this route specifically needs to know
+// whether the real work SUCCEEDED before it's safe to mark "plan"/"audio" done, so
+// swallowing the error here would mark them done even on failure.
+router.post("/projects/:id/audio-import", withProjectDir, audioImportUpload.single("audio"), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: "audio file is required (field name: audio)" });
+  const { language, whisperModel, model, platform, musicTrack, musicVolume } = req.body ?? {};
+
+  runStep(req.projectDir, "audio-import", (onEvent, signal) =>
+    queues.audioImport.run(() =>
+      runAudioImport({
+        projectDir: req.projectDir,
+        sourceFile: req.file.path,
+        language: language || undefined,
+        whisperModel: whisperModel || undefined,
+        model: model || undefined,
+        platform: platform || undefined,
+        musicTrack: musicTrack || undefined,
+        musicVolume: musicVolume !== undefined ? Number(musicVolume) / 100 : undefined,
+        onEvent,
+        signal,
+      })
+    )
+  )
+    .then(() => {
+      // Same precedent as `/remix` above marking "video-plan" done for a step it
+      // never literally ran through its own route — the real work already happened
+      // under the "audio-import" step name; this just satisfies Pipeline.jsx's
+      // unmodified gating (which only ever checks steps.plan/steps.audio).
+      emitProgress(req.projectDir, { step: "plan", status: "done" });
+      emitProgress(req.projectDir, { step: "audio", status: "done" });
+    })
+    .catch(() => {
+      /* already recorded as an "audio-import" error by runStep — plan/audio stay unmarked */
+    });
+
+  res.status(202).json({ step: "audio-import", status: "running" });
 });
 
 router.post("/projects/:id/video-plan", withProjectDir, (req, res) => {
