@@ -273,6 +273,7 @@ export function ProfileManager({ profiles, onProfilesChanged }) {
               <option value="image_full_focus">Full Focus (ảnh full-bleed + sub đáy)</option>
               <option value="image_blur_card">Blur Card (ảnh vuông nổi bật + nền mờ cùng ảnh)</option>
               <option value="image_life_insights_light">Life Insights Light (ảnh vuông + nền kem hoạ tiết)</option>
+              <option value="investigation_board">Bảng điều tra (ảnh Pexels thật + giấy cũ + băng dán)</option>
             </select>
             <select value={fontFamily} onChange={(e) => setFontFamily(e.target.value)} title="Font phụ đề">
               {FONT_OPTIONS.map(([value, label]) => (

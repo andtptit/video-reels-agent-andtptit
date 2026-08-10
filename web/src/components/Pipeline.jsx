@@ -600,6 +600,7 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, onProjectCrea
                 <option value="image_full_focus">Full Focus (ảnh full-bleed + sub đáy)</option>
                 <option value="image_blur_card">Blur Card (ảnh vuông nổi bật + nền mờ cùng ảnh)</option>
                 <option value="image_life_insights_light">Life Insights Light (ảnh vuông + nền kem hoạ tiết)</option>
+                <option value="investigation_board">Bảng điều tra (ảnh Pexels thật + giấy cũ + băng dán)</option>
                 {/* "kinetic_typography" tạm ẩn khỏi UI — code vẫn còn nguyên trong
                     templates/sub-styles/kinetic-typography.mjs (đã đăng ký ở
                     index.mjs), nhưng đang dính 1 bug render thật chưa tìm ra root

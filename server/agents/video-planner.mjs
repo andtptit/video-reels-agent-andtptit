@@ -93,6 +93,12 @@ export async function runVideoPlanner({
   // no-image sub-style only needs the one `needsImage` export to also skip this.
   const subStyleNeedsImage = template !== "sub" || (SUB_STYLES[subStyle]?.needsImage ?? true);
   const effectiveVisualStyle = template === "sub" && subStyleNeedsImage ? "ai-image" : visualStyle;
+  // "investigation_board" acquires its image via Pexels search (see
+  // sub-scene-writer.mjs), not AI generation — even though effectiveVisualStyle above
+  // still resolves to "ai-image" (it forces the "sub" template into requesting SOME
+  // image), the per-scene fields the model must write are completely different
+  // (a search keyword, not a generation prompt) — see stockPhotoOverride below.
+  const usesStockPhoto = template === "sub" && SUB_STYLES[subStyle]?.imageSource === "stock-photo";
   const skill = readFileSync(SKILL_PATH, "utf-8");
   // DESIGN.md is a single file shared verbatim across every project (new-video.mjs
   // just copies it, never authored per-video) and its entire content is a CSS/GSAP
@@ -111,8 +117,33 @@ export async function runVideoPlanner({
   const scenesWithTiming = readFileSync(join(projectDir, "scenes-with-timing.json"), "utf-8");
   const tools = createFsTools(projectDir);
 
+  const stockPhotoOverride = usesStockPhoto
+    ? `
+
+---
+
+Style video này dùng ẢNH THẬT lấy từ kho ảnh stock (Pexels), KHÔNG sinh bằng AI — mỗi
+scene cần 1 ảnh thật minh hoạ đúng nội dung (địa điểm, toà nhà, đồ vật, hiện trường liên
+quan tới narration của scene đó). Với MỖI scene trong \`video-plan.json\`, thêm các
+field sau:
+
+- \`"photo_keyword"\`: từ khoá TÌM ảnh có sẵn (tiếng Anh, 2-5 từ, mô tả CHỦ THỂ CỤ THỂ
+  — vd \`"office building exterior"\`, \`"stack of documents desk"\`, \`"handshake
+  meeting room"\`) — đây là từ khoá TÌM, KHÔNG PHẢI prompt sinh ảnh — không mô tả phong
+  cách/màu sắc, chỉ mô tả 1 ảnh CÓ THẬT nào cần tìm trên kho stock.
+- \`"label_text"\`: 1 nhãn ngắn (dưới 4 từ, tiếng Việt, VIẾT HOA) gắn kèm ảnh — tên địa
+  điểm/tổ chức/mốc thời gian được nhắc tới trong narration của scene đó (vd \`"TRỤ SỞ
+  CÔNG TY"\`, \`"NĂM 2016"\`, \`"HỒ SƠ MẬT"\`). Nếu scene không có chi tiết nào phù hợp
+  làm nhãn thì để chuỗi rỗng \`""\`.
+- \`"show_evidence_link"\`: \`true\`/\`false\` — \`true\` nếu scene này nên có dây chỉ đỏ
+  nối ảnh sang 1 chi tiết khác (dùng cho scene mang tính "liên kết bằng chứng/manh
+  mối") — KHÔNG đặt \`true\` cho quá nửa số scene, phần lớn scene nên là \`false\`.
+
+KHÔNG thêm \`"image_prompt"\`/\`"image_tags"\` cho style này — chỉ dùng 3 field trên.`
+    : "";
+
   const imageStyleOverride =
-    effectiveVisualStyle === "ai-image"
+    effectiveVisualStyle === "ai-image" && !usesStockPhoto
       ? `
 
 ---
@@ -171,7 +202,7 @@ ghi xong, trả lời bằng 1 câu tóm tắt — không tool call nào nữa.
 
 ${hasDesign ? "DESIGN.md và scenes-with-timing.json đã" : "scenes-with-timing.json đã"} được nhúng đầy đủ
 trong user message bên dưới — KHÔNG gọi \`read_file\` cho ${hasDesign ? "2 file này" : "file này"} nữa,
-chỉ lãng phí turn.${imageStyleOverride}`;
+chỉ lãng phí turn.${imageStyleOverride}${stockPhotoOverride}`;
 
   const userPrompt = hasDesign
     ? `DESIGN.md:\n${design}\n\n---\n\nscenes-with-timing.json:\n${scenesWithTiming}`
@@ -190,7 +221,7 @@ chỉ lãng phí turn.${imageStyleOverride}`;
     const durationCheck = checkDurationSum({ total: plan.total_duration ?? 0, scenes: plan.scenes ?? [], key: "duration" });
     if (!durationCheck.ok) onEvent?.({ type: "duration-check", ...durationCheck });
 
-    if (effectiveVisualStyle === "ai-image") {
+    if (effectiveVisualStyle === "ai-image" && !usesStockPhoto) {
       const promptCheck = checkImagePromptHygiene(plan.scenes ?? []);
       if (!promptCheck.ok) onEvent?.({ type: "image-prompt-hygiene", ...promptCheck });
     }

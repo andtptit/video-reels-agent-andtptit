@@ -11,6 +11,8 @@
 import { writeFileSync, mkdirSync, existsSync, statSync, copyFileSync } from "fs";
 import { join, resolve } from "path";
 import { generateAndSaveImage } from "../providers/image/dashscope-image.mjs";
+import { searchAndSavePhoto } from "../providers/image/pexels.mjs";
+import { ensurePaperTextureCopied } from "../lib/paper-texture-cache.mjs";
 import { dimensionsForFormat } from "../lib/canvas.mjs";
 import { lint } from "../tools/hyperframes-cli.mjs";
 import { SUB_STYLES, DEFAULT_SUB_STYLE } from "../templates/sub-styles/index.mjs";
@@ -49,8 +51,16 @@ export async function runSubSceneWriter({
   const style = SUB_STYLES[subStyle];
   if (!style) throw new Error(`Unknown sub style: "${subStyle}" (available: ${Object.keys(SUB_STYLES).join(", ")})`);
   const needsImage = style.needsImage !== false;
-  if (needsImage && !scene.image_prompt) {
+  // "investigation_board" acquires its image via Pexels search (scene.photo_keyword,
+  // written by video-planner.mjs), not AI generation — a separate field from
+  // `needsImage` so "does this style need an image" and "how does it get one" stay
+  // independently answerable (see the style module's own doc comment).
+  const usesStockPhoto = style.imageSource === "stock-photo";
+  if (needsImage && !usesStockPhoto && !scene.image_prompt) {
     throw new Error(`Scene "${scene.sceneId}" thiếu image_prompt — style "${subStyle}" bắt buộc cần ảnh AI từ video-planner`);
+  }
+  if (needsImage && usesStockPhoto && !scene.photo_keyword) {
+    throw new Error(`Scene "${scene.sceneId}" thiếu photo_keyword — style "${subStyle}" cần video-planner cung cấp từ khoá tìm ảnh Pexels`);
   }
   // A style may want a different AI-image aspect than the video's own canvas format
   // (e.g. a square 1:1 image inside a 9:16 video) — `format` below still drives the
@@ -73,10 +83,23 @@ export async function runSubSceneWriter({
 
     let imageResult;
     if (existsSync(imageAbsPath)) {
-      // Already generated (or already reused) in a prior run — same skip-if-exists
-      // convention generateAndSaveImage itself uses, checked here first so the
-      // library-reuse path below never even considers a scene that's already settled.
+      // Already generated (or already reused/fetched) in a prior run — same
+      // skip-if-exists convention generateAndSaveImage/searchAndSavePhoto themselves
+      // use, checked here first so the branches below never even consider a scene
+      // that's already settled.
       imageResult = { destPath: imageAbsPath, bytes: statSync(imageAbsPath).size, skipped: true };
+    } else if (usesStockPhoto) {
+      // No image-library reuse here — that mechanism is AI-generation-cost-driven
+      // (see lib/image-library.mjs's own doc comment); Pexels has no generation cost
+      // to conserve, and the point of a fresh keyword search is finding a photo that
+      // actually matches THIS scene's specific content, not reusing an old one.
+      const stockResult = await searchAndSavePhoto({ query: scene.photo_keyword, format: imageFormat, destPath: imageAbsPath, signal });
+      if (!stockResult.found) {
+        throw new Error(
+          `Không tìm thấy ảnh Pexels phù hợp cho từ khoá "${scene.photo_keyword}" (scene "${scene.sceneId}") — thử đổi từ khoá hoặc chạy lại bước video-plan.`
+        );
+      }
+      imageResult = stockResult;
     } else if (imageLibrary?.enabled) {
       const match = findReusableImage({ profileSlug: imageLibrary.profileSlug, format: imageFormat, tags: scene.image_tags });
       if (match && tryReserveReuseSlot(projectDir, imageLibrary.maxReuse)) {
@@ -136,6 +159,14 @@ export async function runSubSceneWriter({
   // pipeline to correctly size/paint the composition (see its own doc comment) —
   // a static gradient PNG stands in for the missing AI background.
   const kineticBgPath = !needsImage ? ensureKineticBgCopied(projectDir, padded, n) : undefined;
+  // "investigation_board" needs a shared aged-paper/map texture behind the photo —
+  // fetched once workspace-wide, then copied into this project (see
+  // lib/paper-texture-cache.mjs's own doc comment for why this is cached differently
+  // from the per-scene photo above).
+  const paperTexturePath = usesStockPhoto ? await ensurePaperTextureCopied(projectDir, n, { signal }) : undefined;
+  if (usesStockPhoto && !paperTexturePath) {
+    throw new Error(`Không tải được nền giấy/bản đồ từ Pexels cho scene "${scene.sceneId}" — kiểm tra PEXELS_API_KEY.`);
+  }
 
   const html = style.render({
     compositionId,
@@ -145,6 +176,7 @@ export async function runSubSceneWriter({
     imagePath,
     ...(cardImagePath ? { cardImagePath } : {}),
     ...(kineticBgPath ? { bgImagePath: kineticBgPath } : {}),
+    ...(paperTexturePath ? { paperTexturePath } : {}),
     wordTimestamps,
     sceneDuration,
     narration: sceneTiming?.narration ?? "",
@@ -152,6 +184,7 @@ export async function runSubSceneWriter({
     kenBurns,
     grain,
     sceneIndex: n,
+    ...(usesStockPhoto ? { labelText: scene.label_text, showEvidenceLink: Boolean(scene.show_evidence_link) } : {}),
   });
 
   mkdirSync(join(projectDir, "compositions"), { recursive: true });
