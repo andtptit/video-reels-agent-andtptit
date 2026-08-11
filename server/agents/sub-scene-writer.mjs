@@ -11,8 +11,14 @@
 import { writeFileSync, mkdirSync, existsSync, statSync, copyFileSync } from "fs";
 import { join, resolve } from "path";
 import { generateAndSaveImage } from "../providers/image/dashscope-image.mjs";
-import { searchAndSavePhoto } from "../providers/image/pexels.mjs";
+import * as pexels from "../providers/image/pexels.mjs";
+import * as openverse from "../providers/image/openverse.mjs";
 import { ensurePaperTextureCopied } from "../lib/paper-texture-cache.mjs";
+
+// Stock-photo search providers for subStyles with `imageSource: "stock-photo"` — same
+// lookup-map shape as generate-audio.mjs's TTS_PROVIDERS, so a 3rd provider slots in
+// later without touching call sites.
+const IMAGE_SEARCH_PROVIDERS = { pexels, openverse };
 import { dimensionsForFormat } from "../lib/canvas.mjs";
 import { lint } from "../tools/hyperframes-cli.mjs";
 import { SUB_STYLES, DEFAULT_SUB_STYLE } from "../templates/sub-styles/index.mjs";
@@ -43,6 +49,8 @@ export async function runSubSceneWriter({
   // back to its own env-configured default (DASHSCOPE_MODEL_IMAGE / "wan2.6-image")
   imageLibrary, // { enabled, maxReuse, profileSlug } from video-plan.json — see
   // lib/image-library.mjs. undefined/enabled:false skips reuse entirely.
+  photoProvider = "pexels", // from video-plan.json's plan.photoProvider — which
+  // IMAGE_SEARCH_PROVIDERS entry to use for subStyles with imageSource:"stock-photo"
   kenBurns = false, // from video-plan.json's plan.kenBurns — see templates/sub-styles/image-full-focus.mjs
   grain = false, // from video-plan.json's plan.grain — see templates/sub-styles/image-full-focus.mjs
   onEvent,
@@ -90,13 +98,15 @@ export async function runSubSceneWriter({
       imageResult = { destPath: imageAbsPath, bytes: statSync(imageAbsPath).size, skipped: true };
     } else if (usesStockPhoto) {
       // No image-library reuse here — that mechanism is AI-generation-cost-driven
-      // (see lib/image-library.mjs's own doc comment); Pexels has no generation cost
-      // to conserve, and the point of a fresh keyword search is finding a photo that
-      // actually matches THIS scene's specific content, not reusing an old one.
-      const stockResult = await searchAndSavePhoto({ query: scene.photo_keyword, format: imageFormat, destPath: imageAbsPath, signal });
+      // (see lib/image-library.mjs's own doc comment); stock search has no generation
+      // cost to conserve, and the point of a fresh keyword search is finding a photo
+      // that actually matches THIS scene's specific content, not reusing an old one.
+      const provider = IMAGE_SEARCH_PROVIDERS[photoProvider];
+      if (!provider) throw new Error(`Unknown photoProvider "${photoProvider}". Valid: ${Object.keys(IMAGE_SEARCH_PROVIDERS).join(", ")}`);
+      const stockResult = await provider.searchAndSavePhoto({ query: scene.photo_keyword, format: imageFormat, destPath: imageAbsPath, signal });
       if (!stockResult.found) {
         throw new Error(
-          `Không tìm thấy ảnh Pexels phù hợp cho từ khoá "${scene.photo_keyword}" (scene "${scene.sceneId}") — thử đổi từ khoá hoặc chạy lại bước video-plan.`
+          `Không tìm thấy ảnh (${photoProvider}) phù hợp cho từ khoá "${scene.photo_keyword}" (scene "${scene.sceneId}") — thử đổi từ khoá, đổi nguồn ảnh, hoặc chạy lại bước video-plan.`
         );
       }
       imageResult = stockResult;
@@ -165,7 +175,7 @@ export async function runSubSceneWriter({
   // from the per-scene photo above).
   const paperTexturePath = usesStockPhoto ? await ensurePaperTextureCopied(projectDir, n, { signal }) : undefined;
   if (usesStockPhoto && !paperTexturePath) {
-    throw new Error(`Không tải được nền giấy/bản đồ từ Pexels cho scene "${scene.sceneId}" — kiểm tra PEXELS_API_KEY.`);
+    throw new Error(`Không tải được nền giấy/bản đồ (nguồn: ${photoProvider}) cho scene "${scene.sceneId}" — kiểm tra API key nếu dùng Pexels.`);
   }
 
   const html = style.render({
@@ -184,7 +194,7 @@ export async function runSubSceneWriter({
     kenBurns,
     grain,
     sceneIndex: n,
-    ...(usesStockPhoto ? { labelText: scene.label_text, showEvidenceLink: Boolean(scene.show_evidence_link) } : {}),
+    ...(usesStockPhoto ? { labelText: scene.label_text, showEvidenceLink: Boolean(scene.show_evidence_link), callouts: scene.callouts } : {}),
   });
 
   mkdirSync(join(projectDir, "compositions"), { recursive: true });

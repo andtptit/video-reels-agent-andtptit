@@ -48,6 +48,9 @@ const PROFILE_FIELDS = [
   "imageStylePrefix",
   "kenBurns",
   "grain",
+  // subStyle "investigation_board" only — which stock-photo search provider to use
+  // ("pexels" | "openverse") — see server/agents/sub-scene-writer.mjs's IMAGE_SEARCH_PROVIDERS.
+  "photoProvider",
   "plannerModel",
   "cheapModel",
   "imgModel",

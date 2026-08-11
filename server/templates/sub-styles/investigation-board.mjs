@@ -4,8 +4,10 @@
  * cutout (NOT a subject silhouette — the photo's own background stays intact inside
  * the jagged frame, same technique confirmed by re-analyzing a reference video: the
  * "cutout" is the whole photo cut out with scissors, not background-removed), taped
- * to the board, a small label tag, and an optional red-string+pin "evidence link" —
- * all pure CSS/SVG, no AI generation, no background-removal step anywhere.
+ * to the board, a small label tag, an optional red-string+pin "evidence link", and
+ * 0-2 short "callout" texts (a highlighted number/name, varying position/size/color)
+ * that pop in ADDITIONAL to the running bottom captions — all pure CSS/SVG, no AI
+ * generation, no background-removal step anywhere.
  *
  * `imageSource = "stock-photo"` (not the boolean `needsImage`) is the signal
  * sub-scene-writer.mjs reads to fetch via Pexels instead of generateAndSaveImage —
@@ -30,6 +32,16 @@ const DEFAULT_FONT = "Itim";
 function escapeHtml(s) {
   return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
+
+function normalizeToken(s) {
+  return String(s ?? "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .replace(/[^\p{L}\p{N}]/gu, "");
+}
+
+const CALLOUT_COLORS = { number: "#e0a934", tag: "#f4ecd8" };
 
 // Deterministic PRNG (seeded per-scene) — same torn-edge shape every re-render/retry
 // of a given scene, but different scenes/videos still look varied from each other.
@@ -69,6 +81,96 @@ function tornEdgeClipPath(seed, segmentsPerSide = 5, maxJitterPercent = 2.2) {
   return `polygon(${pts.join(", ")})`;
 }
 
+// 4 fixed on-screen zones that never overlap the photo (centered, ~16%-42% height,
+// ~74% width) or the caption area at the bottom (~14%+ height reserved) — a top strip
+// above the photo, and the open paper area below it. Deliberately position:absolute
+// with explicit top/left/right px (NO display:flex) — the one technique confirmed
+// stable across every element in this file (photo-wrap, label, pin all use it in a
+// real verified render). kinetic-typography.mjs's still-unresolved render bug
+// (chữ hiện nhỏ/lệch góc — see plan.md) is suspected tied to flex-centering an
+// absolutely-positioned element with no natural size; this style avoids that
+// combination entirely rather than risk hitting the same bug class.
+function calloutSlots(width, height, photoTop, photoBottomPx) {
+  return [
+    { top: Math.round(height * 0.03), left: Math.round(width * 0.06), textAlign: "left", maxWidth: Math.round(width * 0.5) },
+    { top: Math.round(height * 0.03), right: Math.round(width * 0.06), textAlign: "right", maxWidth: Math.round(width * 0.5) },
+    { top: photoBottomPx + Math.round(height * 0.03), left: Math.round(width * 0.06), textAlign: "left", maxWidth: Math.round(width * 0.55) },
+    { top: photoBottomPx + Math.round(height * 0.09), right: Math.round(width * 0.06), textAlign: "right", maxWidth: Math.round(width * 0.55) },
+  ];
+}
+
+// Finds the callout's first word in the scene's real word_timestamps (same
+// single-token match approach as generate-audio.mjs's findWordTime — deliberately
+// simple, not the fuzzy multi-word alignment caption-chunks.mjs uses, since a miss
+// here just falls back to an evenly-spaced guess rather than breaking anything).
+function resolveCalloutStart(calloutText, wordTimestamps, fallbackStart) {
+  const firstWord = normalizeToken(String(calloutText ?? "").split(/\s+/)[0]);
+  if (!firstWord || !wordTimestamps?.length) return fallbackStart;
+  const match = wordTimestamps.find((w) => normalizeToken(w.word) === firstWord);
+  return match ? match.start : fallbackStart;
+}
+
+/**
+ * Renders 0-2 short "callout" texts (a number/name video-planner picked out per
+ * scene) that pop in at varying screen positions/sizes/colors — ADDITIONAL to the
+ * running bottom captions (renderKaraokeCaptions), never replacing them, so full
+ * narration stays readable regardless of whether a callout matched a timing word.
+ */
+function renderCallouts({ callouts, wordTimestamps, sceneDuration, width, height, photoTop, photoBottomPx, sceneIndex, classPrefix }) {
+  if (!callouts?.length) return { html: "", css: "", tweensJs: "" };
+  const p = classPrefix;
+  const slots = calloutSlots(width, height, photoTop, photoBottomPx);
+  const rand = seededRandom(sceneIndex * 97 + 13);
+  const usedSlots = [];
+
+  const htmlParts = [];
+  const cssParts = [];
+  const tweenParts = [];
+
+  callouts.slice(0, 2).forEach((callout, i) => {
+    if (!callout?.text) return;
+    let slotIndex = Math.floor(rand() * slots.length);
+    if (usedSlots.includes(slotIndex)) slotIndex = (slotIndex + 2) % slots.length;
+    usedSlots.push(slotIndex);
+    const slot = slots[slotIndex];
+
+    const fallbackStart = sceneDuration * (i === 0 ? 0.15 : 0.55);
+    const start = Math.min(resolveCalloutStart(callout.text, wordTimestamps, fallbackStart), Math.max(sceneDuration - 0.6, 0));
+    const duration = Math.min(2.2, Math.max(sceneDuration - start - 0.2, 0.6));
+
+    const isNumber = callout.style === "number";
+    const fontSize = Math.round(width * (isNumber ? 0.078 : 0.042));
+    const color = CALLOUT_COLORS[isNumber ? "number" : "tag"];
+    const id = `${p}-callout${i}`;
+
+    cssParts.push(`
+    .${id} {
+      position: absolute; top: ${slot.top}px; ${slot.left !== undefined ? `left: ${slot.left}px;` : `right: ${slot.right}px;`}
+      max-width: ${slot.maxWidth}px; text-align: ${slot.textAlign}; z-index: 5;
+      font-size: ${fontSize}px; font-weight: 800; line-height: 1.15; color: ${color};
+      -webkit-text-stroke: ${Math.max(1, Math.round(width * 0.0018))}px #1a140c; paint-order: stroke fill;
+      text-shadow: 0 4px 10px rgba(0,0,0,0.45); opacity: 0;
+    }`);
+
+    htmlParts.push(
+      `<div id="${id}" class="clip ${id}" data-start="${start.toFixed(2)}" data-duration="${duration.toFixed(2)}" data-track-index="${6 + i}">${escapeHtml(callout.text)}</div>`
+    );
+
+    // Alternate entrance (pop vs slide) so 2 callouts in one scene read as distinct
+    // beats — transform on an absolutely-positioned, explicitly-sized element (same
+    // proven-safe pattern as .{p}-photo-wrap above), never inside a flex container.
+    if (i % 2 === 0) {
+      tweenParts.push(`tl.fromTo("#${id}", { scale: 0.5, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.3, ease: "back.out(2)" }, ${start.toFixed(2)});`);
+    } else {
+      const dir = slot.textAlign === "right" ? 40 : -40;
+      tweenParts.push(`tl.fromTo("#${id}", { x: ${dir}, opacity: 0 }, { x: 0, opacity: 1, duration: 0.3, ease: "power2.out" }, ${start.toFixed(2)});`);
+    }
+    tweenParts.push(`tl.to("#${id}", { opacity: 0, duration: 0.2, ease: "power1.in" }, ${(start + duration - 0.2).toFixed(2)});`);
+  });
+
+  return { html: htmlParts.join("\n    "), css: cssParts.join("\n"), tweensJs: tweenParts.join("\n    ") };
+}
+
 /**
  * @param {object} params
  * @param {string} params.compositionId - e.g. "scene-01"
@@ -84,6 +186,9 @@ function tornEdgeClipPath(seed, segmentsPerSide = 5, maxJitterPercent = 2.2) {
  * @param {string} [params.labelText] - short tag near the photo (e.g. a place/date name)
  * @param {boolean} [params.showEvidenceLink] - draw a red string + pin from the photo
  *   to a second point, for scenes video-planner marks as "connects evidence"
+ * @param {{text: string, style?: "number"|"tag"}[]} [params.callouts] - 0-2 short
+ *   highlighted texts (video-planner picks these) that pop in at varying positions/
+ *   sizes ADDITIONAL to the running bottom captions, never replacing them
  * @param {number} [params.sceneIndex] - drives the deterministic torn-edge shape + tilt
  * @returns {string} full standalone HTML document for compositions/scene_XX.html
  */
@@ -100,6 +205,7 @@ export function render({
   fontFamily = DEFAULT_FONT,
   labelText,
   showEvidenceLink = false,
+  callouts,
   sceneIndex = 1,
 }) {
   const p = classPrefix;
@@ -127,6 +233,18 @@ export function render({
     wordTimestamps,
     sceneDuration,
     narration,
+  });
+
+  const { css: calloutCss, html: calloutHtml, tweensJs: calloutTweensJs } = renderCallouts({
+    callouts,
+    wordTimestamps,
+    sceneDuration,
+    width,
+    height,
+    photoTop,
+    photoBottomPx: photoTop + photoHeight,
+    sceneIndex,
+    classPrefix: p,
   });
 
   return `<!doctype html>
@@ -187,6 +305,7 @@ export function render({
     }
 
     ${captionCss}
+    ${calloutCss}
   </style>
 </head>
 <body>
@@ -218,6 +337,8 @@ export function render({
         : ""
     }
 
+    ${calloutHtml}
+
     ${captionHtml}
   </div>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
@@ -232,6 +353,7 @@ export function render({
     tl.fromTo("#${p}-pin", { scale: 0 }, { scale: 1, duration: 0.2, ease: "back.out(2)" }, 0.6);`
         : ""
     }
+    ${calloutTweensJs}
     ${wordTweensJs}
     window.__timelines["${compositionId}"] = tl;
   </script>

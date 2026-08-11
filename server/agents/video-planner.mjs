@@ -81,6 +81,11 @@ export async function runVideoPlanner({
   // Film-grain/scratch overlay, static, độc lập với kenBurns — cùng lý do mặc định
   // TẮT như trên.
   grain = false,
+  // Which stock-photo search provider sub-scene-writer.mjs uses for subStyles with
+  // `imageSource: "stock-photo"` (see IMAGE_SEARCH_PROVIDERS there) — "pexels" |
+  // "openverse". Only meaningful/persisted when usesStockPhoto below is true; this
+  // step never calls the provider itself, just records the choice for the scene step.
+  photoProvider,
   model = DEFAULT_MODEL,
   maxTurns = 8,
   onEvent,
@@ -122,7 +127,7 @@ export async function runVideoPlanner({
 
 ---
 
-Style video này dùng ẢNH THẬT lấy từ kho ảnh stock (Pexels), KHÔNG sinh bằng AI — mỗi
+Style video này dùng ẢNH THẬT lấy từ kho ảnh stock, KHÔNG sinh bằng AI — mỗi
 scene cần 1 ảnh thật minh hoạ đúng nội dung (địa điểm, toà nhà, đồ vật, hiện trường liên
 quan tới narration của scene đó). Với MỖI scene trong \`video-plan.json\`, thêm các
 field sau:
@@ -138,8 +143,19 @@ field sau:
 - \`"show_evidence_link"\`: \`true\`/\`false\` — \`true\` nếu scene này nên có dây chỉ đỏ
   nối ảnh sang 1 chi tiết khác (dùng cho scene mang tính "liên kết bằng chứng/manh
   mối") — KHÔNG đặt \`true\` cho quá nửa số scene, phần lớn scene nên là \`false\`.
+- \`"callouts"\`: mảng 0-2 phần tử, MỖI phần tử là \`{"text": "...", "style": "number"
+  hoặc "tag"}\` — các con số/cụm từ NỔI BẬT nhất của scene, bay vào màn hình kèm hiệu
+  ứng riêng (KHÁC với phụ đề chạy chữ ở đáy màn hình — phụ đề đáy vẫn hiện đầy đủ câu
+  nói như bình thường, callout chỉ là điểm nhấn thêm, không thay thế phụ đề).
+  - \`text\`: trích gần-nguyên-văn 1 con số hoặc cụm từ NGẮN (tối đa 4 từ) từ chính
+    narration của scene đó — vd \`"11,5 triệu tài liệu"\`, \`"214.000 công ty"\`,
+    \`"John Doe"\`. KHÔNG bịa số liệu không có trong narration.
+  - \`style\`: \`"number"\` cho số liệu/thống kê (chữ to, màu vàng nổi bật), \`"tag"\`
+    cho tên riêng/địa danh/mốc thời gian (chữ nhỏ hơn, màu trắng).
+  - Không phải scene nào cũng cần callout — chỉ thêm khi scene THẬT SỰ có 1 con số/chi
+    tiết đáng nhấn mạnh; để mảng rỗng \`[]\` nếu không có gì nổi bật đáng tách riêng.
 
-KHÔNG thêm \`"image_prompt"\`/\`"image_tags"\` cho style này — chỉ dùng 3 field trên.`
+KHÔNG thêm \`"image_prompt"\`/\`"image_tags"\` cho style này — chỉ dùng 4 field trên.`
     : "";
 
   const imageStyleOverride =
@@ -236,6 +252,7 @@ chỉ lãng phí turn.${imageStyleOverride}${stockPhotoOverride}`;
       if (fontFamily) plan.fontFamily = fontFamily;
       plan.kenBurns = Boolean(kenBurns);
       plan.grain = Boolean(grain);
+      if (usesStockPhoto) plan.photoProvider = photoProvider || "pexels";
     }
     if (cheapModel) plan.cheapModel = cheapModel;
     if (imageModel) plan.imageModel = imageModel;

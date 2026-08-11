@@ -36,6 +36,7 @@ export function ProfileManager({ profiles, onProfilesChanged }) {
   const [template, setTemplate] = useState("motion");
   const [visualStyle, setVisualStyle] = useState("animation");
   const [subStyle, setSubStyle] = useState("image_full_focus");
+  const [photoProvider, setPhotoProvider] = useState("pexels"); // subStyle "investigation_board" only
   const [fontFamily, setFontFamily] = useState("Itim");
   const [imageStylePrefix, setImageStylePrefix] = useState("");
   const [kenBurns, setKenBurns] = useState(false);
@@ -79,6 +80,7 @@ export function ProfileManager({ profiles, onProfilesChanged }) {
     if (p.template !== undefined) setTemplate(p.template);
     if (p.visualStyle !== undefined) setVisualStyle(p.visualStyle);
     if (p.subStyle !== undefined) setSubStyle(p.subStyle);
+    if (p.photoProvider !== undefined) setPhotoProvider(p.photoProvider);
     if (p.fontFamily !== undefined) setFontFamily(p.fontFamily);
     if (p.imageStylePrefix !== undefined) setImageStylePrefix(p.imageStylePrefix);
     if (p.kenBurns !== undefined) setKenBurns(p.kenBurns);
@@ -122,7 +124,7 @@ export function ProfileManager({ profiles, onProfilesChanged }) {
     }
     try {
       const saved = await api.saveProfile(profileName, {
-        ttsProvider, ttsRate, ttsVoice, musicTrack, musicVolume, template, visualStyle, subStyle, fontFamily,
+        ttsProvider, ttsRate, ttsVoice, musicTrack, musicVolume, template, visualStyle, subStyle, photoProvider, fontFamily,
         imageStylePrefix, kenBurns, grain, plannerModel, cheapModel, imgModel,
         footageMinClips, footageMaxClips, footageMinSeconds, footageMaxSeconds,
         footageFlipEnabled, footageSpeedEnabled, footageSpeedMin, footageSpeedMax,
@@ -273,8 +275,14 @@ export function ProfileManager({ profiles, onProfilesChanged }) {
               <option value="image_full_focus">Full Focus (ảnh full-bleed + sub đáy)</option>
               <option value="image_blur_card">Blur Card (ảnh vuông nổi bật + nền mờ cùng ảnh)</option>
               <option value="image_life_insights_light">Life Insights Light (ảnh vuông + nền kem hoạ tiết)</option>
-              <option value="investigation_board">Bảng điều tra (ảnh Pexels thật + giấy cũ + băng dán)</option>
+              <option value="investigation_board">Bảng điều tra (ảnh thật + giấy cũ + băng dán)</option>
             </select>
+            {subStyle === "investigation_board" && (
+              <select value={photoProvider} onChange={(e) => setPhotoProvider(e.target.value)} title="Nguồn ảnh thật cho style Bảng điều tra">
+                <option value="pexels">Pexels (kho ảnh stock, rộng hơn)</option>
+                <option value="openverse">Openverse (Wikimedia/Flickr, chỉ CC0/Public Domain, sát chủ đề thật hơn)</option>
+              </select>
+            )}
             <select value={fontFamily} onChange={(e) => setFontFamily(e.target.value)} title="Font phụ đề">
               {FONT_OPTIONS.map(([value, label]) => (
                 <option key={value} value={value}>{label}</option>

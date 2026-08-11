@@ -106,6 +106,7 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, onProjectCrea
   const [template, setTemplate] = useState("motion");
   const [visualStyle, setVisualStyle] = useState("animation");
   const [subStyle, setSubStyle] = useState("image_full_focus");
+  const [photoProvider, setPhotoProvider] = useState("pexels"); // subStyle "investigation_board" only
   const [imageStylePrefix, setImageStylePrefix] = useState("");
   // "Test prompt" — quick standalone image-gen call to tune imageStylePrefix/model
   // before spending a full pipeline run on it (tham khảo Pixelle-Video). Hidden by
@@ -275,6 +276,7 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, onProjectCrea
     if (p.template !== undefined) setTemplate(p.template);
     if (p.visualStyle !== undefined) setVisualStyle(p.visualStyle);
     if (p.subStyle !== undefined) setSubStyle(p.subStyle);
+    if (p.photoProvider !== undefined) setPhotoProvider(p.photoProvider);
     if (p.fontFamily !== undefined) setFontFamily(p.fontFamily);
     if (p.imageStylePrefix !== undefined) setImageStylePrefix(p.imageStylePrefix);
     if (p.kenBurns !== undefined) setKenBurns(p.kenBurns);
@@ -309,7 +311,7 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, onProjectCrea
     }
     try {
       const saved = await api.saveProfile(profileName, {
-        ttsProvider, ttsRate, ttsVoice, musicTrack, musicVolume, template, visualStyle, subStyle, fontFamily,
+        ttsProvider, ttsRate, ttsVoice, musicTrack, musicVolume, template, visualStyle, subStyle, photoProvider, fontFamily,
         imageStylePrefix, kenBurns, grain, plannerModel, cheapModel, imgModel,
         footageMinClips, footageMaxClips, footageMinSeconds, footageMaxSeconds,
         footageFlipEnabled, footageSpeedEnabled, footageSpeedMin, footageSpeedMax,
@@ -401,6 +403,7 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, onProjectCrea
           format: platform,
           visualStyle,
           subStyle,
+          photoProvider: subStyle === "investigation_board" ? photoProvider : undefined,
           fontFamily: template === "sub" || template === "footage" ? fontFamily : undefined,
           imageStylePrefix: imageStylePrefix.trim() || undefined,
           model: plannerModel || undefined,
@@ -600,7 +603,7 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, onProjectCrea
                 <option value="image_full_focus">Full Focus (ảnh full-bleed + sub đáy)</option>
                 <option value="image_blur_card">Blur Card (ảnh vuông nổi bật + nền mờ cùng ảnh)</option>
                 <option value="image_life_insights_light">Life Insights Light (ảnh vuông + nền kem hoạ tiết)</option>
-                <option value="investigation_board">Bảng điều tra (ảnh Pexels thật + giấy cũ + băng dán)</option>
+                <option value="investigation_board">Bảng điều tra (ảnh thật + giấy cũ + băng dán)</option>
                 {/* "kinetic_typography" tạm ẩn khỏi UI — code vẫn còn nguyên trong
                     templates/sub-styles/kinetic-typography.mjs (đã đăng ký ở
                     index.mjs), nhưng đang dính 1 bug render thật chưa tìm ra root
@@ -618,6 +621,12 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, onProjectCrea
                     sửa gì) trước khi coi là lỗi thật — xem plan.md để biết đầy đủ các
                     hướng đã loại trừ, tránh lặp lại. */}
               </select>
+              {subStyle === "investigation_board" && (
+                <select value={photoProvider} onChange={(e) => setPhotoProvider(e.target.value)} title="Nguồn ảnh thật cho style Bảng điều tra">
+                  <option value="pexels">Pexels (kho ảnh stock, rộng hơn)</option>
+                  <option value="openverse">Openverse (Wikimedia/Flickr, chỉ CC0/Public Domain, sát chủ đề thật hơn)</option>
+                </select>
+              )}
               <select value={fontFamily} onChange={(e) => setFontFamily(e.target.value)} title="Font phụ đề (đã xác nhận hỗ trợ tiếng Việt)">
                 <option value="Itim">Itim (viết tay, tròn — mặc định)</option>
                 <option value="Mali">Mali (viết tay, nhiều độ đậm)</option>
@@ -846,6 +855,7 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, onProjectCrea
                   format: platform,
                   visualStyle,
                   subStyle,
+                  photoProvider: subStyle === "investigation_board" ? photoProvider : undefined,
                   fontFamily: template === "sub" || template === "footage" ? fontFamily : undefined,
                   imageStylePrefix: imageStylePrefix.trim() || undefined,
                   model: plannerModel || undefined,
@@ -890,6 +900,7 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, onProjectCrea
                   format: platform,
                   visualStyle,
                   subStyle,
+                  photoProvider: subStyle === "investigation_board" ? photoProvider : undefined,
                   fontFamily: template === "sub" || template === "footage" ? fontFamily : undefined,
                   imageStylePrefix: imageStylePrefix.trim() || undefined,
                   model: plannerModel || undefined,

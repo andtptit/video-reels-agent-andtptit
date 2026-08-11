@@ -520,6 +520,7 @@ router.post("/projects/:id/video-plan", withProjectDir, (req, res) => {
   const {
     visualStyle, template, subStyle, imageStylePrefix, fontFamily, model, cheapModel, imageModel,
     imageLibraryEnabled, imageLibraryMaxReuse, profileSlug, kenBurns, grain, footageConfig, format,
+    photoProvider,
   } = req.body ?? {};
 
   // "footage" needs no LLM call at all — see build-footage-plan.mjs's own doc comment
@@ -552,6 +553,7 @@ router.post("/projects/:id/video-plan", withProjectDir, (req, res) => {
         imageLibraryEnabled,
         imageLibraryMaxReuse,
         profileSlug,
+        photoProvider,
         kenBurns,
         grain,
         onEvent,
@@ -612,6 +614,7 @@ router.post("/projects/:id/scenes/:sceneId/generate", withProjectDir, (req, res)
           fontFamily: videoPlan.fontFamily,
           imageModel: videoPlan.imageModel,
           imageLibrary: videoPlan.imageLibrary,
+          photoProvider: videoPlan.photoProvider,
           kenBurns: videoPlan.kenBurns,
           grain: videoPlan.grain,
           onEvent,
