@@ -94,7 +94,7 @@ function CaptionPanel({ id, refreshKey }) {
   );
 }
 
-export function Pipeline({ id, idea, platform, initialProfileSlug, onProjectCreated }) {
+export function Pipeline({ id, idea, platform, initialProfileSlug, autoRunOnLoad, onProjectCreated }) {
   const { steps, totalUsage, events } = useJobStatus(id);
   const [audience, setAudience] = useState("");
   const [ttsProvider, setTtsProvider] = useState("edge-tts");
@@ -223,6 +223,31 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, onProjectCrea
       .catch(() => {}); // video-plan.json not written yet — nothing to restore
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, profiles]);
+
+  // Auto-fires "Chạy toàn bộ pipeline" right after a hand-off from a flow that
+  // already produced real content (AudioImport.jsx / Investigation.jsx's upload
+  // mode) — found live as a user complaint: landing on Pipeline.jsx after uploading
+  // audio dropped every setting (profile, template) AND required manually clicking
+  // through each step, when audio-import.mjs already marks "plan"/"audio" done
+  // server-side and there's nothing left to review before continuing (unlike a
+  // freshly LLM-written script, which still gets the normal pause-after-plan
+  // checkpoint). Guarded on steps.plan/audio already reading "done" from job-status
+  // before firing — ensureStepDone's skip-if-done check only works if the SSE/
+  // initial-fetch state has actually caught up; firing before that would wastefully
+  // re-run content-planner for real. Also waits for the profile restore effect
+  // above to finish applying (when one was passed) so runAllPipeline captures the
+  // profile's template/subStyle/tts settings, not the component's bare defaults.
+  const autoRunFiredRef = useRef(false);
+  useEffect(() => {
+    if (!autoRunOnLoad || autoRunFiredRef.current) return;
+    if (!id) return;
+    if (steps.plan?.status !== "done" || steps.audio?.status !== "done") return;
+    if (initialProfileSlug && !selectedProfileSlug) return;
+    autoRunFiredRef.current = true;
+    setAutoRunAll(true);
+    runAllPipeline({ skipPause: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoRunOnLoad, id, steps.plan?.status, steps.audio?.status, selectedProfileSlug]);
 
   async function run(fn) {
     setFormError(null);
@@ -547,6 +572,7 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, onProjectCrea
           <select value={ttsProvider} onChange={(e) => setTtsProvider(e.target.value)}>
             <option value="edge-tts">edge-tts (free)</option>
             <option value="elevenlabs">elevenlabs</option>
+            <option value="vbee">vbee</option>
           </select>
           {ttsProvider === "edge-tts" && (
             <>
@@ -557,6 +583,20 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, onProjectCrea
               </select>
               <input
                 type="number" step="0.1" min="0.5" max="2" title="Tốc độ đọc (1.0 = bình thường)"
+                value={ttsRate} onChange={(e) => setTtsRate(Number(e.target.value))} style={{ width: "70px" }}
+              />
+            </>
+          )}
+          {ttsProvider === "vbee" && (
+            <>
+              <input
+                placeholder="Mã giọng Vbee (để trống = dùng VBEE_VOICE_CODE trong .env)"
+                value={ttsVoice} onChange={(e) => setTtsVoice(e.target.value)}
+                title="Vd: hn_female_ngochuyen_full_48k-fhg — lấy qua API 'Get list voices' hoặc studio.vbee.vn"
+                style={{ minWidth: "300px" }}
+              />
+              <input
+                type="number" step="0.1" min="0.25" max="1.9" title="Tốc độ đọc (1.0 = bình thường, 0.25-1.9)"
                 value={ttsRate} onChange={(e) => setTtsRate(Number(e.target.value))} style={{ width: "70px" }}
               />
             </>

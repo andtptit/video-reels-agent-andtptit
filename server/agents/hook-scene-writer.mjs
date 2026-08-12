@@ -12,7 +12,7 @@ import { join, resolve } from "path";
 import { dimensionsForFormat } from "../lib/canvas.mjs";
 import { lint } from "../tools/hyperframes-cli.mjs";
 import { ensureFontCopied } from "../lib/fonts.mjs";
-import { pickRandomClips, FOOTAGE_LIBRARY_DIR } from "../lib/footage-library.mjs";
+import { pickRandomClips, resolveLibraryDir, FOOTAGE_LIBRARY_DIR } from "../lib/footage-library.mjs";
 import { cutClip, concatClips } from "../tools/ffmpeg-cli.mjs";
 import * as hookStyle from "../templates/hook-style.mjs";
 
@@ -86,7 +86,14 @@ export async function runHookSceneWriter({
   const outPath = "compositions/scene_01.html";
   const { width, height } = dimensionsForFormat(format);
 
-  const libraryDir = footageFolder || FOOTAGE_LIBRARY_DIR;
+  // Found live (user report): building `srcPath` below with a raw, un-resolved
+  // `footageFolder` (relative paths resolve against THIS PROCESS's cwd, server/, not
+  // the workspace root) made ffmpeg fail with "No such file or directory" even though
+  // pickRandomClips/scanFootageLibrary (footage-library.mjs) already resolve the same
+  // input correctly internally — that fix never propagated out to this separate local
+  // copy of the path used for the actual cutClip() call. Resolve once, here, so both
+  // uses (passed into pickRandomClips below AND joined into srcPath) agree.
+  const libraryDir = resolveLibraryDir(footageFolder || FOOTAGE_LIBRARY_DIR);
   const footageDir = join(projectDir, "assets", "footage");
   mkdirSync(footageDir, { recursive: true });
   const finalVideoPath = "assets/footage/scene_01.mp4";

@@ -25,6 +25,13 @@ function loadStored() {
 export default function App() {
   const [project, setProject] = useState(loadStored);
   const [tab, setTab] = useState("pipeline"); // "pipeline" | "history" | "batch" | "hook" | "audio-import" | "investigation"
+  // One-shot, NOT persisted to localStorage (unlike `project`) — a hand-off from a
+  // flow that already produced real content (audio upload) can ask Pipeline.jsx to
+  // auto-run the rest of the pipeline instead of the user re-picking every setting
+  // and clicking through each step manually. Deliberately transient: a page reload
+  // should land back in the normal manual-review state, not silently re-fire a full
+  // pipeline run behind the user's back.
+  const [autoStartPipeline, setAutoStartPipeline] = useState(false);
 
   // Channel profiles list, lifted up here so ProjectForm's dropdown and
   // ProfileManager's own editor (both rendered on the "no project yet" screen) stay
@@ -39,10 +46,11 @@ export default function App() {
     refreshProfiles();
   }, []);
 
-  function handleCreated(id, idea, platform, profileSlug) {
+  function handleCreated(id, idea, platform, profileSlug, autoRun) {
     const next = { id, idea, platform, profileSlug };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
     setProject(next);
+    setAutoStartPipeline(Boolean(autoRun));
     setTab("pipeline");
   }
 
@@ -56,6 +64,7 @@ export default function App() {
   function handleReset() {
     localStorage.removeItem(STORAGE_KEY);
     setProject(null);
+    setAutoStartPipeline(false);
   }
 
   function handleProjectDeletedInHistory(id) {
@@ -100,7 +109,7 @@ export default function App() {
       ) : tab === "hook" ? (
         <Hook />
       ) : tab === "audio-import" ? (
-        <AudioImport onProjectCreated={handleCreated} />
+        <AudioImport onProjectCreated={handleCreated} profiles={profiles} />
       ) : tab === "investigation" ? (
         <Investigation profiles={profiles} onProjectCreated={handleCreated} />
       ) : !project ? (
@@ -115,6 +124,7 @@ export default function App() {
           idea={project.idea}
           platform={project.platform}
           initialProfileSlug={project.profileSlug}
+          autoRunOnLoad={autoStartPipeline}
           onProjectCreated={handleCreated}
         />
       )}

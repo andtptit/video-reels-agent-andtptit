@@ -12,7 +12,7 @@
  */
 import { execFile } from "child_process";
 import { promisify } from "util";
-import { existsSync, readdirSync, rmSync } from "fs";
+import { existsSync, readdirSync, readFileSync, rmSync } from "fs";
 import { join } from "path";
 import { CancelledError } from "../jobs/cancel-registry.mjs";
 
@@ -162,7 +162,18 @@ export async function transcribe(srcPath, { engine = "whisper", model = "small",
   }
   if (Array.isArray(parsed)) return { ok: true, words: parsed };
   if (parsed.ok === false) throw new Error(parsed.error || "hyperframes transcribe thất bại");
-  return { ok: true, words: parsed.words ?? parsed };
+  if (Array.isArray(parsed.words)) return { ok: true, words: parsed.words };
+  // Confirmed live (user report): current CLI (0.7.107) --json output for `transcribe`
+  // no longer inlines the word array — it writes to `transcriptPath` and stdout only
+  // carries metadata (wordCount, transcriptPath, ...). The old `parsed.words ?? parsed`
+  // fallback then silently returned that metadata OBJECT as `words`, so callers doing
+  // `words.map(...)` (hyperframes-whisper.mjs) crashed with "words.map is not a
+  // function" — read the real array from transcriptPath instead of guessing.
+  if (typeof parsed.transcriptPath === "string") {
+    const words = JSON.parse(readFileSync(parsed.transcriptPath, "utf-8"));
+    return { ok: true, words };
+  }
+  throw new Error(`hyperframes transcribe trả về JSON không có words/transcriptPath: ${JSON.stringify(parsed).slice(0, 200)}`);
 }
 
 /** Render doesn't support --json; resolve/reject on process exit and surface stderr on failure. */

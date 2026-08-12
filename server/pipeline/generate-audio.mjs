@@ -15,10 +15,11 @@ import { mkdirSync, existsSync, readFileSync, writeFileSync } from "fs";
 import { join, resolve } from "path";
 import * as elevenlabs from "../providers/tts/elevenlabs.mjs";
 import * as edgeTts from "../providers/tts/edge-tts.mjs";
+import * as vbee from "../providers/tts/vbee.mjs";
 import { CancelledError } from "../jobs/cancel-registry.mjs";
 import { assembleScenesWithTiming } from "./scene-timing-assembler.mjs";
 
-const TTS_PROVIDERS = { elevenlabs, "edge-tts": edgeTts };
+const TTS_PROVIDERS = { elevenlabs, "edge-tts": edgeTts, vbee };
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const TTS_RETRIES = 2; // total 3 attempts per scene before giving up — matches dashscope.mjs's convention
@@ -41,6 +42,9 @@ export async function runGenerateAudio(projectDir, { ttsProvider: providerId = p
   }
   if (providerId === "elevenlabs" && !process.env.ELEVENLABS_API_KEY) {
     throw new Error("Missing ELEVENLABS_API_KEY (or set ttsProvider: 'edge-tts')");
+  }
+  if (providerId === "vbee" && (!process.env.VBEE_APP_ID || !process.env.VBEE_TOKEN)) {
+    throw new Error("Missing VBEE_APP_ID/VBEE_TOKEN in .env");
   }
 
   const projectAbs = resolve(projectDir);

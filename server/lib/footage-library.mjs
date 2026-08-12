@@ -18,7 +18,7 @@
  * before this was generalized.
  */
 import { existsSync, mkdirSync, readdirSync, statSync, readFileSync, writeFileSync } from "fs";
-import { join, resolve, extname } from "path";
+import { join, resolve, extname, isAbsolute } from "path";
 import { probeDuration } from "../tools/ffmpeg-cli.mjs";
 
 const ROOT = resolve(import.meta.dirname, "..", "..");
@@ -26,6 +26,17 @@ export const FOOTAGE_LIBRARY_DIR = join(ROOT, "assets", "footage-library");
 
 const VIDEO_EXTENSIONS = new Set([".mp4"]);
 const IMAGE_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".webp"]);
+
+// A custom `footageFolder` override (Hook.jsx's "Thư mục footage riêng") is commonly
+// typed workspace-relative (matching how the shared pool's own default is shown
+// everywhere as "assets/footage-library/") — found live (user report): this used to
+// be passed straight to readdirSync/mkdirSync as-is, resolving against the SERVER
+// PROCESS's cwd (server/, per package.json's `npm start`) instead of the workspace
+// root, so a real folder always looked "not found". Resolve here once so every
+// caller (scanFootageLibrary, pickRandomClips, and routes.mjs's own pre-check) agrees.
+export function resolveLibraryDir(libraryDir) {
+  return isAbsolute(libraryDir) ? libraryDir : join(ROOT, libraryDir);
+}
 
 function manifestPath(libraryDir) {
   return join(libraryDir, "manifest.json");
@@ -57,6 +68,7 @@ function writeManifest(libraryDir, entries) {
  * @returns {Promise<{file: string, durationSec: number|null, kind: "video"|"image"}[]>}
  */
 export async function scanFootageLibrary(libraryDir = FOOTAGE_LIBRARY_DIR, { includeImages = false } = {}) {
+  libraryDir = resolveLibraryDir(libraryDir);
   mkdirSync(libraryDir, { recursive: true });
   const files = readdirSync(libraryDir).filter((f) => {
     const ext = extname(f).toLowerCase();
@@ -123,6 +135,7 @@ function appendUsedFiles(projectDir, files) {
  * @returns {Promise<{file: string, durationSec: number|null, kind: "video"|"image"}[]>}
  */
 export async function pickRandomClips({ projectDir, count, libraryDir = FOOTAGE_LIBRARY_DIR, includeImages = false }) {
+  libraryDir = resolveLibraryDir(libraryDir);
   const pool = await scanFootageLibrary(libraryDir, { includeImages });
   if (!pool.length) throw new Error(`Kho footage rỗng — thêm file vào ${libraryDir}`);
 

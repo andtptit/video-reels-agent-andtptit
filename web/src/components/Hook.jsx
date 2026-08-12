@@ -46,15 +46,26 @@ async function createProjectWithRetry(ideaText, orientation, attempt = 0) {
 // than Batch.jsx's own chain, so a shorter per-step ceiling than its 15min is enough.
 const HOOK_STEP_TIMEOUT_MS = 5 * 60 * 1000;
 
-// Persists the LAST ideation batch across reloads — same mechanism App.jsx already
-// uses for `project` (localStorage + restore on mount). Without this, closing/
-// refreshing the tab lost all track of a batch's ideas.json even though the file (and
-// every idea's kept/status state) was still sitting on disk the whole time — the
-// batch id was the only thing that only ever lived in React state. Deliberately its
-// own key, separate from Batch.jsx's own batch flow (that tab has no such persistence
-// either today, but fixing this tab doesn't require touching that one — see plan.md's
-// "tách biệt hoàn toàn" decision).
-const HOOK_BATCH_STORAGE_KEY = "video-reels-agent:hookBatchId";
+// Persists the LAST ideation batch PER PROFILE across reloads — same mechanism
+// Batch.jsx already has for its own batches (see its batchStorageKey), now mirrored
+// here instead of the single global key this used to be: found live (user report)
+// that a single shared key meant switching profiles never showed THAT profile's own
+// ideas (kept/done status included) — always whatever batch happened to run last,
+// regardless of which profile was selected. Own key prefix ("hookBatchId..."),
+// separate from Batch.jsx's own per-profile keys, since a user can have an active
+// batch in both tabs for the same profile at once and neither should clobber the
+// other's stored id.
+function hookBatchStorageKey(profileSlug) {
+  return `video-reels-agent:hookBatchIdForProfile:${profileSlug}`;
+}
+function loadStoredHookBatchId(profileSlug) {
+  return profileSlug ? localStorage.getItem(hookBatchStorageKey(profileSlug)) : null;
+}
+function saveStoredHookBatchId(profileSlug, id) {
+  if (!profileSlug) return;
+  if (id) localStorage.setItem(hookBatchStorageKey(profileSlug), id);
+  else localStorage.removeItem(hookBatchStorageKey(profileSlug));
+}
 
 /** Lazily loads the rendered mp4 + caption.md once "render" is done, for one idea's
  *  finished project — separate small panel rather than routing into Pipeline.jsx
@@ -125,18 +136,13 @@ export function Hook() {
   const [footageSpeedMax, setFootageSpeedMax] = useState(1.3);
   const [musicVolumePercent, setMusicVolumePercent] = useState(18);
 
-  const [batchId, setBatchIdState] = useState(() => localStorage.getItem(HOOK_BATCH_STORAGE_KEY) || null);
+  // Not restored from localStorage at mount anymore — which batch to restore depends
+  // on WHICH PROFILE is selected, and no profile is selected yet at mount. Loaded by
+  // onSelectProfile below instead (same as Batch.jsx's own onSelectProfile).
+  const [batchId, setBatchId] = useState(null);
   const [ideasMeta, setIdeasMeta] = useState(null); // full ideas.json envelope (reuses the SAME /batches ideation as Batch.jsx)
   const [formError, setFormError] = useState(null);
-  const [restoring, setRestoring] = useState(Boolean(localStorage.getItem(HOOK_BATCH_STORAGE_KEY)));
-
-  /** Wraps setBatchId so every place that starts/clears a batch also keeps
-   *  localStorage in sync — see HOOK_BATCH_STORAGE_KEY's own doc comment. */
-  function setBatchId(id) {
-    if (id) localStorage.setItem(HOOK_BATCH_STORAGE_KEY, id);
-    else localStorage.removeItem(HOOK_BATCH_STORAGE_KEY);
-    setBatchIdState(id);
-  }
+  const [restoring, setRestoring] = useState(false);
 
   const [runProgress, setRunProgress] = useState({}); // { [ideaId]: { ideaText, projectId, step, status, error } }
   const [runningAll, setRunningAll] = useState(false);
@@ -160,9 +166,9 @@ export function Hook() {
     }
   }, [ideateStatus, batchId]);
 
-  /** Runs once per `batchId` change (so on the very first mount for a batch restored
-   *  from localStorage, AND again whenever generateIdeas() starts a fresh one) — a
-   *  direct GET rather than waiting on the SSE-driven effect above, for 2 reasons:
+  /** Runs once per `batchId` change (so whenever onSelectProfile restores a profile's
+   *  saved batch, AND again whenever generateIdeas() starts a fresh one) — a direct
+   *  GET rather than waiting on the SSE-driven effect above, for 2 reasons:
    *  (1) confirms the batch dir still actually exists on disk (a stale/deleted id in
    *  localStorage must not leave `restoring` spinning forever — an SSE connection to
    *  a 404 batch fails silently, useEventStream has no onerror handling), and
@@ -175,6 +181,7 @@ export function Hook() {
       return;
     }
     let cancelled = false;
+    setRestoring(true);
     api
       .getBatch(batchId)
       .then((r) => {
@@ -187,7 +194,11 @@ export function Hook() {
       })
       .catch(() => {
         if (cancelled) return;
-        setBatchId(null); // stale/deleted batch — clear so the fresh ideation form shows instead
+        // stale/deleted batch — clear so the fresh ideation form shows instead, both
+        // in state and in this profile's own stored id (otherwise the next profile
+        // select would just restore the same dead batch id again).
+        saveStoredHookBatchId(selectedProfileSlug, null);
+        setBatchId(null);
         setIdeasMeta(null);
       })
       .finally(() => {
@@ -231,6 +242,12 @@ export function Hook() {
       applyProfile(p);
       setProfileName(p.name);
     }
+    // Restore THIS profile's own last idea batch (kept/done status included) — see
+    // hookBatchStorageKey's own doc comment for why this used to always show
+    // whichever batch ran last, regardless of profile.
+    const stored = loadStoredHookBatchId(slug);
+    setBatchId(stored);
+    if (!stored) setIdeasMeta(null);
   }
 
   /** Tạo profile MỚI (chưa chọn gì) hoặc cập nhật profile đang chọn — cùng 1 nút,
@@ -312,6 +329,7 @@ export function Hook() {
         profileSlug: selectedProfileSlug || undefined,
       });
       setBatchId(id);
+      saveStoredHookBatchId(selectedProfileSlug, id);
     } catch (err) {
       setFormError(err.message);
     }
@@ -553,9 +571,10 @@ export function Hook() {
           <input
             value={footageFolder}
             onChange={(e) => { setFootageFolder(e.target.value); setFootageScan(null); }}
-            placeholder="để trống = dùng kho chung assets/footage-library/"
+            placeholder="để trống = dùng kho chung. Nhập vd: assets/footage-library/xyz (tính từ gốc project) hoặc đường dẫn tuyệt đối"
+            title="Đường dẫn tương đối tính từ gốc thư mục project (video-reels-agent-andtptit), hoặc đường dẫn tuyệt đối đầy đủ"
             disabled={anyRunning}
-            style={{ minWidth: "320px" }}
+            style={{ minWidth: "380px" }}
           />
           <button type="button" className="linklike" disabled={anyRunning || !footageFolder.trim() || footageScanLoading} onClick={checkFootageFolder}>
             {footageScanLoading ? "Đang kiểm tra…" : "Kiểm tra thư mục"}
@@ -606,7 +625,12 @@ export function Hook() {
           <div className="step-row-head">
             <h3>Ý tưởng ({ideas.length}) — giữ {keptCount}</h3>
             <div style={{ display: "flex", gap: "8px" }}>
-              <button type="button" className="linklike" disabled={anyRunning} onClick={() => { setBatchId(null); setIdeasMeta(null); }}>
+              <button
+                type="button"
+                className="linklike"
+                disabled={anyRunning}
+                onClick={() => { saveStoredHookBatchId(selectedProfileSlug, null); setBatchId(null); setIdeasMeta(null); }}
+              >
                 Bắt đầu batch mới
               </button>
               <button type="button" disabled={!keptCount || anyRunning} onClick={runAllKept}>

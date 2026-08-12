@@ -924,13 +924,22 @@ router.get("/footage-library", async (req, res) => {
 router.get("/footage-library/scan", async (req, res) => {
   const dir = req.query.dir;
   if (!dir) return res.status(400).json({ error: "dir is required" });
+  // Found live (user report): a relative path like "assets/footage-library/xyz" (the
+  // same style the shared pool's OWN default is documented/shown as everywhere in the
+  // UI) resolved against THIS PROCESS's cwd (server/, per package.json's `npm start`),
+  // not the workspace root — landing on a nonexistent server/assets/... and always
+  // reporting "Thư mục không tồn tại" even for a real folder. Resolve non-absolute
+  // input against the workspace root here, same convention scanFootageLibrary() now
+  // applies internally (see footage-library.mjs) so this pre-check and the real scan
+  // agree on the same resolved path.
+  const resolvedDir = isAbsolute(dir) ? dir : resolve(import.meta.dirname, "..", dir);
   // scanFootageLibrary() itself mkdir's a missing dir (correct for the real
   // generation path — the shared library should always exist) — but this route is
   // hit live while the user is still typing/pasting a path, so a typo shouldn't
   // create a stray folder on their disk. Check first, don't let the scan do it.
-  if (!existsSync(dir)) return res.json({ count: 0, images: 0, videos: 0, error: "Thư mục không tồn tại" });
+  if (!existsSync(resolvedDir)) return res.json({ count: 0, images: 0, videos: 0, error: "Thư mục không tồn tại" });
   try {
-    const files = await scanFootageLibrary(dir, { includeImages: true });
+    const files = await scanFootageLibrary(resolvedDir, { includeImages: true });
     const images = files.filter((f) => f.kind === "image").length;
     const videos = files.filter((f) => f.kind === "video").length;
     res.json({ count: files.length, images, videos });

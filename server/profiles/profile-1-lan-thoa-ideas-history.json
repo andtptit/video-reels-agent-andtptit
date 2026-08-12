@@ -38,5 +38,21 @@
     "tone": "day-kien-thuc",
     "projectId": "2026-08-07/3-vung-co-the-phu-nu-30-can-cham-soc-dac-biet-de-c/video",
     "createdAt": "2026-08-07T06:53:38.789Z"
+  },
+  {
+    "idea": "7 sai lầm khi chăm sóc bản thân sau sinh khiến chồng dần mất hứng thú",
+    "subTopic": "cham-soc-ban-than-sau-sinh",
+    "hookStyle": "so-lieu",
+    "tone": "bold-provocative",
+    "projectId": "2026-08-12/7-sai-lam-khi-cham-soc-ban-than-sau-sinh-khien-cho/video",
+    "createdAt": "2026-08-12T05:20:44.278Z"
+  },
+  {
+    "idea": "Tại sao phụ nữ thông minh không bao giờ kiểm tra điện thoại chồng?",
+    "subTopic": "tin-tuong-trong-hon-nhan",
+    "hookStyle": "cau-hoi",
+    "tone": "day-kien-thuc",
+    "projectId": "2026-08-12/tai-sao-phu-nu-thong-minh-khong-bao-gio-kiem-tra-d/video",
+    "createdAt": "2026-08-12T05:24:04.289Z"
   }
 ]

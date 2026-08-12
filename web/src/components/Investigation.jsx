@@ -71,7 +71,12 @@ export function Investigation({ profiles, onProjectCreated }) {
 
   useEffect(() => {
     if (!projectId) return;
-    if (planStatus === "done") onProjectCreated(projectId, idea || title, platform, profileSlug || undefined);
+    // "upload" mode reuses /audio-import, which already produced real content
+    // (transcribed audio) — nothing left to review before continuing, so it gets
+    // the same auto-run-the-rest-of-the-pipeline hand-off as AudioImport.jsx's own
+    // tab. "ai" mode still gets the normal pause-after-plan checkpoint (a freshly
+    // LLM-written script is worth eyeballing before spending on audio/video-plan).
+    if (planStatus === "done") onProjectCreated(projectId, idea || title, platform, profileSlug || undefined, mode === "upload");
     if (planStatus === "error") setError(steps[stepKey]?.error || "Tạo project thất bại.");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [planStatus]);

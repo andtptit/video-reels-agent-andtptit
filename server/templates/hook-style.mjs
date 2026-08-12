@@ -76,13 +76,21 @@ export function render({
       ? escapedHook.replace(escapedHighlight, `<span class="${p}-highlight">${escapedHighlight}</span>`)
       : escapedHook;
 
-  const hookFontSize = Math.round(width * 0.088);
+  // Found live (user report, screenshot): a long headline (e.g. "PHỤ NỮ THÔNG MINH
+  // KHÔNG CẦN KIỂM TRA ĐIỆN THOẠI CHỒNG") wraps to 3-4 lines at the original fixed
+  // font size, overflowing past the subline's fixed `top` and rendering on top of it.
+  // Scale the hook font down for longer text so it stays inside its allotted band —
+  // on top of (not instead of) switching to flow layout below, since even a scaled
+  // hook can't guarantee a fixed line count for every possible headline.
+  const hookLen = String(hook ?? "").length;
+  const hookScale = hookLen > 60 ? 0.66 : hookLen > 45 ? 0.78 : hookLen > 30 ? 0.9 : 1;
+  const hookFontSize = Math.round(width * 0.088 * hookScale);
   const sublineFontSize = Math.round(width * 0.052);
   const ctaFontSize = Math.round(width * 0.05);
   const sidePadding = Math.round(width * 0.09);
-  const hookTop = Math.round(height * 0.27);
-  const sublineTop = Math.round(height * 0.46);
-  const ctaTop = Math.round(height * 0.56);
+  const textWrapTop = Math.round(height * 0.27);
+  const sublineGap = Math.round(height * 0.035);
+  const ctaGap = Math.round(height * 0.05);
 
   return `<!doctype html>
 <html lang="vi">
@@ -100,23 +108,28 @@ export function render({
 
     .${p}-dim { position: absolute; inset: 0; background: rgba(0,0,0,0.25); z-index: 1; }
 
-    .${p}-text-wrap { position: absolute; inset: 0; z-index: 2; }
-
+    /* Flow layout (not fixed top per block) — each block stacks below the previous
+       one based on its OWN rendered height, so a long/wrapping headline pushes the
+       subline+CTA down instead of overlapping them (see hookScale note above). */
+    .${p}-text-wrap {
+      position: absolute; left: 0; right: 0; top: ${textWrapTop}px; z-index: 2;
+      display: flex; flex-direction: column; align-items: center;
+      padding: 0 ${sidePadding}px;
+    }
     .${p}-hook, .${p}-subline, .${p}-cta {
-      position: absolute; left: 0; right: 0; text-align: center;
-      padding: 0 ${sidePadding}px; color: #ffffff;
+      text-align: center; color: #ffffff; width: 100%;
     }
     .${p}-hook {
-      top: ${hookTop}px; font-size: ${hookFontSize}px; font-weight: 800; line-height: 1.3;
+      font-size: ${hookFontSize}px; font-weight: 800; line-height: 1.3;
       letter-spacing: 0.5px; text-shadow: 0 4px 14px rgba(0,0,0,0.5);
     }
     .${p}-highlight { color: ${highlightColor}; }
     .${p}-subline {
-      top: ${sublineTop}px; font-size: ${sublineFontSize}px; font-weight: 700; line-height: 1.5;
+      margin-top: ${sublineGap}px; font-size: ${sublineFontSize}px; font-weight: 700; line-height: 1.5;
       text-shadow: 0 3px 10px rgba(0,0,0,0.45);
     }
     .${p}-cta {
-      top: ${ctaTop}px; font-size: ${ctaFontSize}px; font-weight: 800; letter-spacing: 2px;
+      margin-top: ${ctaGap}px; font-size: ${ctaFontSize}px; font-weight: 800; letter-spacing: 2px;
       text-shadow: 0 3px 10px rgba(0,0,0,0.45);
     }
   </style>

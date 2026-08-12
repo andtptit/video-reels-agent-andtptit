@@ -222,6 +222,7 @@ export function ProfileManager({ profiles, onProfilesChanged }) {
         <select value={ttsProvider} onChange={(e) => setTtsProvider(e.target.value)}>
           <option value="edge-tts">edge-tts (free)</option>
           <option value="elevenlabs">elevenlabs</option>
+          <option value="vbee">vbee</option>
         </select>
         {ttsProvider === "edge-tts" && (
           <>
@@ -232,6 +233,20 @@ export function ProfileManager({ profiles, onProfilesChanged }) {
             </select>
             <input
               type="number" step="0.1" min="0.5" max="2" title="Tốc độ đọc (1.0 = bình thường)"
+              value={ttsRate} onChange={(e) => setTtsRate(Number(e.target.value))} style={{ width: "70px" }}
+            />
+          </>
+        )}
+        {ttsProvider === "vbee" && (
+          <>
+            <input
+              placeholder="Mã giọng Vbee (để trống = dùng VBEE_VOICE_CODE trong .env)"
+              value={ttsVoice} onChange={(e) => setTtsVoice(e.target.value)}
+              title="Vd: hn_female_ngochuyen_full_48k-fhg — lấy qua API 'Get list voices' hoặc studio.vbee.vn"
+              style={{ minWidth: "300px" }}
+            />
+            <input
+              type="number" step="0.1" min="0.25" max="1.9" title="Tốc độ đọc (1.0 = bình thường, 0.25-1.9)"
               value={ttsRate} onChange={(e) => setTtsRate(Number(e.target.value))} style={{ width: "70px" }}
             />
           </>

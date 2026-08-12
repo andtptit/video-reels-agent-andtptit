@@ -1,10 +1,10 @@
 {
   "name": "Profile mẹ và bé",
   "slug": "profile-me-va-be",
-  "updatedAt": "2026-08-07T08:39:11.855Z",
-  "ttsProvider": "edge-tts",
-  "ttsRate": 1.1,
-  "ttsVoice": "",
+  "updatedAt": "2026-08-12T10:26:51.480Z",
+  "ttsProvider": "vbee",
+  "ttsRate": 1,
+  "ttsVoice": "n_hanoi_female_nguyetnga2_book_vc",
   "musicTrack": "",
   "musicVolume": 20,
   "template": "sub",
@@ -14,6 +14,7 @@
   "imageStylePrefix": "Soft watercolor illustration in warm pastel tones, gentle hand-drawn style with minimal soft outlines, cozy tender mother-and-baby moment, muted cream and dusty blue-grey color palette, simplified faces turned away or partially hidden, warm nostalgic children's-book illustration aesthetic, soft diffused lighting\n",
   "kenBurns": false,
   "grain": false,
+  "photoProvider": "pexels",
   "plannerModel": "qwen3.5-plus",
   "cheapModel": "qwen3.6-flash",
   "imgModel": "z-image-turbo",
@@ -24,7 +25,5 @@
   "footageFlipEnabled": false,
   "footageSpeedEnabled": false,
   "footageSpeedMin": 1,
-  "footageSpeedMax": 1.3,
-  "channelTheme": "Mẹ và bé — khoảnh khắc yêu thương thường ngày giữa mẹ và con nhỏ (bú, ngủ, chơi cùng, ôm ấp), giọng văn nhẹ nhàng, cảm xúc, minh hoạ phong cách nhẹ nhàng\n",
-  "defaultAudience": "Các bà mẹ trẻ có con nhỏ (0-3 tuổi), quan tâm nuôi con, dễ xúc động với nội dung ấm áp tình cảm gia đình"
+  "footageSpeedMax": 1.3
 }

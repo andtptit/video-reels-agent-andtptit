@@ -91,6 +91,38 @@ function crossfadeStarts(doneScenes) {
   return starts;
 }
 
+function computeTotalDuration(doneScenes) {
+  const starts = crossfadeStarts(doneScenes);
+  const lastIdx = doneScenes.length - 1;
+  return Math.round((starts[lastIdx] + doneScenes[lastIdx]._audio.scene_duration) * 1000) / 1000;
+}
+
+/**
+ * Same "code writes structural fields, never trust the LLM to echo them" fix as
+ * enforceVoiceoverTags/enforceSceneTiming — found live via user report: real audio
+ * showed a duplicated voice, one loud + one quiet (~20% volume, ~0.1s drift). Root
+ * cause: the shared workspace `assets/music/` library shipped empty (see
+ * scene-timing-assembler.mjs's own comment), so the model — given a `music_track`
+ * path that doesn't actually exist on disk — hallucinated a DIFFERENT, real file it
+ * found instead: the raw uploaded source recording (`assets/source/source.<ext>`,
+ * audio-import.mjs's own input). That file is the WHOLE original narration, so it
+ * played a second time start-to-finish as "background music" under the real
+ * per-scene-cut voiceover — same speech, slightly out of sync because one copy is
+ * cut into scene clips and the other isn't. `music_track`/`music_volume` are both
+ * 100% deterministic from scenesWithTiming._audio — no reason to leave the tag's
+ * `src`/`data-volume` to the model either.
+ */
+function enforceMusicTag(html, musicTrack, musicVolume, totalDuration) {
+  const withoutOldMusic = html.replace(/[ \t]*<audio\b[^>]*data-track-index="20"[^>]*>\s*<\/audio>\n?/g, "");
+  if (!musicTrack) return withoutOldMusic;
+  const tag = `    <audio id="bg-music" class="clip" data-start="0" data-duration="${totalDuration}" data-track-index="20" data-volume="${musicVolume}" src="${musicTrack}"></audio>`;
+  const voMarker = withoutOldMusic.search(/<audio\b[^>]*data-track-index="21"/);
+  const sceneMarker = withoutOldMusic.search(/<div[^>]*data-composition-src=/);
+  const insertAt = voMarker !== -1 ? voMarker : sceneMarker;
+  if (insertAt === -1) return withoutOldMusic;
+  return withoutOldMusic.slice(0, insertAt) + tag + "\n\n    " + withoutOldMusic.slice(insertAt);
+}
+
 function buildVoiceoverBlock(doneScenes) {
   const starts = crossfadeStarts(doneScenes);
   return doneScenes
@@ -202,9 +234,7 @@ function enforceSceneTiming(html, doneScenes, width, height) {
  * total is the only remaining occurrence of that exact number in the file.
  */
 function enforceTotalDuration(html, doneScenes) {
-  const starts = crossfadeStarts(doneScenes);
-  const lastIdx = doneScenes.length - 1;
-  const correctTotal = Math.round((starts[lastIdx] + doneScenes[lastIdx]._audio.scene_duration) * 1000) / 1000;
+  const correctTotal = computeTotalDuration(doneScenes);
   const rootMatch = html.match(/<div id="root"[^>]*data-duration="([\d.]+)"/);
   if (!rootMatch) return html;
   const oldTotal = rootMatch[1];
@@ -408,7 +438,9 @@ trả lời bằng 1 câu tóm tắt — không tool call nào nữa.`;
     // and the other checks below always see the corrected version, and a project
     // that fails for some OTHER reason still ends up with correct audio in the
     // partially-failed file on disk.
-    const withVoiceover = enforceVoiceoverTags(rawHtml, doneScenes);
+    const totalDuration = computeTotalDuration(doneScenes);
+    const withMusic = enforceMusicTag(rawHtml, scenesWithTiming._audio?.music_track, scenesWithTiming._audio?.music_volume ?? 0.18, totalDuration);
+    const withVoiceover = enforceVoiceoverTags(withMusic, doneScenes);
     const withSceneTiming = enforceSceneTiming(withVoiceover, doneScenes, width, height);
     const html = enforceTotalDuration(withSceneTiming, doneScenes);
     if (html !== rawHtml) writeFileSync(indexPath, html);

@@ -27,13 +27,21 @@ const LANGUAGES = [
   ["en", "Tiếng Anh"],
 ];
 
-export function AudioImport({ onProjectCreated }) {
+export function AudioImport({ onProjectCreated, profiles = [] }) {
   const [title, setTitle] = useState("");
   const [orientation, setOrientation] = useState("portrait");
   const [file, setFile] = useState(null);
   const [language, setLanguage] = useState("vi");
   const [whisperModel, setWhisperModel] = useState("small");
   const [model, setModel] = useState("");
+  const [profileSlug, setProfileSlug] = useState("");
+  // Default true — found live (user report): landing on Pipeline.jsx after upload
+  // required manually re-picking every setting AND clicking through each step by
+  // hand, even though audio-import.mjs already produced real content with nothing
+  // left to review before continuing. Left as an escape hatch (not hardcoded) for
+  // whenever someone genuinely wants to eyeball scenes.json before spending on
+  // video-plan/scene generation.
+  const [autoRunPipeline, setAutoRunPipeline] = useState(true);
 
   const [projectId, setProjectId] = useState(null);
   const [platform, setPlatform] = useState(null);
@@ -45,7 +53,7 @@ export function AudioImport({ onProjectCreated }) {
 
   useEffect(() => {
     if (!projectId) return;
-    if (importStatus === "done") onProjectCreated(projectId, title, platform);
+    if (importStatus === "done") onProjectCreated(projectId, title, platform, profileSlug || undefined, autoRunPipeline);
     if (importStatus === "error") setError(steps["audio-import"]?.error || "Tạo từ audio thất bại.");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [importStatus]);
@@ -119,6 +127,27 @@ export function AudioImport({ onProjectCreated }) {
           Ngang (16:9 — YouTube)
         </label>
       </fieldset>
+
+      <div className="inline-form">
+        <select
+          value={profileSlug}
+          onChange={(e) => setProfileSlug(e.target.value)}
+          disabled={running}
+          title="Chọn profile đã cấu hình sẵn template/style/giọng đọc, để tự áp khi vào Pipeline — không chọn thì Pipeline dùng mặc định trắng"
+        >
+          <option value="">— Chọn channel profile (khuyến nghị) —</option>
+          {profiles.map((p) => (
+            <option key={p.slug} value={p.slug}>{p.name}</option>
+          ))}
+        </select>
+      </div>
+
+      <p className="muted">
+        <label style={{ display: "inline-flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
+          <input type="checkbox" checked={autoRunPipeline} onChange={(e) => setAutoRunPipeline(e.target.checked)} disabled={running} style={{ width: "auto", marginBottom: 0 }} />
+          Tự động chạy hết pipeline (video-plan → scene → ghép → render) ngay sau khi tạo xong — không cần bấm từng bước
+        </label>
+      </p>
 
       <button type="submit" disabled={running || !file || !title.trim()}>
         {running ? "Đang xử lý..." : "Tạo project từ audio"}

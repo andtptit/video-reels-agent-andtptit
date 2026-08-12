@@ -66,7 +66,17 @@ export function renderKaraokeCaptions({ classPrefix, width, height, wordTimestam
       // checked against the next chunk's start when chunks were closely spaced.
       const nextChunkStart = chunks[chunkIndex + 1]?.start ?? Infinity;
       const naturalEnd = Math.min(chunk.end + 0.3, nextChunkStart - 0.05);
-      const chunkDuration = Math.max(0.3, naturalEnd - chunkStart);
+      // Found live (user report): a flat `Math.max(0.3, ...)` minimum-visibility floor
+      // ignored the SAME nextChunkStart cap `naturalEnd` above already respects — a
+      // short chunk (e.g. a single quickly-spoken word) whose real gap to the next
+      // chunk is under 0.35s got stretched to the 0.3s floor anyway, landing its end
+      // past the next chunk's start and reproducing the exact overlap bug the cap
+      // was added to prevent (lint's overlapping_clips_same_track — the same numbers
+      // came out on every retry since this is deterministic code, not LLM variance).
+      // Shrink the floor itself to fit whatever room is actually available before the
+      // next chunk, down to a hard 0.05s minimum, instead of overriding the cap.
+      const minDuration = Math.min(0.3, Math.max(nextChunkStart - chunkStart - 0.05, 0.05));
+      const chunkDuration = Math.max(minDuration, naturalEnd - chunkStart);
       const spans = chunk.words
         .map((w) => {
           const i = globalWordIndex++;
