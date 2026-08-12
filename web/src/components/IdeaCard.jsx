@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { StatusBadge } from "./StatusBadge.jsx";
+import { TestScriptPreview } from "./TestScriptPreview.jsx";
 
 const HOOK_LABELS = {
   "so-lieu": "Số liệu",
@@ -25,9 +26,23 @@ const STATUS_MAP = { pending: "idle", creating: "running", planning: "running", 
 
 const PHASE_LABEL = { creating: "Đang tạo project…", planning: "Đang viết kịch bản…" };
 
-export function IdeaCard({ idea, disabled, onEdit, onToggleKeep, onDelete, onOpen }) {
+export function IdeaCard({
+  idea,
+  disabled,
+  onEdit,
+  onToggleKeep,
+  onDelete,
+  onOpen,
+  audience,
+  platform,
+  profileSlug,
+  testKind = "content-planner", // "content-planner" (Pipeline/Hàng loạt) | "hook" (Đọc Caption)
+  testExtraParams, // hook's own {nicheDescription, ctaText} — merged into TestScriptPreview's params instead of audience/platform
+  onUseTestResult, // (idea, testId) => Promise — creates the real project + promotes the test result; omit to hide the button (e.g. Hook tab, not wired yet)
+}) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(idea.idea);
+  const [testOpen, setTestOpen] = useState(false);
 
   function saveEdit() {
     const trimmed = draft.trim();
@@ -75,12 +90,25 @@ export function IdeaCard({ idea, disabled, onEdit, onToggleKeep, onDelete, onOpe
             </label>
             <button type="button" className="linklike" disabled={disabled} onClick={() => setEditing(true)}>Sửa</button>
             <button type="button" className="linklike" disabled={disabled} onClick={onDelete}>Xoá</button>
+            {idea.status === "pending" && (
+              <button type="button" className="linklike" onClick={() => setTestOpen((v) => !v)}>
+                {testOpen ? "Ẩn test kịch bản" : "Test kịch bản"}
+              </button>
+            )}
             {idea.status === "done" && idea.projectId && (
               <button type="button" onClick={() => onOpen(idea.projectId, idea.idea, idea.platform)}>Mở project</button>
             )}
           </>
         )}
       </div>
+      {testOpen && (
+        <TestScriptPreview
+          kind={testKind}
+          disabled={testKind === "hook" ? !testExtraParams?.nicheDescription?.trim() : !audience?.trim()}
+          getParams={() => ({ idea: idea.idea, audience, platform, profileSlug, ...testExtraParams })}
+          onUse={onUseTestResult && idea.status === "pending" ? (testId) => onUseTestResult(idea, testId) : undefined}
+        />
+      )}
     </div>
   );
 }

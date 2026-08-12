@@ -24,7 +24,7 @@ function loadStored() {
 
 export default function App() {
   const [project, setProject] = useState(loadStored);
-  const [tab, setTab] = useState("pipeline"); // "pipeline" | "history" | "batch" | "hook" | "audio-import" | "investigation"
+  const [tab, setTab] = useState("pipeline"); // "pipeline" | "history" | "batch" | "hook" | "audio-import" | "investigation" | "profiles"
   // One-shot, NOT persisted to localStorage (unlike `project`) — a hand-off from a
   // flow that already produced real content (audio upload) can ask Pipeline.jsx to
   // auto-run the rest of the pipeline instead of the user re-picking every setting
@@ -94,6 +94,9 @@ export default function App() {
           <button type="button" className={tab === "investigation" ? "active" : ""} onClick={() => setTab("investigation")}>
             Bảng điều tra
           </button>
+          <button type="button" className={tab === "profiles" ? "active" : ""} onClick={() => setTab("profiles")}>
+            Hồ sơ kênh
+          </button>
         </nav>
         {project && tab === "pipeline" && (
           <button type="button" className="linklike" onClick={handleReset}>
@@ -112,6 +115,8 @@ export default function App() {
         <AudioImport onProjectCreated={handleCreated} profiles={profiles} />
       ) : tab === "investigation" ? (
         <Investigation profiles={profiles} onProjectCreated={handleCreated} />
+      ) : tab === "profiles" ? (
+        <ProfileManager profiles={profiles} onProfilesChanged={refreshProfiles} startExpanded />
       ) : !project ? (
         <>
           <ProjectForm onCreated={handleCreated} profiles={profiles} />

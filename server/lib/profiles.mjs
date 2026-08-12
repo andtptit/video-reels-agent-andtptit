@@ -51,10 +51,17 @@ const PROFILE_FIELDS = [
   // subStyle "investigation_board" only — which stock-photo search provider to use
   // ("pexels" | "openverse") — see server/agents/sub-scene-writer.mjs's IMAGE_SEARCH_PROVIDERS.
   "photoProvider",
+  // Free-text creative direction for THIS channel — persona/nhân vật, giọng kể,
+  // điều nên/không nên — injected into both idea-generator.mjs's prompt (idea
+  // brainstorm) and content-planner.mjs's prompt (real script). The fixed
+  // hookStyle/tone rotation in idea-generator.mjs stays as-is (keeps ideas diverse);
+  // this is a LAYER ON TOP for substance, not a replacement.
+  "contentPlaybook",
   "plannerModel",
   "cheapModel",
   "imgModel",
   // Template "footage" config — see pipeline/build-footage-plan.mjs.
+  "footageLibraryDir",
   "footageMinClips",
   "footageMaxClips",
   "footageMinSeconds",

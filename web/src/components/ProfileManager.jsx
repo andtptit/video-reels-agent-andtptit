@@ -20,8 +20,8 @@ import { EDGE_TTS_VOICES, EXPENSIVE_MODELS, CHEAP_MODELS, IMAGE_MODELS, FONT_OPT
  * (see App.jsx), collapsed by default so it doesn't clutter that screen for the
  * common case of just picking an existing profile.
  */
-export function ProfileManager({ profiles, onProfilesChanged }) {
-  const [expanded, setExpanded] = useState(false);
+export function ProfileManager({ profiles, onProfilesChanged, startExpanded = false }) {
+  const [expanded, setExpanded] = useState(startExpanded);
 
   const [selectedSlug, setSelectedSlug] = useState("");
   const [profileName, setProfileName] = useState("");
@@ -39,6 +39,7 @@ export function ProfileManager({ profiles, onProfilesChanged }) {
   const [photoProvider, setPhotoProvider] = useState("pexels"); // subStyle "investigation_board" only
   const [fontFamily, setFontFamily] = useState("Itim");
   const [imageStylePrefix, setImageStylePrefix] = useState("");
+  const [contentPlaybook, setContentPlaybook] = useState("");
   const [kenBurns, setKenBurns] = useState(false);
   const [grain, setGrain] = useState(false);
   const [plannerModel, setPlannerModel] = useState("");
@@ -54,6 +55,11 @@ export function ProfileManager({ profiles, onProfilesChanged }) {
   const [footageSpeedMin, setFootageSpeedMin] = useState(1.0);
   const [footageSpeedMax, setFootageSpeedMax] = useState(1.3);
   const [footageLibraryCount, setFootageLibraryCount] = useState(null);
+  // Empty = dùng kho chung assets/footage-library/ — cùng pattern "Thư mục footage
+  // riêng" đã có ở tab Đọc Caption (Hook.jsx) và tab Pipeline.
+  const [footageLibraryDir, setFootageLibraryDir] = useState("");
+  const [footageScan, setFootageScan] = useState(null);
+  const [footageScanLoading, setFootageScanLoading] = useState(false);
 
   const [channelTheme, setChannelTheme] = useState("");
   const [defaultAudience, setDefaultAudience] = useState("");
@@ -67,8 +73,28 @@ export function ProfileManager({ profiles, onProfilesChanged }) {
   useEffect(() => {
     if (!expanded) return;
     api.listMusicLibrary().then((r) => setMusicTracks(r.tracks ?? [])).catch(() => {});
-    api.getFootageLibraryInfo().then((r) => setFootageLibraryCount(r.count)).catch(() => setFootageLibraryCount(null));
   }, [expanded]);
+
+  useEffect(() => {
+    if (!expanded || footageLibraryDir.trim()) return; // custom dir has its own "Kiểm tra thư mục" button below
+    api.getFootageLibraryInfo().then((r) => setFootageLibraryCount(r.count)).catch(() => setFootageLibraryCount(null));
+  }, [expanded, footageLibraryDir]);
+
+  async function checkFootageLibraryDir() {
+    if (!footageLibraryDir.trim()) {
+      setFootageScan(null);
+      return;
+    }
+    setFootageScanLoading(true);
+    try {
+      const r = await api.scanFootageFolder(footageLibraryDir.trim());
+      setFootageScan(r);
+    } catch (err) {
+      setFootageScan({ count: 0, images: 0, videos: 0, error: err.message });
+    } finally {
+      setFootageScanLoading(false);
+    }
+  }
 
   function applyProfile(p) {
     if (!p) return;
@@ -83,11 +109,13 @@ export function ProfileManager({ profiles, onProfilesChanged }) {
     if (p.photoProvider !== undefined) setPhotoProvider(p.photoProvider);
     if (p.fontFamily !== undefined) setFontFamily(p.fontFamily);
     if (p.imageStylePrefix !== undefined) setImageStylePrefix(p.imageStylePrefix);
+    if (p.contentPlaybook !== undefined) setContentPlaybook(p.contentPlaybook);
     if (p.kenBurns !== undefined) setKenBurns(p.kenBurns);
     if (p.grain !== undefined) setGrain(p.grain);
     if (p.plannerModel !== undefined) setPlannerModel(p.plannerModel);
     if (p.cheapModel !== undefined) setCheapModel(p.cheapModel);
     if (p.imgModel !== undefined) setImgModel(p.imgModel);
+    if (p.footageLibraryDir !== undefined) setFootageLibraryDir(p.footageLibraryDir);
     if (p.footageMinClips !== undefined) setFootageMinClips(p.footageMinClips);
     if (p.footageMaxClips !== undefined) setFootageMaxClips(p.footageMaxClips);
     if (p.footageMinSeconds !== undefined) setFootageMinSeconds(p.footageMinSeconds);
@@ -125,7 +153,8 @@ export function ProfileManager({ profiles, onProfilesChanged }) {
     try {
       const saved = await api.saveProfile(profileName, {
         ttsProvider, ttsRate, ttsVoice, musicTrack, musicVolume, template, visualStyle, subStyle, photoProvider, fontFamily,
-        imageStylePrefix, kenBurns, grain, plannerModel, cheapModel, imgModel,
+        imageStylePrefix, contentPlaybook, kenBurns, grain, plannerModel, cheapModel, imgModel,
+        footageLibraryDir: footageLibraryDir.trim() || undefined,
         footageMinClips, footageMaxClips, footageMinSeconds, footageMaxSeconds,
         footageFlipEnabled, footageSpeedEnabled, footageSpeedMin, footageSpeedMax,
         channelTheme, defaultAudience,
@@ -214,6 +243,22 @@ export function ProfileManager({ profiles, onProfilesChanged }) {
           value={defaultAudience}
           onChange={(e) => setDefaultAudience(e.target.value)}
           placeholder="Đối tượng xem mặc định — vd: các bà mẹ trẻ có con nhỏ"
+        />
+      </div>
+
+      <p className="muted" style={{ marginTop: "12px" }}>
+        Content playbook — định hướng nội dung riêng của kênh (nhân vật, giọng kể, điều nên/không nên). Áp dụng cho cả
+        sinh ý tưởng (tab Hàng loạt) lẫn viết kịch bản thật — quan trọng hơn mọi hướng dẫn chung.
+      </p>
+      <div className="inline-form">
+        <textarea
+          value={contentPlaybook}
+          onChange={(e) => setContentPlaybook(e.target.value)}
+          placeholder={
+            'Vd: Storytelling qua nhân vật "Lan Thoa", phụ nữ trung niên giữ chồng — kể chuyện đời thường, sexy nhẹ ' +
+            "nhàng vừa đủ, tinh tế không thô. KHÔNG viết dạng liệt kê mẹo/tips."
+          }
+          rows={3}
         />
       </div>
 
@@ -308,9 +353,36 @@ export function ProfileManager({ profiles, onProfilesChanged }) {
 
         {template === "footage" && (
           <div style={{ display: "flex", flexDirection: "column", gap: "8px", width: "100%" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+              <span>Thư mục footage:</span>
+              <input
+                value={footageLibraryDir}
+                onChange={(e) => { setFootageLibraryDir(e.target.value); setFootageScan(null); }}
+                placeholder="để trống = dùng kho chung assets/footage-library/. Vd: assets/footage-library/xyz hoặc đường dẫn tuyệt đối"
+                title="Đường dẫn tương đối tính từ gốc thư mục project, hoặc đường dẫn tuyệt đối đầy đủ — lưu theo profile"
+                style={{ minWidth: "380px" }}
+              />
+              {footageLibraryDir.trim() && (
+                <button type="button" className="linklike" disabled={footageScanLoading} onClick={checkFootageLibraryDir}>
+                  {footageScanLoading ? "Đang kiểm tra…" : "Kiểm tra thư mục"}
+                </button>
+              )}
+            </div>
             <p className="muted">
-              Kho footage: {footageLibraryCount === null ? "đang kiểm tra..." : `${footageLibraryCount} video`}
-              {footageLibraryCount === 0 && " — chưa có file .mp4 nào trong assets/footage-library/"}
+              {footageLibraryDir.trim() ? (
+                footageScan == null ? (
+                  "bấm \"Kiểm tra thư mục\" để xem số file"
+                ) : footageScan.error ? (
+                  <span className="error">{footageScan.error}</span>
+                ) : (
+                  `${footageScan.videos ?? footageScan.count} video${footageScan.images ? `, ${footageScan.images} ảnh` : ""} trong thư mục này`
+                )
+              ) : (
+                <>
+                  Kho footage: {footageLibraryCount === null ? "đang kiểm tra..." : `${footageLibraryCount} video`}
+                  {footageLibraryCount === 0 && " — chưa có file .mp4 nào trong assets/footage-library/"}
+                </>
+              )}
             </p>
             <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
               <span>Số clip/scene:</span>

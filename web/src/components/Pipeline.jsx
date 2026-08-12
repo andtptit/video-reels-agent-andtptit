@@ -6,6 +6,7 @@ import { TokenBadge } from "./TokenBadge.jsx";
 import { CheckpointPanel } from "./CheckpointPanel.jsx";
 import { SceneGrid } from "./SceneGrid.jsx";
 import { LiveLog } from "./LiveLog.jsx";
+import { TestScriptPreview } from "./TestScriptPreview.jsx";
 import { PreviewFrame } from "./PreviewFrame.jsx";
 import { RenderPlayer } from "./RenderPlayer.jsx";
 import { ModelSelect } from "./ModelSelect.jsx";
@@ -95,7 +96,7 @@ function CaptionPanel({ id, refreshKey }) {
 }
 
 export function Pipeline({ id, idea, platform, initialProfileSlug, autoRunOnLoad, onProjectCreated }) {
-  const { steps, totalUsage, events } = useJobStatus(id);
+  const { steps, totalUsage, events, profileSlug: persistedProfileSlug } = useJobStatus(id);
   const [audience, setAudience] = useState("");
   const [ttsProvider, setTtsProvider] = useState("edge-tts");
   const [ttsRate, setTtsRate] = useState(1.1);
@@ -143,10 +144,32 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, autoRunOnLoad
   const [footageSpeedMin, setFootageSpeedMin] = useState(1.0);
   const [footageSpeedMax, setFootageSpeedMax] = useState(1.3);
   const [footageLibraryCount, setFootageLibraryCount] = useState(null);
+  // Empty = dùng kho chung assets/footage-library/ — override theo profile, cùng
+  // pattern "Thư mục footage riêng" đã có ở tab Đọc Caption (Hook.jsx).
+  const [footageLibraryDir, setFootageLibraryDir] = useState("");
+  const [footageScan, setFootageScan] = useState(null);
+  const [footageScanLoading, setFootageScanLoading] = useState(false);
 
   useEffect(() => {
+    if (footageLibraryDir.trim()) return; // custom dir has its own "Kiểm tra thư mục" button below
     api.getFootageLibraryInfo().then((r) => setFootageLibraryCount(r.count)).catch(() => setFootageLibraryCount(null));
-  }, []);
+  }, [footageLibraryDir]);
+
+  async function checkFootageLibraryDir() {
+    if (!footageLibraryDir.trim()) {
+      setFootageScan(null);
+      return;
+    }
+    setFootageScanLoading(true);
+    try {
+      const r = await api.scanFootageFolder(footageLibraryDir.trim());
+      setFootageScan(r);
+    } catch (err) {
+      setFootageScan({ count: 0, images: 0, videos: 0, error: err.message });
+    } finally {
+      setFootageScanLoading(false);
+    }
+  }
 
   // Steps a Huỷ click was fired for but job-status hasn't confirmed stopped yet —
   // renders "Đang huỷ…" until the SSE-driven `steps` state actually shows the step
@@ -208,8 +231,21 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, autoRunOnLoad
   //      run; also how a remix project (which copies the source's video-plan.json
   //      wholesale) correctly recovers its source profile without any special-casing.
   // Runs once `profiles` is loaded so the match-by-slug below can actually find it.
+  // Priority order: (1) `persistedProfileSlug` — server-side truth, written by
+  // job-status.mjs's setProjectProfile as soon as /plan or /video-plan first runs,
+  // survives ANY navigation path (found live, repeated user report: jumping in via
+  // the cross-project "Đang chạy nền" banner, or reopening after a reload, both lost
+  // the profile because they never carried `initialProfileSlug` — this is now the
+  // one source that doesn't depend on how the user got here); (2) `initialProfileSlug`
+  // — same-session handoff, available before the server has recorded anything yet;
+  // (3) video-plan.json's own profileSlug — last resort for a project created before
+  // this persistence existed.
   useEffect(() => {
     if (!id || !profiles.length || selectedProfileSlug) return;
+    if (persistedProfileSlug) {
+      onSelectProfile(persistedProfileSlug);
+      return;
+    }
     if (initialProfileSlug) {
       onSelectProfile(initialProfileSlug);
       return;
@@ -222,7 +258,7 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, autoRunOnLoad
       })
       .catch(() => {}); // video-plan.json not written yet — nothing to restore
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, profiles]);
+  }, [id, profiles, persistedProfileSlug]);
 
   // Auto-fires "Chạy toàn bộ pipeline" right after a hand-off from a flow that
   // already produced real content (AudioImport.jsx / Investigation.jsx's upload
@@ -309,6 +345,7 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, autoRunOnLoad
     if (p.plannerModel !== undefined) setPlannerModel(p.plannerModel);
     if (p.cheapModel !== undefined) setCheapModel(p.cheapModel);
     if (p.imgModel !== undefined) setImgModel(p.imgModel);
+    if (p.footageLibraryDir !== undefined) setFootageLibraryDir(p.footageLibraryDir);
     if (p.footageMinClips !== undefined) setFootageMinClips(p.footageMinClips);
     if (p.footageMaxClips !== undefined) setFootageMaxClips(p.footageMaxClips);
     if (p.footageMinSeconds !== undefined) setFootageMinSeconds(p.footageMinSeconds);
@@ -338,6 +375,7 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, autoRunOnLoad
       const saved = await api.saveProfile(profileName, {
         ttsProvider, ttsRate, ttsVoice, musicTrack, musicVolume, template, visualStyle, subStyle, photoProvider, fontFamily,
         imageStylePrefix, kenBurns, grain, plannerModel, cheapModel, imgModel,
+        footageLibraryDir: footageLibraryDir.trim() || undefined,
         footageMinClips, footageMaxClips, footageMinSeconds, footageMaxSeconds,
         footageFlipEnabled, footageSpeedEnabled, footageSpeedMin, footageSpeedMax,
       });
@@ -413,7 +451,7 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, autoRunOnLoad
     setRunAllActive(true);
     try {
       await ensureStepDone("plan", () =>
-        api.runPlan(id, { idea, audience: effectiveAudience, platform: platform ?? undefined, model: plannerModel || undefined })
+        api.runPlan(id, { idea, audience: effectiveAudience, platform: platform ?? undefined, model: plannerModel || undefined, profileSlug: selectedProfileSlug || undefined })
       );
       if (!autoRunAll && !skipPause) {
         setRunAllPaused(true);
@@ -451,6 +489,7 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, autoRunOnLoad
                   speedMin: Number(footageSpeedMin),
                   speedMax: Number(footageSpeedMax),
                   fontFamily,
+                  libraryDir: footageLibraryDir.trim() || undefined,
                 }
               : undefined,
         })
@@ -566,6 +605,28 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, autoRunOnLoad
             onChange={(e) => setAudience(e.target.value)}
           />
         </div>
+        {!effectiveAudience && (
+          <p className="error">
+            Cần nhập "Đối tượng xem" ở trên — profile{selectedProfile ? ` "${selectedProfile.name}"` : " đã chọn"} chưa có
+            đối tượng mặc định. Nhập trực tiếp ở đây (chỉ áp dụng cho video này), hoặc sang tab "Hồ sơ kênh" điền ô
+            "Đối tượng xem mặc định" để dùng lại cho mọi video của profile này.
+          </p>
+        )}
+
+        <TestScriptPreview
+          kind="content-planner"
+          disabled={!effectiveAudience}
+          getParams={() => ({
+            idea,
+            audience: effectiveAudience,
+            platform: platform ?? undefined,
+            profileSlug: selectedProfileSlug || undefined,
+            model: plannerModel || undefined,
+          })}
+          onUse={
+            steps.plan?.status !== "done" ? (testId) => api.usePlanTestResult(id, testId, selectedProfileSlug || undefined) : undefined
+          }
+        />
 
         <p className="muted" style={{ marginTop: "12px" }}>Audio (TTS)</p>
         <div className="inline-form">
@@ -679,10 +740,36 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, autoRunOnLoad
           )}
           {template === "footage" && (
             <div style={{ display: "flex", flexDirection: "column", gap: "8px", width: "100%" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                <span>Thư mục footage:</span>
+                <input
+                  value={footageLibraryDir}
+                  onChange={(e) => { setFootageLibraryDir(e.target.value); setFootageScan(null); }}
+                  placeholder="để trống = dùng kho chung assets/footage-library/. Vd: assets/footage-library/xyz hoặc đường dẫn tuyệt đối"
+                  title="Đường dẫn tương đối tính từ gốc thư mục project, hoặc đường dẫn tuyệt đối đầy đủ — lưu theo profile"
+                  style={{ minWidth: "380px" }}
+                />
+                {footageLibraryDir.trim() && (
+                  <button type="button" className="linklike" disabled={footageScanLoading} onClick={checkFootageLibraryDir}>
+                    {footageScanLoading ? "Đang kiểm tra…" : "Kiểm tra thư mục"}
+                  </button>
+                )}
+              </div>
               <p className="muted">
-                Kho footage:{" "}
-                {footageLibraryCount === null ? "đang kiểm tra..." : `${footageLibraryCount} video`}
-                {footageLibraryCount === 0 && " — chưa có file .mp4 nào trong assets/footage-library/"}
+                {footageLibraryDir.trim() ? (
+                  footageScan == null ? (
+                    "bấm \"Kiểm tra thư mục\" để xem số file"
+                  ) : footageScan.error ? (
+                    <span className="error">{footageScan.error}</span>
+                  ) : (
+                    `${footageScan.videos ?? footageScan.count} video${footageScan.images ? `, ${footageScan.images} ảnh` : ""} trong thư mục này`
+                  )
+                ) : (
+                  <>
+                    Kho footage: {footageLibraryCount === null ? "đang kiểm tra..." : `${footageLibraryCount} video`}
+                    {footageLibraryCount === 0 && " — chưa có file .mp4 nào trong assets/footage-library/"}
+                  </>
+                )}
               </p>
               <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
                 <span>Số clip/scene:</span>
@@ -851,7 +938,7 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, autoRunOnLoad
           <button
             type="button"
             disabled={!effectiveAudience}
-            onClick={() => run(() => api.runPlan(id, { idea, audience: effectiveAudience, platform: platform ?? undefined, model: plannerModel || undefined }))}
+            onClick={() => run(() => api.runPlan(id, { idea, audience: effectiveAudience, platform: platform ?? undefined, model: plannerModel || undefined, profileSlug: selectedProfileSlug || undefined }))}
           >
             Chạy content-planner
           </button>
@@ -918,6 +1005,7 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, autoRunOnLoad
                           speedMin: Number(footageSpeedMin),
                           speedMax: Number(footageSpeedMax),
                           fontFamily,
+                          libraryDir: footageLibraryDir.trim() || undefined,
                         }
                       : undefined,
                 })
@@ -963,6 +1051,7 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, autoRunOnLoad
                           speedMin: Number(footageSpeedMin),
                           speedMax: Number(footageSpeedMax),
                           fontFamily,
+                          libraryDir: footageLibraryDir.trim() || undefined,
                         }
                       : undefined,
                 })

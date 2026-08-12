@@ -18,7 +18,7 @@ import { join, resolve } from "path";
 import { dimensionsForFormat } from "../lib/canvas.mjs";
 import { lint } from "../tools/hyperframes-cli.mjs";
 import { ensureFontCopied } from "../lib/fonts.mjs";
-import { pickRandomClips, FOOTAGE_LIBRARY_DIR } from "../lib/footage-library.mjs";
+import { pickRandomClips, resolveLibraryDir, FOOTAGE_LIBRARY_DIR } from "../lib/footage-library.mjs";
 import { cutClip, concatClips } from "../tools/ffmpeg-cli.mjs";
 import * as footageStyle from "../templates/footage-style.mjs";
 
@@ -60,7 +60,7 @@ export async function runFootageWriter({
   sceneTiming, // matching scenes-with-timing.json.scenes entry — narration + _audio.scene_duration
   format,
   footageConfig, // { minClipsPerScene, maxClipsPerScene, minClipSeconds, maxClipSeconds,
-  // flipEnabled, speedEnabled, speedMin, speedMax, fontFamily } — see build-footage-plan.mjs
+  // flipEnabled, speedEnabled, speedMin, speedMax, fontFamily, libraryDir } — see build-footage-plan.mjs
   onEvent,
   signal,
 }) {
@@ -74,7 +74,9 @@ export async function runFootageWriter({
     speedMin = 1.0,
     speedMax = 1.3,
     fontFamily,
+    libraryDir,
   } = footageConfig ?? {};
+  const resolvedLibraryDir = libraryDir ? resolveLibraryDir(libraryDir) : FOOTAGE_LIBRARY_DIR;
 
   const n = sceneNumber(scene.sceneId);
   const padded = String(n).padStart(2, "0");
@@ -92,7 +94,7 @@ export async function runFootageWriter({
   if (!existsSync(finalVideoAbsPath)) {
     const clipCount = Math.round(randomInRange(minClipsPerScene, maxClipsPerScene));
     const clipDurations = splitDuration(sceneDuration, clipCount, minClipSeconds, maxClipSeconds);
-    const picks = await pickRandomClips({ projectDir, count: clipCount });
+    const picks = await pickRandomClips({ projectDir, count: clipCount, libraryDir: resolvedLibraryDir });
 
     const tempClipPaths = [];
     for (let i = 0; i < clipCount; i++) {
@@ -112,7 +114,7 @@ export async function runFootageWriter({
 
       const destPath = clipCount === 1 ? finalVideoAbsPath : join(footageDir, `scene_${padded}_clip${i}.mp4`);
       await cutClip({
-        srcPath: join(FOOTAGE_LIBRARY_DIR, pick.file),
+        srcPath: join(resolvedLibraryDir, pick.file),
         destPath,
         startSec,
         outputDurationSec,

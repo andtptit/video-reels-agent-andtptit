@@ -28,6 +28,7 @@ export async function runInvestigationContentPlanner({
   audience,
   platform = "9:16",
   targetDuration = "30–60s",
+  contentPlaybook, // see content-planner.mjs's own param doc — same field, same use
   model = DEFAULT_MODEL,
   onEvent,
   signal,
@@ -50,6 +51,9 @@ có tiền tố thư mục project): \`master_content.md\` và \`scenes.json\`. 
     `Đối tượng xem: ${audience}`,
     `Platform: ${platform}`,
     `Tổng thời lượng mong muốn: ${targetDuration}`,
+    ...(contentPlaybook?.trim()
+      ? ["", `Định hướng nội dung riêng của kênh này (BẮT BUỘC tuân theo khi viết kịch bản):`, contentPlaybook.trim()]
+      : []),
   ].join("\n");
 
   const result = await runAgent({ systemPrompt, userPrompt, tools, model, onEvent, signal });

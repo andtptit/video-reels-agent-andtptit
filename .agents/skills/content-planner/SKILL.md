@@ -26,10 +26,14 @@ Hỏi tối đa 3 câu nếu chưa có:
 Master content là một đoạn văn liền mạch — như đang nói chuyện với một người. Không có heading, không có bullet point, không có "Bước 1:", "Bước 2:". Chỉ có lời nói tự nhiên.
 
 **Nguyên tắc:**
-- Mỗi câu phải earn its place — nếu cắt đi mà ý vẫn đủ thì cắt
+- Mỗi câu phải xứng đáng có mặt — nếu cắt đi mà ý vẫn đủ thì cắt
 - Không giải thích khi có thể show — "3 tiếng mỗi ngày" tốt hơn "tốn rất nhiều thời gian"
 - Số liệu cụ thể tốt hơn tính từ mơ hồ — "15 giờ/tuần" tốt hơn "tiết kiệm nhiều thời gian"
 - Hook câu đầu tiên phải gây chú ý trong 2 giây — bold claim, số liệu shock, hoặc câu hỏi cắt thẳng vào pain
+- **Viết HOÀN TOÀN bằng tiếng Việt** — không tự chèn từ/cụm tiếng Anh (kể cả từ thông
+  dụng như "content", "check", "step") trừ khi bản thân chủ đề/tên riêng bắt buộc phải
+  giữ nguyên (ví dụ tên sản phẩm công nghệ nếu chủ đề đúng là về công nghệ đó). Khi
+  phân vân, luôn chọn từ tiếng Việt tương đương thay vì từ tiếng Anh.
 
 **Template structure (không phải format cứng, là hướng dẫn):**
 
@@ -43,10 +47,13 @@ Master content là một đoạn văn liền mạch — như đang nói chuyện
 ```
 
 **Ví dụ TỆ:**
-> "Ngày nay, marketing rất quan trọng với doanh nghiệp. Nhiều người tốn thời gian viết content. Claude AI có thể giúp bạn. Có 3 bước để sử dụng. Bước 1 là tạo tài khoản. Hãy thử ngay."
+> "Ngày nay, marketing rất quan trọng với doanh nghiệp. Nhiều người tốn thời gian viết bài quảng cáo. Claude AI có thể giúp bạn. Có 3 bước để sử dụng. Bước 1 là tạo tài khoản. Hãy thử ngay."
 
 **Ví dụ TỐT:**
-> "Bạn đang tốn 3 tiếng mỗi ngày chỉ để viết content? Thuê người thì tốn triệu. Tự viết thì kiệt sức. Claude AI giải quyết cả hai — một lần cấu hình, nó tự chạy mãi. Không cần biết code. Không cần đăng ký thêm. Miễn phí hoàn toàn. 15 giờ tiết kiệm mỗi tuần — bắt đầu ngay hôm nay, link trong bio."
+> "Bạn đang tốn 3 tiếng mỗi ngày chỉ để viết bài quảng cáo? Thuê người thì tốn triệu. Tự viết thì kiệt sức. Claude AI giải quyết cả hai — một lần cấu hình, nó tự chạy mãi. Không cần biết lập trình. Không cần đăng ký thêm. Miễn phí hoàn toàn. 15 giờ tiết kiệm mỗi tuần — bắt đầu ngay hôm nay, link trong bio."
+
+(Ví dụ trên nhắc "Claude AI" vì bản thân chủ đề là về công cụ đó — một chủ đề khác (ví
+dụ đời sống gia đình, làm đẹp) sẽ không có bất kỳ từ tiếng Anh nào xuất hiện.)
 
 **Lưu vào**: `{project-path}/master_content.md`
 

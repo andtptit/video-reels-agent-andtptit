@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "../api.js";
 import { useJobStatus } from "../useJobStatus.js";
 import { LiveLog } from "./LiveLog.jsx";
+import { TestScriptPreview } from "./TestScriptPreview.jsx";
 import { ModelSelect } from "./ModelSelect.jsx";
 import { EXPENSIVE_MODELS } from "../lib/pipelineOptions.js";
 
@@ -91,7 +92,7 @@ export function Investigation({ profiles, onProjectCreated }) {
       if (mode === "upload") {
         await api.runAudioImport(id, file, { language, whisperModel, model: model || undefined, platform: plat });
       } else {
-        await api.runInvestigationPlan(id, { idea, audience, platform: plat, targetDuration, model: model || undefined });
+        await api.runInvestigationPlan(id, { idea, audience, platform: plat, targetDuration, model: model || undefined, profileSlug: profileSlug || undefined });
       }
       setProjectId(id); // after accepted — starts useJobStatus's SSE subscription
     } catch (err) {
@@ -164,6 +165,18 @@ export function Investigation({ profiles, onProjectCreated }) {
               kịch bản dài hơn.
             </p>
           )}
+          <TestScriptPreview
+            kind="investigation"
+            disabled={!idea.trim() || !audience.trim()}
+            getParams={() => ({
+              idea,
+              audience,
+              platform: orientation === "landscape" ? "16:9" : "9:16",
+              targetDuration,
+              profileSlug: profileSlug || undefined,
+              model: model || undefined,
+            })}
+          />
         </>
       ) : (
         <>

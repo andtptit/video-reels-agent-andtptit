@@ -30,7 +30,7 @@ import { buildFootagePlan } from "./pipeline/build-footage-plan.mjs";
 import { runFootageWriter } from "./agents/footage-scene-writer.mjs";
 import { scanFootageLibrary } from "./lib/footage-library.mjs";
 import { render } from "./tools/hyperframes-cli.mjs";
-import { readJobStatus, runStep, getEmitter, emitProgress } from "./jobs/job-status.mjs";
+import { readJobStatus, runStep, getEmitter, emitProgress, setProjectProfile } from "./jobs/job-status.mjs";
 import { queues } from "./jobs/queue.mjs";
 import { ensurePreview, touchPreview, startIdleSweep } from "./jobs/preview.mjs";
 import { listProfiles, saveProfile, deleteProfile } from "./lib/profiles.mjs";
@@ -141,6 +141,63 @@ router.post("/test-image", (req, res) => {
     .catch((err) => res.status(500).json({ error: err.message }));
 });
 
+// Quick "test kịch bản" tool — lets a user iterate on a profile's contentPlaybook
+// (see lib/profiles.mjs) BEFORE committing to a real project (found live, user
+// request: "cần sinh kịch bản thuần text cho tôi xem trước, để tôi còn nâng cấp và
+// chỉnh sửa dần các câu lệnh"). Reuses the SAME scratch-dir infra as the "Hàng loạt"
+// batch feature (server/batches/{id}/ — never a real hyperframes project, invisible
+// to listProjects()) purely as a throwaway write target for the agent's own
+// write_file tool calls; nothing here is meant to be resumed/approved like a real
+// batch is. `kind` selects which agent writes the script — same 3 script-writing
+// agents used elsewhere in the app (content-planner for Pipeline/Batch, investigation
+// for "Bảng điều tra", hook for "Đọc Caption") so every tab with a script-generation
+// step gets the same preview capability.
+router.post("/test-content-plan", (req, res) => {
+  const { kind = "content-planner", idea, audience, platform, targetDuration, profileSlug, model, nicheDescription, ctaText } =
+    req.body ?? {};
+  if (!idea?.trim()) return res.status(400).json({ error: "idea is required" });
+
+  const { id, dir } = createBatchDir();
+  const contentPlaybook = profileSlug ? listProfiles().find((p) => p.slug === profileSlug)?.contentPlaybook : undefined;
+
+  const runners = {
+    "content-planner": (onEvent, signal) =>
+      runContentPlanner({ idea, projectDir: dir, audience, platform, targetDuration, contentPlaybook, model, onEvent, signal }),
+    investigation: (onEvent, signal) =>
+      runInvestigationContentPlanner({ idea, projectDir: dir, audience, platform, targetDuration, contentPlaybook, model, onEvent, signal }),
+    hook: (onEvent, signal) =>
+      runHookContentWriter({ idea, projectDir: dir, nicheDescription, ctaText, model, onEvent, signal }),
+  };
+  const runner = runners[kind];
+  if (!runner) return res.status(400).json({ error: `kind không hợp lệ: ${kind}` });
+
+  runInBackground(dir, "test-plan", (onEvent, signal) => queues.dashscope.run(() => runner(onEvent, signal)));
+  res.status(202).json({ testId: id, step: "test-plan", status: "running" });
+});
+
+// Reads back whatever the agent wrote in /test-content-plan above — master_content.md
+// for content-planner/investigation, hook-plan.json for hook (no separate free-text
+// file for that one — see hook-content-writer.mjs's own doc comment on why
+// caption.md is built from it deterministically rather than written directly).
+router.get("/test-content-plan/:id/result", (req, res) => {
+  let dir;
+  try {
+    dir = resolveBatchDir(req.params.id);
+  } catch (err) {
+    if (err instanceof InvalidBatchIdError) return res.status(400).json({ error: err.message });
+    throw err;
+  }
+  if (!existsSync(dir)) return res.status(404).json({ error: "Not found" });
+  const mcPath = join(dir, "master_content.md");
+  const hookPath = join(dir, "hook-plan.json");
+  const text = existsSync(mcPath)
+    ? readFileSync(mcPath, "utf-8")
+    : existsSync(hookPath)
+      ? JSON.stringify(JSON.parse(readFileSync(hookPath, "utf-8")), null, 2)
+      : null;
+  res.json({ status: readJobStatus(dir), text });
+});
+
 // Channel profiles — see lib/profiles.mjs doc comment. Not scoped under
 // /projects/:id since a profile is reused across many projects, not tied to one.
 router.get("/profiles", (req, res) => {
@@ -212,14 +269,23 @@ function readIdeasFile(batchDir) {
 }
 
 router.post("/batches", (req, res) => {
-  const { channelTheme, audience, count, profileSlug } = req.body ?? {};
+  const { channelTheme, audience, count, profileSlug, avoidExtra } = req.body ?? {};
   if (!channelTheme?.trim()) return res.status(400).json({ error: "channelTheme is required" });
   if (!audience?.trim()) return res.status(400).json({ error: "audience is required" });
   if (!profileSlug) return res.status(400).json({ error: "profileSlug is required — chọn 1 profile kênh trước" });
 
   const n = Math.min(Math.max(Number(count) || 10, 1), 30);
   const { id: batchId, dir: batchDir } = createBatchDir();
-  const avoidList = readIdeaHistory(profileSlug, { limit: 30 }).map((h) => `${h.subTopic} — ${h.idea}`);
+  // `avoidExtra` — subTopics from the CALLER'S own previous, still-unapproved batch
+  // (see Batch.jsx's generateIdeas) — idea-history.mjs only ever records ideas AFTER
+  // they're approved into a real project, so a batch the user never got to approve
+  // would otherwise be invisible to this dedup check entirely, letting the new lô
+  // regenerate near-identical topics to the one it's about to orphan.
+  const avoidList = [
+    ...readIdeaHistory(profileSlug, { limit: 30 }).map((h) => `${h.subTopic} — ${h.idea}`),
+    ...(Array.isArray(avoidExtra) ? avoidExtra.filter((s) => typeof s === "string" && s.trim()) : []),
+  ];
+  const contentPlaybook = listProfiles().find((p) => p.slug === profileSlug)?.contentPlaybook;
 
   writeFileSync(
     join(batchDir, "ideas.json"),
@@ -227,7 +293,7 @@ router.post("/batches", (req, res) => {
   );
 
   runInBackground(batchDir, "ideate", (onEvent, signal) =>
-    queues.dashscope.run(() => runIdeaGenerator({ batchDir, channelTheme, audience, count: n, avoidList, onEvent, signal }))
+    queues.dashscope.run(() => runIdeaGenerator({ batchDir, channelTheme, audience, count: n, avoidList, contentPlaybook, onEvent, signal }))
   );
 
   res.status(202).json({ batchId, step: "ideate", status: "running" });
@@ -359,16 +425,53 @@ router.get("/projects/:id/files/:name", withProjectDir, (req, res) => {
 });
 
 router.post("/projects/:id/plan", withProjectDir, (req, res) => {
-  const { idea, audience, platform, targetDuration, model } = req.body ?? {};
+  const { idea, audience, platform, targetDuration, model, profileSlug } = req.body ?? {};
   if (!idea) return res.status(400).json({ error: "idea is required" });
   if (!audience) return res.status(400).json({ error: "audience is required" });
 
+  // Server-resolved (not client-supplied text) so the playbook actually used always
+  // matches whatever is currently saved on the profile, same trust boundary as every
+  // other profile-owned field (template/subStyle/etc. read server-side elsewhere).
+  const contentPlaybook = profileSlug ? listProfiles().find((p) => p.slug === profileSlug)?.contentPlaybook : undefined;
+  setProjectProfile(req.projectDir, profileSlug);
+
   runInBackground(req.projectDir, "plan", (onEvent, signal) =>
     queues.dashscope.run(() =>
-      runContentPlanner({ idea, projectDir: req.projectDir, audience, platform, targetDuration, model, onEvent, signal })
+      runContentPlanner({ idea, projectDir: req.projectDir, audience, platform, targetDuration, contentPlaybook, model, onEvent, signal })
     )
   );
   res.status(202).json({ step: "plan", status: "running" });
+});
+
+// Promotes a /test-content-plan scratch result straight into a real project —
+// copies master_content.md + scenes.json as-is and marks "plan" done, WITHOUT a
+// second LLM call. Exists so testing a profile's contentPlaybook (see
+// TestScriptPreview.jsx) doesn't mean paying for the same script twice: once to
+// preview it, once more for the real project. Deliberately copies the file
+// UNMODIFIED — if the user hand-edited the preview text, scenes.json (the file
+// generate-audio.mjs actually reads for narration/timing) would silently stay on
+// the OLD unedited cut, diverging from what they saw on screen; the client is
+// expected to only offer this button for an untouched (read-only) preview.
+router.post("/projects/:id/plan/use-test-result", withProjectDir, (req, res) => {
+  const { testId, profileSlug } = req.body ?? {};
+  if (!testId) return res.status(400).json({ error: "testId is required" });
+  setProjectProfile(req.projectDir, profileSlug);
+  let testDir;
+  try {
+    testDir = resolveBatchDir(testId);
+  } catch (err) {
+    if (err instanceof InvalidBatchIdError) return res.status(400).json({ error: err.message });
+    throw err;
+  }
+  const mcPath = join(testDir, "master_content.md");
+  const scenesPath = join(testDir, "scenes.json");
+  if (!existsSync(mcPath) || !existsSync(scenesPath)) {
+    return res.status(400).json({ error: "Kết quả test chưa sẵn sàng hoặc đã bị dọn — chạy test lại." });
+  }
+  writeFileSync(join(req.projectDir, "master_content.md"), readFileSync(mcPath, "utf-8"));
+  writeFileSync(join(req.projectDir, "scenes.json"), readFileSync(scenesPath, "utf-8"));
+  emitProgress(req.projectDir, { step: "plan", status: "done" });
+  res.json({ step: "plan", status: "done" });
 });
 
 // "Bảng điều tra" tab (Investigation.jsx) — replaces content-planner's job with a
@@ -383,13 +486,15 @@ router.post("/projects/:id/plan", withProjectDir, (req, res) => {
 // replaces the content step; the real TTS step still runs normally once the user
 // lands in Pipeline.jsx.
 router.post("/projects/:id/investigation-plan", withProjectDir, (req, res) => {
-  const { idea, audience, platform, targetDuration, model } = req.body ?? {};
+  const { idea, audience, platform, targetDuration, model, profileSlug } = req.body ?? {};
   if (!idea) return res.status(400).json({ error: "idea is required" });
   if (!audience) return res.status(400).json({ error: "audience is required" });
+  const contentPlaybook = profileSlug ? listProfiles().find((p) => p.slug === profileSlug)?.contentPlaybook : undefined;
+  setProjectProfile(req.projectDir, profileSlug);
 
   runStep(req.projectDir, "investigation-plan", (onEvent, signal) =>
     queues.dashscope.run(() =>
-      runInvestigationContentPlanner({ idea, projectDir: req.projectDir, audience, platform, targetDuration, model, onEvent, signal })
+      runInvestigationContentPlanner({ idea, projectDir: req.projectDir, audience, platform, targetDuration, contentPlaybook, model, onEvent, signal })
     )
   )
     .then(() => {
@@ -522,6 +627,7 @@ router.post("/projects/:id/video-plan", withProjectDir, (req, res) => {
     imageLibraryEnabled, imageLibraryMaxReuse, profileSlug, kenBurns, grain, footageConfig, format,
     photoProvider,
   } = req.body ?? {};
+  setProjectProfile(req.projectDir, profileSlug);
 
   // "footage" needs no LLM call at all — see build-footage-plan.mjs's own doc comment
   // (the whole template is "don't care about video content", nothing for a model to

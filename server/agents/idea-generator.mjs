@@ -32,6 +32,11 @@ const TONES = ["day-kien-thuc", "de-ton-thuong", "bold-provocative", "thuc-hanh-
  * @param {number} [params.count]
  * @param {string[]} [params.avoidList] - "subTopic — idea text" strings from
  *   lib/idea-history.mjs's readIdeaHistory(), already turned into real videos.
+ * @param {string} [params.contentPlaybook] - profile's free-text creative direction
+ *   (persona/nhân vật, giọng kể, điều nên/không nên) — see lib/profiles.mjs's
+ *   `contentPlaybook` field. Layered ON TOP of the fixed hookStyle/tone rotation
+ *   below, never replacing it — diversity rules stay mechanical/enforceable, while
+ *   this free text shapes WHAT the ideas are actually about.
  */
 export async function runIdeaGenerator({
   batchDir,
@@ -39,6 +44,7 @@ export async function runIdeaGenerator({
   audience,
   count = 10,
   avoidList = [],
+  contentPlaybook,
   model = DEFAULT_MODEL,
   maxTurns = 6,
   onEvent,
@@ -71,6 +77,8 @@ QUY TẮC ĐA DẠNG (BẮT BUỘC, không thỏa hiệp):
    ${count} nhỏ hơn 4, ưu tiên đa dạng tone nhiều nhất có thể).
 4. TUYỆT ĐỐI KHÔNG trùng hoặc na ná bất kỳ mục nào trong danh sách "Chủ đề đã lên video
    thật — TRÁNH" ở user message bên dưới (nếu có).
+5. "idea" và "subTopic" viết HOÀN TOÀN bằng tiếng Việt — không tự chèn từ/cụm tiếng Anh
+   trừ khi chủ đề kênh bắt buộc phải giữ nguyên tên riêng.
 5. Mỗi ý tưởng phải khớp đúng chủ đề kênh và đối tượng xem cho sẵn — không lạc đề.
 
 Bạn đang chạy tự động (non-interactive) — KHÔNG được hỏi lại vì không ai trả lời. Dùng
@@ -87,9 +95,18 @@ không tool call nào nữa.`;
     ? `Chủ đề đã lên video thật — TRÁNH:\n${avoidList.map((a) => `- ${a}`).join("\n")}`
     : "(Chưa có lịch sử ý tưởng nào trước đó cho kênh này.)";
 
-  const userPrompt = [`Chủ đề kênh: ${channelTheme}`, `Đối tượng xem: ${audience}`, `Số lượng ý tưởng cần: ${count}`, "", avoidBlock].join(
-    "\n"
-  );
+  const playbookBlock = contentPlaybook?.trim()
+    ? `Định hướng nội dung riêng của kênh này (BẮT BUỘC tuân theo, quan trọng hơn cách diễn giải chung chung ở trên):\n${contentPlaybook.trim()}`
+    : null;
+
+  const userPrompt = [
+    `Chủ đề kênh: ${channelTheme}`,
+    `Đối tượng xem: ${audience}`,
+    `Số lượng ý tưởng cần: ${count}`,
+    "",
+    ...(playbookBlock ? [playbookBlock, ""] : []),
+    avoidBlock,
+  ].join("\n");
 
   const result = await runAgent({ systemPrompt, userPrompt, tools, model, maxTurns, onEvent, signal });
 

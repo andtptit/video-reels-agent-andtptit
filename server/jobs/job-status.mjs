@@ -82,6 +82,25 @@ export function summarizeProjectStatus(projectDir) {
   return { label: "Chưa bắt đầu", hasError: false, renderDone, isRunning };
 }
 
+/** Persists which channel profile a project was created/run with, directly on
+ *  job-status.json — the one piece of per-project state that survives regardless of
+ *  HOW the user later navigates back into it (Batch.jsx's own "Mở project" button,
+ *  the cross-project "Đang chạy nền" banner, a page reload...). Found live (user
+ *  report, repeated): every other path relied on the CLIENT re-passing profileSlug
+ *  through in-memory handoff state (App.jsx's handleCreated), which several
+ *  navigation routes (RunningBanner's jump, History) never had it to begin with —
+ *  and the one server-side fallback (video-plan.json's imageLibrary.profileSlug)
+ *  doesn't exist yet for a project still sitting at content-plan. This makes the
+ *  profile a durable fact about the project from the moment it's first known,
+ *  independent of any one screen's local state. */
+export function setProjectProfile(projectDir, profileSlug) {
+  if (!profileSlug) return;
+  const current = readJobStatus(projectDir);
+  if (current.profileSlug === profileSlug) return;
+  current.profileSlug = profileSlug;
+  writeJobStatusFile(projectDir, current);
+}
+
 export function getEmitter(projectDir) {
   if (!emitters.has(projectDir)) emitters.set(projectDir, new EventEmitter().setMaxListeners(50));
   return emitters.get(projectDir);

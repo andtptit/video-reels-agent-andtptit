@@ -46,6 +46,9 @@ không bullet point, không "Bước 1:", "Bước 2:".
   chi tiết trái ngược trực giác.
 - KHÔNG bịa số liệu/sự kiện — nếu chủ đề do user cung cấp không đủ chi tiết thật, viết
   chung chung/khái quát thay vì tự sáng tác chi tiết giả làm như có thật.
+- **Viết HOÀN TOÀN bằng tiếng Việt** — không tự chèn từ/cụm tiếng Anh trừ khi bản thân
+  vụ việc/tên riêng bắt buộc phải giữ nguyên (ví dụ tên công ty/thương hiệu nước ngoài
+  thật). Khi phân vân, luôn chọn từ tiếng Việt tương đương.
 
 **Ví dụ TỆ** (giọng bán hàng, không phải điều tra):
 > "Bạn có biết công ty này rất đáng ngờ không? Họ đã làm nhiều điều sai trái. Hãy cùng

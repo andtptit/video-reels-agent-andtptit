@@ -648,6 +648,8 @@ export function Hook() {
                 onToggleKeep={(kept) => patchIdea(idea.ideaId, { kept })}
                 onDelete={() => deleteIdea(idea.ideaId)}
                 onOpen={(projectId) => api.openFolder(projectId).catch(() => {})}
+                testKind="hook"
+                testExtraParams={{ nicheDescription, ctaText }}
               />
             ))}
           </div>

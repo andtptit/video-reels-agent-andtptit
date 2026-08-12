@@ -22,6 +22,12 @@ export async function runContentPlanner({
   audience,
   platform = "9:16",
   targetDuration = "30–60s",
+  // Profile's free-text creative direction (persona/nhân vật, giọng kể, điều nên/
+  // không nên) — see lib/profiles.mjs's `contentPlaybook` field. Same text the
+  // idea already came from when generated via idea-generator.mjs's "Hàng loạt" tab,
+  // repeated here so the REAL script stays consistent with it too, and so it still
+  // applies when an idea is typed by hand (single-video flow) instead of batch-generated.
+  contentPlaybook,
   model = DEFAULT_MODEL,
   onEvent,
   signal,
@@ -44,6 +50,9 @@ có tiền tố thư mục project): \`master_content.md\` và \`scenes.json\`. 
     `Đối tượng xem: ${audience}`,
     `Platform: ${platform}`,
     `Tổng thời lượng mong muốn: ${targetDuration}`,
+    ...(contentPlaybook?.trim()
+      ? ["", `Định hướng nội dung riêng của kênh này (BẮT BUỘC tuân theo khi viết kịch bản):`, contentPlaybook.trim()]
+      : []),
   ].join("\n");
 
   const result = await runAgent({ systemPrompt, userPrompt, tools, model, onEvent, signal });

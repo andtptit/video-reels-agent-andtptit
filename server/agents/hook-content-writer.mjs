@@ -66,6 +66,9 @@ BẮT BUỘC:
   hoa/thường) bên trong "hook" — nếu không tìm thấy chính xác, hệ thống sẽ không tô
   màu được gì cả.
 - Giọng văn khớp niche mô tả trong user message — không lạc đề.
+- "hook", "topic", "listItems" viết HOÀN TOÀN bằng tiếng Việt — không tự chèn từ/cụm
+  tiếng Anh trừ khi niche bắt buộc phải giữ nguyên tên riêng ("hashtags" không tính,
+  hashtag tiếng Anh phổ biến vẫn dùng bình thường).
 - KHÔNG thêm field nào khác ngoài 6 field trên.
 
 Bạn đang chạy tự động (non-interactive) — KHÔNG được hỏi lại vì không ai trả lời. Dùng

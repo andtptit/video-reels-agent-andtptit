@@ -71,6 +71,10 @@ export async function scanFootageLibrary(libraryDir = FOOTAGE_LIBRARY_DIR, { inc
   libraryDir = resolveLibraryDir(libraryDir);
   mkdirSync(libraryDir, { recursive: true });
   const files = readdirSync(libraryDir).filter((f) => {
+    // "._foo.mp4" AppleDouble sidecar files (macOS resource-fork metadata, auto-created
+    // when copying onto a non-HFS+ volume like this workspace's external drive) aren't
+    // real media — ffprobe on one always fails with "moov atom not found".
+    if (f.startsWith("._")) return false;
     const ext = extname(f).toLowerCase();
     return VIDEO_EXTENSIONS.has(ext) || (includeImages && IMAGE_EXTENSIONS.has(ext));
   });
@@ -86,13 +90,24 @@ export async function scanFootageLibrary(libraryDir = FOOTAGE_LIBRARY_DIR, { inc
     let durationSec;
     if (kind === "image") {
       durationSec = null;
-    } else if (cached && cached.mtimeMs === mtimeMs && cached.kind !== "image") {
+    } else if (cached && cached.mtimeMs === mtimeMs && cached.kind !== "image" && cached.durationSec != null) {
       durationSec = cached.durationSec;
     } else {
-      durationSec = await probeDuration(filePath);
+      try {
+        durationSec = await probeDuration(filePath);
+      } catch (err) {
+        // A single corrupt/mislabeled file (real case hit live: a .mp4 that was
+        // actually a raw JPEG with no container duration) must not take down the
+        // whole pool — every other scene's clip-picking depends on this list.
+        // Recorded with durationSec: null (not cached as a valid entry) so it's
+        // excluded below but re-probed on every future scan instead of silently
+        // staying broken forever if the user later fixes/replaces the file.
+        console.warn(`[footage-library] Bỏ qua file lỗi (không đọc được duration): ${filePath} — ${err.message}`);
+        durationSec = null;
+      }
     }
     nextManifest[file] = { mtimeMs, durationSec, kind };
-    result.push({ file, durationSec, kind });
+    if (kind === "image" || durationSec != null) result.push({ file, durationSec, kind });
   }
 
   writeManifest(libraryDir, nextManifest);

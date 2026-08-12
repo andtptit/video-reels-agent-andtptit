@@ -31,6 +31,31 @@ function waitForProjectStep(projectId, stepKey, { pollMs = 1000, timeoutMs = 180
   });
 }
 
+/** Polls a batch's "ideate" step until it leaves "running" — same shape as
+ *  waitForProjectStep below, just against /batches instead of /projects. Used only
+ *  by generateIdeas' "gộp vào lô cũ" path, which needs to wait for a SEPARATE
+ *  scratch batch's ideas before merging them in, without switching the visible
+ *  `batchId` over to that scratch batch. */
+function waitForBatchIdeate(batchId, { pollMs = 1000, timeoutMs = 180_000 } = {}) {
+  const deadline = Date.now() + timeoutMs;
+  return new Promise((resolvePromise, reject) => {
+    const check = async () => {
+      let status;
+      try {
+        ({ status } = await api.getBatch(batchId));
+      } catch (err) {
+        return reject(err);
+      }
+      const s = status.steps?.ideate;
+      if (s?.status === "done") return resolvePromise();
+      if (s?.status === "error") return reject(new Error(s.error || "Sinh ý tưởng thất bại"));
+      if (Date.now() > deadline) return reject(new Error("Timeout chờ sinh ý tưởng"));
+      setTimeout(check, pollMs);
+    };
+    check();
+  });
+}
+
 /** createProject's slug is derived from the idea text and throws if the exact same
  *  slug dir already exists same-day (see new-project.mjs) — with several ideas
  *  generated on the same day, near-identical phrasing could collide. Cheap insurance:
@@ -91,6 +116,12 @@ export function Batch({ onProjectCreated }) {
   const [restoring, setRestoring] = useState(false);
   const [approving, setApproving] = useState(false);
   const [formError, setFormError] = useState(null);
+  // Found live (user report): "Duyệt & tạo project" only ever ran content-plan, then
+  // stopped — the rest of the pipeline needed a SEPARATE "Chạy hàng loạt" click the
+  // user didn't know existed, reading as "flow silently stuck". Off by default (each
+  // step past content-plan costs real money) — checking this merges both actions into
+  // the single "Duyệt" click, per the user's own expectation ("duyệt và chạy tự động").
+  const [autoContinueAll, setAutoContinueAll] = useState(false);
 
   // "Chạy hàng loạt" — full pipeline (audio→video-plan→scene→root→render), tuần tự
   // qua từng project đã duyệt, cấu hình lấy thẳng từ profile đã chọn ở trên.
@@ -115,6 +146,20 @@ export function Batch({ onProjectCreated }) {
   useEffect(() => {
     ideasMetaRef.current = ideasMeta;
   }, [ideasMeta]);
+
+  // Found live (user report): runApproval() flips an idea's status 3x in quick
+  // succession (creating -> planning -> done), each via patchIdea's own fire-and-forget
+  // PUT to /batches/:id/ideas. With no ordering guarantee between overlapping in-flight
+  // requests, a slower-arriving EARLIER write (e.g. "creating") could land at the
+  // server AFTER a faster-arriving LATER write (e.g. "done"), leaving ideas.json
+  // permanently stuck on a stale status even though the real pipeline had already
+  // finished — reproduced exactly: Pipeline showed content-plan "Xong" while the Batch
+  // card stayed frozen on "Đang tạo project...". Chain every save onto the previous
+  // one so they always reach the server in the order they were queued.
+  const saveQueueRef = useRef(Promise.resolve());
+  function persistIdeas(ideas) {
+    saveQueueRef.current = saveQueueRef.current.catch(() => {}).then(() => api.saveBatchIdeas(batchId, ideas));
+  }
 
   useEffect(() => {
     api.listProfiles().then((r) => setProfiles(r.profiles ?? [])).catch(() => {});
@@ -188,15 +233,54 @@ export function Batch({ onProjectCreated }) {
     }
   }
 
+  // Loading flag for the MERGE path below (generating more into an existing batch) —
+  // separate from `ideateStatus === "running"` because that SSE status is scoped to
+  // the currently-displayed `batchId`'s own dir, but a merge-generate runs the agent
+  // into a SEPARATE scratch batch first (so it can wait for the result before
+  // touching anything) and never switches `batchId` over to it.
+  const [merging, setMerging] = useState(false);
+
   async function generateIdeas() {
     setFormError(null);
-    setIdeasMeta(null);
+    const existing = ideasMetaRef.current?.ideas ?? [];
+    // Found live (user report): sinh 1 lô mới used to OVERWRITE the existing lô
+    // outright (new batchId, old one orphaned — unreachable through the UI even
+    // though its file was still on disk). Fixed to APPEND instead — any idea already
+    // here (approved or not) stays exactly where it is; deleting is still available
+    // per-idea via "Xoá", or wholesale via "Bắt đầu batch mới" below.
+    const avoidExtra = existing.filter((i) => i.kept !== false).map((i) => `${i.subTopic} — ${i.idea}`);
+
+    if (!batchId) {
+      // First-ever batch for this profile session — no merge target yet, adopt
+      // directly (same as before).
+      try {
+        const { batchId: id } = await api.startBatch({ channelTheme, audience, count: Number(count) || 10, profileSlug, avoidExtra });
+        setBatchId(id);
+        saveStoredBatchId(profileSlug, id);
+      } catch (err) {
+        setFormError(err.message);
+      }
+      return;
+    }
+
+    setMerging(true);
     try {
-      const { batchId: id } = await api.startBatch({ channelTheme, audience, count: Number(count) || 10, profileSlug });
-      setBatchId(id);
-      saveStoredBatchId(profileSlug, id);
+      const { batchId: scratchId } = await api.startBatch({ channelTheme, audience, count: Number(count) || 10, profileSlug, avoidExtra });
+      await waitForBatchIdeate(scratchId);
+      const { ideas: scratchFile } = await api.getBatch(scratchId);
+      const newIdeas = scratchFile?.ideas ?? [];
+      const maxN = existing.reduce((m, i) => {
+        const n = parseInt(String(i.ideaId).replace("idea-", ""), 10);
+        return Number.isFinite(n) && n > m ? n : m;
+      }, 0);
+      const renumbered = newIdeas.map((idea, i) => ({ ...idea, ideaId: `idea-${String(maxN + i + 1).padStart(2, "0")}` }));
+      const merged = [...existing, ...renumbered];
+      await api.saveBatchIdeas(batchId, merged);
+      setIdeasMeta((prev) => ({ ...prev, ideas: merged }));
     } catch (err) {
       setFormError(err.message);
+    } finally {
+      setMerging(false);
     }
   }
 
@@ -204,7 +288,7 @@ export function Batch({ onProjectCreated }) {
     setIdeasMeta((prev) => {
       if (!prev) return prev;
       const ideas = prev.ideas.map((i) => (i.ideaId === ideaId ? { ...i, ...patch } : i));
-      api.saveBatchIdeas(batchId, ideas).catch(() => {}); // best-effort persist, matches SceneGrid's immediate-persist convention
+      persistIdeas(ideas); // queued, not fired in parallel — see saveQueueRef above
       return { ...prev, ideas };
     });
   }
@@ -213,37 +297,79 @@ export function Batch({ onProjectCreated }) {
     setIdeasMeta((prev) => {
       if (!prev) return prev;
       const ideas = prev.ideas.filter((i) => i.ideaId !== ideaId);
-      api.saveBatchIdeas(batchId, ideas).catch(() => {});
+      persistIdeas(ideas);
       return { ...prev, ideas };
     });
+  }
+
+  /** Creates the real project for one idea and promotes an already-generated
+   *  /test-content-plan result into it instead of calling content-planner again —
+   *  the whole point of TestScriptPreview's "Dùng kết quả này" button (see its own
+   *  doc comment): don't pay for the same script twice. Mirrors runApproval's
+   *  per-idea creation steps but stops right after content-plan — audio/video-plan/
+   *  etc. still go through the normal "Chạy hàng loạt" flow afterward. */
+  async function useTestResultForIdea(idea, testId) {
+    patchIdea(idea.ideaId, { status: "creating", error: null });
+    const { id: projectId, platform } = await createProjectWithRetry(idea.idea, orientation);
+    patchIdea(idea.ideaId, { status: "planning", projectId, platform });
+    await api.usePlanTestResult(projectId, testId, profileSlug);
+    patchIdea(idea.ideaId, { status: "done" });
+    await api
+      .appendIdeaHistory(profileSlug, { idea: idea.idea, subTopic: idea.subTopic, hookStyle: idea.hookStyle, tone: idea.tone, projectId })
+      .catch(() => {});
   }
 
   async function runApproval() {
     const keptIdeas = (ideasMetaRef.current?.ideas ?? []).filter((i) => i.kept !== false);
     if (!keptIdeas.length) return;
-    if (!window.confirm(`Tạo ${keptIdeas.length} project từ các ý tưởng đang giữ? Mỗi ý tưởng sẽ gọi content-planner thật (tốn phí).`)) {
+
+    const profile = autoContinueAll ? profiles.find((p) => p.slug === profileSlug) : null;
+    if (autoContinueAll && !profile) {
+      setFormError("Không tìm thấy profile đã chọn — chọn lại profile trước khi chạy tự động toàn bộ.");
       return;
     }
+    const confirmMsg = autoContinueAll
+      ? `Tạo ${keptIdeas.length} project VÀ chạy hết pipeline (content-plan→audio→video-plan→scene→root→render) TUẦN TỰ cho từng project? Chạy lâu (có thể hàng giờ), tốn phí thật — không cần ngồi canh nhưng nên theo dõi.`
+      : `Tạo ${keptIdeas.length} project từ các ý tưởng đang giữ? Mỗi ý tưởng sẽ gọi content-planner thật (tốn phí).`;
+    if (!window.confirm(confirmMsg)) return;
+
     setApproving(true);
     setFormError(null);
+    if (autoContinueAll) {
+      stopRequestedRef.current = false;
+      recentFailuresRef.current = [];
+      setStopRequested(false);
+      setPipelineRunError(null);
+      setRunningPipeline(true);
+    }
     for (const idea of keptIdeas) {
+      if (autoContinueAll && stopRequestedRef.current) break;
       const current = ideasMetaRef.current.ideas.find((i) => i.ideaId === idea.ideaId);
-      if (current?.status === "done") continue; // resume support after reload mid-batch
+      if (current?.status === "done" && !autoContinueAll) continue; // resume support after reload mid-batch
+      let projectId = current?.projectId;
       try {
-        patchIdea(idea.ideaId, { status: "creating", error: null });
-        const { id: projectId, platform } = await createProjectWithRetry(idea.idea, orientation);
-        patchIdea(idea.ideaId, { status: "planning", projectId, platform });
-        await api.runPlan(projectId, { idea: idea.idea, audience, platform });
-        await waitForProjectStep(projectId, "plan");
-        patchIdea(idea.ideaId, { status: "done" });
-        await api
-          .appendIdeaHistory(profileSlug, { idea: idea.idea, subTopic: idea.subTopic, hookStyle: idea.hookStyle, tone: idea.tone, projectId })
-          .catch(() => {});
+        let platform;
+        if (current?.status !== "done") {
+          patchIdea(idea.ideaId, { status: "creating", error: null });
+          ({ id: projectId, platform } = await createProjectWithRetry(idea.idea, orientation));
+          patchIdea(idea.ideaId, { status: "planning", projectId, platform });
+          await api.runPlan(projectId, { idea: idea.idea, audience, platform, profileSlug });
+          await waitForProjectStep(projectId, "plan");
+          patchIdea(idea.ideaId, { status: "done" });
+          await api
+            .appendIdeaHistory(profileSlug, { idea: idea.idea, subTopic: idea.subTopic, hookStyle: idea.hookStyle, tone: idea.tone, projectId })
+            .catch(() => {});
+        }
+        if (autoContinueAll && projectId) {
+          await runFullPipelineForProject({ ...idea, projectId }, profile);
+        }
       } catch (err) {
+        if (err.message === "__stopped__") break;
         patchIdea(idea.ideaId, { status: "error", error: err.message });
       }
     }
     setApproving(false);
+    if (autoContinueAll) setRunningPipeline(false);
   }
 
   function updateProgress(projectId, patch) {
@@ -329,8 +455,9 @@ export function Batch({ onProjectCreated }) {
         template: profile.template,
         visualStyle: profile.visualStyle,
         subStyle: profile.subStyle,
+        photoProvider: profile.subStyle === "investigation_board" ? profile.photoProvider : undefined,
         imageStylePrefix: profile.imageStylePrefix,
-        fontFamily: profile.fontFamily,
+        fontFamily: profile.template === "sub" || profile.template === "footage" ? profile.fontFamily : undefined,
         model: profile.plannerModel,
         cheapModel: profile.cheapModel,
         imageModel: profile.imgModel,
@@ -342,6 +469,26 @@ export function Batch({ onProjectCreated }) {
         profileSlug,
         kenBurns: profile.kenBurns,
         grain: profile.grain,
+        format: orientation === "landscape" ? "16:9" : "9:16",
+        // Found live (user report): "footage" template ran through Batch always hit
+        // the shared empty pool ("Kho footage rỗng") even with a real
+        // footageLibraryDir saved on the profile — this whole object was simply never
+        // sent, unlike Pipeline.jsx's single-video flow which does build it.
+        footageConfig:
+          profile.template === "footage"
+            ? {
+                libraryDir: profile.footageLibraryDir || undefined,
+                minClipsPerScene: Number(profile.footageMinClips ?? 1),
+                maxClipsPerScene: Number(profile.footageMaxClips ?? 3),
+                minClipSeconds: Number(profile.footageMinSeconds ?? 3),
+                maxClipSeconds: Number(profile.footageMaxSeconds ?? 6),
+                flipEnabled: Boolean(profile.footageFlipEnabled),
+                speedEnabled: Boolean(profile.footageSpeedEnabled),
+                speedMin: Number(profile.footageSpeedMin ?? 1.0),
+                speedMax: Number(profile.footageSpeedMax ?? 1.3),
+                fontFamily: profile.fontFamily,
+              }
+            : undefined,
       })
     );
     if (stopRequestedRef.current) return;
@@ -478,10 +625,10 @@ export function Batch({ onProjectCreated }) {
 
         <button
           type="button"
-          disabled={!profileSlug || !channelTheme.trim() || !audience.trim() || ideateStatus === "running"}
+          disabled={!profileSlug || !channelTheme.trim() || !audience.trim() || ideateStatus === "running" || merging}
           onClick={generateIdeas}
         >
-          {ideateStatus === "running" ? "Đang sinh ý tưởng…" : "Sinh ý tưởng"}
+          {merging ? "Đang sinh thêm ý tưởng…" : ideateStatus === "running" ? "Đang sinh ý tưởng…" : ideas.length ? "Sinh thêm ý tưởng" : "Sinh ý tưởng"}
         </button>
         {!profileSlug && <p className="muted">Cần chọn 1 channel profile trước khi sinh ý tưởng.</p>}
         {formError && <p className="error">{formError}</p>}
@@ -507,6 +654,16 @@ export function Batch({ onProjectCreated }) {
               </button>
             </div>
           </div>
+          <label style={{ display: "inline-flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
+            <input
+              type="checkbox"
+              checked={autoContinueAll}
+              disabled={approving}
+              onChange={(e) => setAutoContinueAll(e.target.checked)}
+              style={{ width: "auto", marginBottom: 0 }}
+            />
+            Chạy tự động luôn cả pipeline (audio→video-plan→scene→root→render) sau khi duyệt — không cần bấm "Chạy hàng loạt" riêng
+          </label>
           <div className="idea-grid">
             {ideas.map((idea) => (
               <IdeaCard
@@ -517,6 +674,10 @@ export function Batch({ onProjectCreated }) {
                 onToggleKeep={(kept) => patchIdea(idea.ideaId, { kept })}
                 onDelete={() => deleteIdea(idea.ideaId)}
                 onOpen={(projectId, ideaText, plat) => onProjectCreated(projectId, ideaText, plat, profileSlug)}
+                audience={audience}
+                platform={orientation === "landscape" ? "16:9" : "9:16"}
+                profileSlug={profileSlug}
+                onUseTestResult={useTestResultForIdea}
               />
             ))}
           </div>
