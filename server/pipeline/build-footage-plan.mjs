@@ -17,7 +17,8 @@ import { join } from "path";
  * @param {string} params.format - "9:16" | "16:9"
  * @param {object} params.footageConfig - { minClipsPerScene, maxClipsPerScene,
  *   minClipSeconds, maxClipSeconds, flipEnabled, speedEnabled, speedMin, speedMax,
- *   fontFamily } — all CODE-owned, persisted as-is so every scene's generate call
+ *   zoomEnabled, zoomMin, zoomMax, fontFamily } — all CODE-owned, persisted as-is so
+ *   every scene's generate call
  *   reads the same settings without the caller re-passing them (same reasoning as
  *   `video-planner.mjs`'s own persisted fields: fontFamily/kenBurns/grain for "sub").
  * @param {(event: object) => void} [params.onEvent]

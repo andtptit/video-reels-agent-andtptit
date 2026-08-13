@@ -155,7 +155,20 @@ export function alignKnownTextToWhisperTiming(text, whisperWords) {
       }
     }
     if (mergeSpan) {
-      for (let m = 0; m < mergeSpan; m++) timing[i + m] = { start: whisperWords[j].start, end: whisperWords[j].end };
+      // Found live (user report): giving every merged known word the SAME full
+      // [start,end] slot (identical to whisperWords[j]'s own timing) produced two
+      // DIFFERENT words with byte-identical timestamps whenever a merge was
+      // detected — downstream, caption-chunks.mjs's sentence-boundary split then
+      // created two chunks starting at the exact same instant, tripping
+      // hyperframes' overlapping_clips_same_track lint error. Split the slot's
+      // duration evenly across the merged words instead — still approximate (the
+      // real per-word boundary within a single Whisper token is unknown), but
+      // guarantees every known word gets a distinct, non-overlapping window.
+      const slotStart = whisperWords[j].start;
+      const slotDur = (whisperWords[j].end - slotStart) / mergeSpan;
+      for (let m = 0; m < mergeSpan; m++) {
+        timing[i + m] = { start: slotStart + m * slotDur, end: slotStart + (m + 1) * slotDur };
+      }
       i += mergeSpan;
       j += 1;
       continue;

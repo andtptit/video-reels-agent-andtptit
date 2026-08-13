@@ -134,6 +134,9 @@ export function Hook() {
   const [footageSpeedEnabled, setFootageSpeedEnabled] = useState(false);
   const [footageSpeedMin, setFootageSpeedMin] = useState(1.0);
   const [footageSpeedMax, setFootageSpeedMax] = useState(1.3);
+  const [footageZoomEnabled, setFootageZoomEnabled] = useState(false);
+  const [footageZoomMin, setFootageZoomMin] = useState(1.05);
+  const [footageZoomMax, setFootageZoomMax] = useState(1.15);
   const [musicVolumePercent, setMusicVolumePercent] = useState(18);
 
   // Not restored from localStorage at mount anymore — which batch to restore depends
@@ -231,6 +234,9 @@ export function Hook() {
     if (p.footageSpeedEnabled !== undefined) setFootageSpeedEnabled(p.footageSpeedEnabled);
     if (p.footageSpeedMin !== undefined) setFootageSpeedMin(p.footageSpeedMin);
     if (p.footageSpeedMax !== undefined) setFootageSpeedMax(p.footageSpeedMax);
+    if (p.footageZoomEnabled !== undefined) setFootageZoomEnabled(p.footageZoomEnabled);
+    if (p.footageZoomMin !== undefined) setFootageZoomMin(p.footageZoomMin);
+    if (p.footageZoomMax !== undefined) setFootageZoomMax(p.footageZoomMax);
     if (p.musicVolume !== undefined) setMusicVolumePercent(Math.round(p.musicVolume * 100));
   }
 
@@ -266,6 +272,7 @@ export function Hook() {
         blurPercent, footageFolder,
         footageMinClips, footageMaxClips, footageMinSeconds, footageMaxSeconds,
         footageFlipEnabled, footageSpeedEnabled, footageSpeedMin, footageSpeedMax,
+        footageZoomEnabled, footageZoomMin, footageZoomMax,
         musicVolume: (Number(musicVolumePercent) || 0) / 100,
       });
       const r = await api.listHookProfiles();
@@ -411,6 +418,9 @@ export function Hook() {
         speedEnabled: footageSpeedEnabled,
         speedMin: Number(footageSpeedMin) || 1.0,
         speedMax: Number(footageSpeedMax) || 1.3,
+        zoomEnabled: footageZoomEnabled,
+        zoomMin: Number(footageZoomMin) || 1.05,
+        zoomMax: Number(footageZoomMax) || 1.15,
       };
 
       await runStepWithRetry(ideaId, projectId, "hook-content", () =>
@@ -613,6 +623,18 @@ export function Hook() {
                 <input type="number" min="1" step="0.1" value={footageSpeedMin} onChange={(e) => setFootageSpeedMin(e.target.value)} disabled={anyRunning} style={{ width: "60px" }} />
                 <span>–</span>
                 <input type="number" min="1" step="0.1" value={footageSpeedMax} onChange={(e) => setFootageSpeedMax(e.target.value)} disabled={anyRunning} style={{ width: "60px" }} />
+                <span>x</span>
+              </>
+            )}
+            <label style={{ display: "inline-flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
+              <input type="checkbox" checked={footageZoomEnabled} onChange={(e) => setFootageZoomEnabled(e.target.checked)} disabled={anyRunning} style={{ width: "auto", marginBottom: 0 }} />
+              Zoom ngẫu nhiên (in/out, cả ảnh lẫn video)
+            </label>
+            {footageZoomEnabled && (
+              <>
+                <input type="number" min="1.01" step="0.01" value={footageZoomMin} onChange={(e) => setFootageZoomMin(e.target.value)} disabled={anyRunning} style={{ width: "60px" }} />
+                <span>–</span>
+                <input type="number" min="1.01" step="0.01" value={footageZoomMax} onChange={(e) => setFootageZoomMax(e.target.value)} disabled={anyRunning} style={{ width: "60px" }} />
                 <span>x</span>
               </>
             )}

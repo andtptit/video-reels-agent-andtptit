@@ -143,6 +143,9 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, autoRunOnLoad
   const [footageSpeedEnabled, setFootageSpeedEnabled] = useState(false);
   const [footageSpeedMin, setFootageSpeedMin] = useState(1.0);
   const [footageSpeedMax, setFootageSpeedMax] = useState(1.3);
+  const [footageZoomEnabled, setFootageZoomEnabled] = useState(false);
+  const [footageZoomMin, setFootageZoomMin] = useState(1.05);
+  const [footageZoomMax, setFootageZoomMax] = useState(1.15);
   const [footageLibraryCount, setFootageLibraryCount] = useState(null);
   // Empty = dùng kho chung assets/footage-library/ — override theo profile, cùng
   // pattern "Thư mục footage riêng" đã có ở tab Đọc Caption (Hook.jsx).
@@ -354,6 +357,9 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, autoRunOnLoad
     if (p.footageSpeedEnabled !== undefined) setFootageSpeedEnabled(p.footageSpeedEnabled);
     if (p.footageSpeedMin !== undefined) setFootageSpeedMin(p.footageSpeedMin);
     if (p.footageSpeedMax !== undefined) setFootageSpeedMax(p.footageSpeedMax);
+    if (p.footageZoomEnabled !== undefined) setFootageZoomEnabled(p.footageZoomEnabled);
+    if (p.footageZoomMin !== undefined) setFootageZoomMin(p.footageZoomMin);
+    if (p.footageZoomMax !== undefined) setFootageZoomMax(p.footageZoomMax);
   }
 
   function onSelectProfile(slug) {
@@ -378,6 +384,7 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, autoRunOnLoad
         footageLibraryDir: footageLibraryDir.trim() || undefined,
         footageMinClips, footageMaxClips, footageMinSeconds, footageMaxSeconds,
         footageFlipEnabled, footageSpeedEnabled, footageSpeedMin, footageSpeedMax,
+        footageZoomEnabled, footageZoomMin, footageZoomMax,
       });
       const r = await api.listProfiles();
       setProfiles(r.profiles ?? []);
@@ -488,6 +495,9 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, autoRunOnLoad
                   speedEnabled: footageSpeedEnabled,
                   speedMin: Number(footageSpeedMin),
                   speedMax: Number(footageSpeedMax),
+                  zoomEnabled: footageZoomEnabled,
+                  zoomMin: Number(footageZoomMin),
+                  zoomMax: Number(footageZoomMax),
                   fontFamily,
                   libraryDir: footageLibraryDir.trim() || undefined,
                 }
@@ -800,6 +810,18 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, autoRunOnLoad
                     <span>x</span>
                   </>
                 )}
+                <label style={{ display: "inline-flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
+                  <input type="checkbox" checked={footageZoomEnabled} onChange={(e) => setFootageZoomEnabled(e.target.checked)} style={{ width: "auto", marginBottom: 0 }} />
+                  Zoom ngẫu nhiên (in/out, cả ảnh lẫn video)
+                </label>
+                {footageZoomEnabled && (
+                  <>
+                    <input type="number" min="1.01" step="0.01" value={footageZoomMin} onChange={(e) => setFootageZoomMin(e.target.value)} style={{ width: "60px" }} />
+                    <span>–</span>
+                    <input type="number" min="1.01" step="0.01" value={footageZoomMax} onChange={(e) => setFootageZoomMax(e.target.value)} style={{ width: "60px" }} />
+                    <span>x</span>
+                  </>
+                )}
               </div>
             </div>
           )}
@@ -1004,6 +1026,9 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, autoRunOnLoad
                           speedEnabled: footageSpeedEnabled,
                           speedMin: Number(footageSpeedMin),
                           speedMax: Number(footageSpeedMax),
+                          zoomEnabled: footageZoomEnabled,
+                          zoomMin: Number(footageZoomMin),
+                          zoomMax: Number(footageZoomMax),
                           fontFamily,
                           libraryDir: footageLibraryDir.trim() || undefined,
                         }
@@ -1050,6 +1075,9 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, autoRunOnLoad
                           speedEnabled: footageSpeedEnabled,
                           speedMin: Number(footageSpeedMin),
                           speedMax: Number(footageSpeedMax),
+                          zoomEnabled: footageZoomEnabled,
+                          zoomMin: Number(footageZoomMin),
+                          zoomMax: Number(footageZoomMax),
                           fontFamily,
                           libraryDir: footageLibraryDir.trim() || undefined,
                         }

@@ -56,6 +56,9 @@ const HOOK_PROFILE_FIELDS = [
   "footageSpeedEnabled",
   "footageSpeedMin",
   "footageSpeedMax",
+  "footageZoomEnabled",
+  "footageZoomMin",
+  "footageZoomMax",
   "musicTrack",
   "musicVolume",
 ];

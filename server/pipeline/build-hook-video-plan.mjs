@@ -24,7 +24,8 @@ import { join } from "path";
  *   assets/footage-library/ (see lib/footage-library.mjs's FOOTAGE_LIBRARY_DIR default)
  * @param {object} params.footageConfig - same shape as "footage" template's own
  *   (minClipsPerScene, maxClipsPerScene, minClipSeconds, maxClipSeconds, flipEnabled,
- *   speedEnabled, speedMin, speedMax, fontFamily) — CODE-owned, persisted as-is.
+ *   speedEnabled, speedMin, speedMax, zoomEnabled, zoomMin, zoomMax, fontFamily) —
+ *   CODE-owned, persisted as-is.
  * @param {string} [params.musicTrack]
  * @param {number} [params.musicVolume]
  * @param {(event: object) => void} [params.onEvent]

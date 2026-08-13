@@ -9,6 +9,7 @@ import { Batch } from "./components/Batch.jsx";
 import { Hook } from "./components/Hook.jsx";
 import { AudioImport } from "./components/AudioImport.jsx";
 import { Investigation } from "./components/Investigation.jsx";
+import { ScriptImport } from "./components/ScriptImport.jsx";
 import { RunningBanner } from "./components/RunningBanner.jsx";
 import "./App.css";
 
@@ -24,7 +25,7 @@ function loadStored() {
 
 export default function App() {
   const [project, setProject] = useState(loadStored);
-  const [tab, setTab] = useState("pipeline"); // "pipeline" | "history" | "batch" | "hook" | "audio-import" | "investigation" | "profiles"
+  const [tab, setTab] = useState("pipeline"); // "pipeline" | "history" | "batch" | "hook" | "audio-import" | "investigation" | "script-import" | "profiles"
   // One-shot, NOT persisted to localStorage (unlike `project`) — a hand-off from a
   // flow that already produced real content (audio upload) can ask Pipeline.jsx to
   // auto-run the rest of the pipeline instead of the user re-picking every setting
@@ -94,6 +95,9 @@ export default function App() {
           <button type="button" className={tab === "investigation" ? "active" : ""} onClick={() => setTab("investigation")}>
             Bảng điều tra
           </button>
+          <button type="button" className={tab === "script-import" ? "active" : ""} onClick={() => setTab("script-import")}>
+            Kịch bản có sẵn
+          </button>
           <button type="button" className={tab === "profiles" ? "active" : ""} onClick={() => setTab("profiles")}>
             Hồ sơ kênh
           </button>
@@ -115,6 +119,8 @@ export default function App() {
         <AudioImport onProjectCreated={handleCreated} profiles={profiles} />
       ) : tab === "investigation" ? (
         <Investigation profiles={profiles} onProjectCreated={handleCreated} />
+      ) : tab === "script-import" ? (
+        <ScriptImport profiles={profiles} onProjectCreated={handleCreated} />
       ) : tab === "profiles" ? (
         <ProfileManager profiles={profiles} onProfilesChanged={refreshProfiles} startExpanded />
       ) : !project ? (

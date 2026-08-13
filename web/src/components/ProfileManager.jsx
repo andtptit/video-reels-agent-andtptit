@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
 import { api } from "../api.js";
+import { useEventStream } from "../useJobStatus.js";
+import { LiveLog } from "./LiveLog.jsx";
+import { TestScriptPreview } from "./TestScriptPreview.jsx";
 import { ModelSelect } from "./ModelSelect.jsx";
 import { EDGE_TTS_VOICES, EXPENSIVE_MODELS, CHEAP_MODELS, IMAGE_MODELS, FONT_OPTIONS } from "../lib/pipelineOptions.js";
 
@@ -40,6 +43,19 @@ export function ProfileManager({ profiles, onProfilesChanged, startExpanded = fa
   const [fontFamily, setFontFamily] = useState("Itim");
   const [imageStylePrefix, setImageStylePrefix] = useState("");
   const [contentPlaybook, setContentPlaybook] = useState("");
+  // "Training" Content playbook — see playbook-trainer.mjs's doc comment. Scratch
+  // job (like TestScriptPreview's own "test-plan"), not tied to a saved profile —
+  // works fine on a brand-new, not-yet-saved profile too.
+  const [trainDescription, setTrainDescription] = useState("");
+  const [trainSampleScript, setTrainSampleScript] = useState("");
+  const [trainVideos, setTrainVideos] = useState([]); // File[] — 1-5 video đối thủ
+  const [trainId, setTrainId] = useState(null);
+  const [training, setTraining] = useState(false);
+  const [trainError, setTrainError] = useState(null);
+  const [trainMsg, setTrainMsg] = useState(null);
+  // Scratch topic just to drive "Sinh kịch bản test" below — never saved to the
+  // profile itself (ProfileManager has no real "idea" field, unlike a project).
+  const [testIdea, setTestIdea] = useState("");
   const [kenBurns, setKenBurns] = useState(false);
   const [grain, setGrain] = useState(false);
   const [plannerModel, setPlannerModel] = useState("");
@@ -54,6 +70,9 @@ export function ProfileManager({ profiles, onProfilesChanged, startExpanded = fa
   const [footageSpeedEnabled, setFootageSpeedEnabled] = useState(false);
   const [footageSpeedMin, setFootageSpeedMin] = useState(1.0);
   const [footageSpeedMax, setFootageSpeedMax] = useState(1.3);
+  const [footageZoomEnabled, setFootageZoomEnabled] = useState(false);
+  const [footageZoomMin, setFootageZoomMin] = useState(1.05);
+  const [footageZoomMax, setFootageZoomMax] = useState(1.15);
   const [footageLibraryCount, setFootageLibraryCount] = useState(null);
   // Empty = dùng kho chung assets/footage-library/ — cùng pattern "Thư mục footage
   // riêng" đã có ở tab Đọc Caption (Hook.jsx) và tab Pipeline.
@@ -124,6 +143,9 @@ export function ProfileManager({ profiles, onProfilesChanged, startExpanded = fa
     if (p.footageSpeedEnabled !== undefined) setFootageSpeedEnabled(p.footageSpeedEnabled);
     if (p.footageSpeedMin !== undefined) setFootageSpeedMin(p.footageSpeedMin);
     if (p.footageSpeedMax !== undefined) setFootageSpeedMax(p.footageSpeedMax);
+    if (p.footageZoomEnabled !== undefined) setFootageZoomEnabled(p.footageZoomEnabled);
+    if (p.footageZoomMin !== undefined) setFootageZoomMin(p.footageZoomMin);
+    if (p.footageZoomMax !== undefined) setFootageZoomMax(p.footageZoomMax);
     if (p.channelTheme !== undefined) setChannelTheme(p.channelTheme);
     if (p.defaultAudience !== undefined) setDefaultAudience(p.defaultAudience);
   }
@@ -157,6 +179,7 @@ export function ProfileManager({ profiles, onProfilesChanged, startExpanded = fa
         footageLibraryDir: footageLibraryDir.trim() || undefined,
         footageMinClips, footageMaxClips, footageMinSeconds, footageMaxSeconds,
         footageFlipEnabled, footageSpeedEnabled, footageSpeedMin, footageSpeedMax,
+        footageZoomEnabled, footageZoomMin, footageZoomMax,
         channelTheme, defaultAudience,
       });
       setSelectedSlug(saved.slug);
@@ -179,6 +202,77 @@ export function ProfileManager({ profiles, onProfilesChanged, startExpanded = fa
       onProfilesChanged?.();
     } catch (err) {
       setProfileMsg({ ok: false, text: err.message });
+    }
+  }
+
+  const { steps: trainSteps, events: trainEvents } = useEventStream(trainId ? api.batchEventsUrl(trainId) : null);
+  const trainStatus = trainSteps["train-playbook"]?.status;
+
+  // Fetches the final playbook once the step settles — SSE only carries live
+  // events, not the written file itself (same pattern as TestScriptPreview.jsx).
+  useEffect(() => {
+    if (!trainId || !training || (trainStatus !== "done" && trainStatus !== "error")) return;
+    if (trainStatus === "error") {
+      setTrainError(trainSteps["train-playbook"]?.error ?? "Lỗi không rõ");
+      setTraining(false);
+      return;
+    }
+    api
+      .getTrainPlaybookResult(trainId)
+      .then((r) => {
+        if (r.playbook) {
+          setContentPlaybook(r.playbook);
+          setTrainMsg('Đã cập nhật "Content playbook" bên trên — xem lại rồi bấm "Lưu profile" để giữ.');
+        } else {
+          setTrainError("Không nhận được playbook từ kết quả training.");
+        }
+      })
+      .catch((err) => setTrainError(err.message))
+      .finally(() => setTraining(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trainId, training, trainStatus]);
+
+  async function runTraining() {
+    setTrainError(null);
+    setTrainMsg(null);
+    if (!trainSampleScript.trim()) {
+      setTrainError("Cần dán 1 kịch bản mẫu trước.");
+      return;
+    }
+    setTraining(true);
+    try {
+      const { trainId: id } = await api.trainPlaybook({
+        description: trainDescription.trim() || undefined,
+        sampleScript: trainSampleScript,
+        existingPlaybook: contentPlaybook.trim() || undefined,
+      });
+      setTrainId(id);
+    } catch (err) {
+      setTrainError(err.message);
+      setTraining(false);
+    }
+  }
+
+  // "3-5 video đối thủ" — mỗi file tự transcribe qua Whisper server-side (nhận thẳng
+  // video, không cần tách audio tay), rồi gộp vào cùng luồng phân tích/áp dụng như
+  // runTraining ở trên (cùng trainId/polling/useEffect, chỉ khác cách kích hoạt).
+  async function runTrainingFromVideos() {
+    setTrainError(null);
+    setTrainMsg(null);
+    if (!trainVideos.length) {
+      setTrainError("Cần chọn ít nhất 1 file video trước.");
+      return;
+    }
+    setTraining(true);
+    try {
+      const { trainId: id } = await api.trainPlaybookFromVideos(trainVideos, {
+        description: trainDescription.trim() || undefined,
+        existingPlaybook: contentPlaybook.trim() || undefined,
+      });
+      setTrainId(id);
+    } catch (err) {
+      setTrainError(err.message);
+      setTraining(false);
     }
   }
 
@@ -261,6 +355,74 @@ export function ProfileManager({ profiles, onProfilesChanged, startExpanded = fa
           rows={3}
         />
       </div>
+
+      <div className="card" style={{ marginTop: "8px" }}>
+        <p className="muted">
+          <strong>Training Content playbook</strong> — mô tả ý muốn + dán 1 kịch bản mẫu bạn ưng ý, AI tự trích ra
+          giọng văn/quy tắc rồi điền lại ô "Content playbook" ở trên (chưa lưu — bạn xem lại rồi bấm "Lưu profile").
+          Train nhiều lần sẽ tự bổ sung dần vào playbook cũ, không ghi đè trắng.
+        </p>
+        <textarea
+          value={trainDescription}
+          onChange={(e) => setTrainDescription(e.target.value)}
+          placeholder="Mô tả ý muốn (tuỳ chọn) — vd: xưng hô mày/tao, giọng thẳng thắn khiêu khích, nhắm vào đàn ông..."
+          rows={2}
+          disabled={training}
+        />
+        <textarea
+          value={trainSampleScript}
+          onChange={(e) => setTrainSampleScript(e.target.value)}
+          placeholder="Dán 1 kịch bản mẫu bạn ưng ý vào đây..."
+          rows={8}
+          disabled={training}
+        />
+        <button type="button" onClick={runTraining} disabled={training || !trainSampleScript.trim()}>
+          {training ? "Đang train..." : "Train playbook (từ text)"}
+        </button>
+
+        <p className="muted" style={{ marginTop: "8px" }}>
+          Hoặc train từ 1-5 video đối thủ (vd Reels viral) — mỗi video được tự phiên âm (Whisper) rồi phân tích chung
+          để tìm pattern LẶP LẠI xuyên suốt (bỏ qua cái chỉ xuất hiện ở 1 video, vì nhiều khả năng là ngẫu nhiên).
+        </p>
+        <input
+          type="file"
+          accept="video/*"
+          multiple
+          onChange={(e) => setTrainVideos(Array.from(e.target.files ?? []).slice(0, 5))}
+          disabled={training}
+        />
+        {trainVideos.length > 0 && <p className="muted">{trainVideos.length} video đã chọn: {trainVideos.map((f) => f.name).join(", ")}</p>}
+        <button type="button" onClick={runTrainingFromVideos} disabled={training || !trainVideos.length}>
+          {training ? "Đang train..." : `Train playbook (từ ${trainVideos.length || ""} video)`}
+        </button>
+
+        {trainError && <p className="error">{trainError}</p>}
+        {trainMsg && <p className="muted">{trainMsg}</p>}
+        {training && <LiveLog events={trainEvents} step="train-playbook" maxLines={8} />}
+      </div>
+
+      <div className="inline-form" style={{ marginTop: "8px" }}>
+        <input
+          value={testIdea}
+          onChange={(e) => setTestIdea(e.target.value)}
+          placeholder="Chủ đề thử nghiệm (chỉ để test, không lưu vào profile) — vd: 3 sai lầm khi..."
+          style={{ minWidth: "320px" }}
+        />
+      </div>
+      <TestScriptPreview
+        kind="content-planner"
+        getParams={() => ({
+          idea: testIdea,
+          audience: defaultAudience || undefined,
+          platform: "9:16",
+          targetDuration: "30–60s",
+          // Live, not-yet-saved playbook — bypasses the profileSlug lookup so you
+          // can test edits before hitting "Lưu profile" (see routes.mjs's
+          // /test-content-plan contentPlaybook override).
+          contentPlaybook: contentPlaybook.trim() || undefined,
+          model: plannerModel || undefined,
+        })}
+      />
 
       <p className="muted" style={{ marginTop: "12px" }}>Audio (TTS)</p>
       <div className="inline-form">
@@ -410,6 +572,18 @@ export function ProfileManager({ profiles, onProfilesChanged, startExpanded = fa
                   <input type="number" min="1" step="0.1" value={footageSpeedMin} onChange={(e) => setFootageSpeedMin(e.target.value)} style={{ width: "60px" }} />
                   <span>–</span>
                   <input type="number" min="1" step="0.1" value={footageSpeedMax} onChange={(e) => setFootageSpeedMax(e.target.value)} style={{ width: "60px" }} />
+                  <span>x</span>
+                </>
+              )}
+              <label style={{ display: "inline-flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
+                <input type="checkbox" checked={footageZoomEnabled} onChange={(e) => setFootageZoomEnabled(e.target.checked)} style={{ width: "auto", marginBottom: 0 }} />
+                Zoom ngẫu nhiên (in/out, cả ảnh lẫn video)
+              </label>
+              {footageZoomEnabled && (
+                <>
+                  <input type="number" min="1.01" step="0.01" value={footageZoomMin} onChange={(e) => setFootageZoomMin(e.target.value)} style={{ width: "60px" }} />
+                  <span>–</span>
+                  <input type="number" min="1.01" step="0.01" value={footageZoomMax} onChange={(e) => setFootageZoomMax(e.target.value)} style={{ width: "60px" }} />
                   <span>x</span>
                 </>
               )}

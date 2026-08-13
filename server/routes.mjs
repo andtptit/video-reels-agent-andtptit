@@ -20,6 +20,9 @@ import { runAudioImport } from "./pipeline/audio-import.mjs";
 import { createRemixProject } from "./pipeline/remix-project.mjs";
 import { runContentPlanner } from "./agents/content-planner.mjs";
 import { runInvestigationContentPlanner } from "./agents/investigation-content-planner.mjs";
+import { runScriptSceneCutter } from "./agents/script-scene-cutter.mjs";
+import { runPlaybookTrainer } from "./agents/playbook-trainer.mjs";
+import * as hyperframesWhisper from "./providers/transcription/hyperframes-whisper.mjs";
 import { runVideoPlanner } from "./agents/video-planner.mjs";
 import { runRemixScenes } from "./agents/remix-scenes.mjs";
 import { runSceneWriter } from "./agents/scene-writer.mjs";
@@ -153,12 +156,25 @@ router.post("/test-image", (req, res) => {
 // for "Bảng điều tra", hook for "Đọc Caption") so every tab with a script-generation
 // step gets the same preview capability.
 router.post("/test-content-plan", (req, res) => {
-  const { kind = "content-planner", idea, audience, platform, targetDuration, profileSlug, model, nicheDescription, ctaText } =
-    req.body ?? {};
+  const {
+    kind = "content-planner",
+    idea,
+    audience,
+    platform,
+    targetDuration,
+    profileSlug,
+    // Direct override takes priority over the profileSlug lookup below — lets
+    // ProfileManager.jsx's own "Sinh kịch bản test" preview the CURRENTLY-EDITED
+    // (not-yet-saved) contentPlaybook textarea instead of forcing a save first.
+    contentPlaybook: contentPlaybookOverride,
+    model,
+    nicheDescription,
+    ctaText,
+  } = req.body ?? {};
   if (!idea?.trim()) return res.status(400).json({ error: "idea is required" });
 
   const { id, dir } = createBatchDir();
-  const contentPlaybook = profileSlug ? listProfiles().find((p) => p.slug === profileSlug)?.contentPlaybook : undefined;
+  const contentPlaybook = contentPlaybookOverride ?? (profileSlug ? listProfiles().find((p) => p.slug === profileSlug)?.contentPlaybook : undefined);
 
   const runners = {
     "content-planner": (onEvent, signal) =>
@@ -196,6 +212,89 @@ router.get("/test-content-plan/:id/result", (req, res) => {
       ? JSON.stringify(JSON.parse(readFileSync(hookPath, "utf-8")), null, 2)
       : null;
   res.json({ status: readJobStatus(dir), text });
+});
+
+// "Training" cho Content playbook — ProfileManager.jsx. Cùng shape scratch-dir +
+// runInBackground + poll-result như /test-content-plan ở trên (không phải project
+// thật, không cần lưu profile trước). Xem playbook-trainer.mjs's doc comment cho lý
+// do trích xuất pattern trừu tượng thay vì chép nguyên văn mẫu.
+router.post("/train-playbook", (req, res) => {
+  const { description, sampleScript, existingPlaybook, model } = req.body ?? {};
+  if (!sampleScript?.trim()) return res.status(400).json({ error: "sampleScript is required" });
+
+  const { id, dir } = createBatchDir();
+  runInBackground(dir, "train-playbook", (onEvent, signal) =>
+    queues.dashscope.run(() => runPlaybookTrainer({ batchDir: dir, description, sampleScripts: [sampleScript], existingPlaybook, model, onEvent, signal }))
+  );
+  res.status(202).json({ trainId: id, step: "train-playbook", status: "running" });
+});
+
+// Training từ video đối thủ (thay vì paste text) — up to 5 file, mỗi file tự
+// transcribe qua Whisper (nhận thẳng video, tự tách audio bên trong — xác nhận qua
+// tài liệu hyperframes-media skill: `npx hyperframes transcribe video.mp4` là cú
+// pháp hợp lệ, không cần code tự tách audio bằng ffmpeg trước). Batch dir phải được
+// tạo TRƯỚC khi multer chạy (nó cần biết destination ngay khi nhận từng file) — tạo
+// ở 1 middleware nhỏ trước `trainVideoUpload`, không phải trong route handler.
+const trainVideoUpload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => {
+      try {
+        const dir = join(req.trainBatchDir, "uploads");
+        mkdirSync(dir, { recursive: true });
+        cb(null, dir);
+      } catch (err) {
+        cb(err);
+      }
+    },
+    filename: (req, file, cb) => cb(null, `${Date.now()}-${Math.round(Math.random() * 1e9)}${extname(file.originalname) || ".mp4"}`),
+  }),
+  limits: { fileSize: 500 * 1024 * 1024, files: 5 }, // 500MB/file — a few minutes of 1080p Reels video
+});
+
+router.post(
+  "/train-playbook-videos",
+  (req, res, next) => {
+    const { id, dir } = createBatchDir();
+    req.trainBatchId = id;
+    req.trainBatchDir = dir;
+    next();
+  },
+  trainVideoUpload.array("videos", 5),
+  (req, res) => {
+    const { description, existingPlaybook, model, language } = req.body ?? {};
+    const files = req.files ?? [];
+    if (!files.length) return res.status(400).json({ error: "at least 1 video file is required" });
+
+    const dir = req.trainBatchDir;
+    const id = req.trainBatchId;
+
+    runInBackground(dir, "train-playbook", async (onEvent, signal) => {
+      const sampleScripts = [];
+      for (const file of files) {
+        onEvent({ type: "transcribe-start", file: file.originalname });
+        const { fullText } = await hyperframesWhisper.transcribe({ srcPath: file.path, language: language || "vi", signal });
+        sampleScripts.push(fullText);
+        onEvent({ type: "transcribe-done", file: file.originalname, chars: fullText.length });
+      }
+      return queues.dashscope.run(() => runPlaybookTrainer({ batchDir: dir, description, sampleScripts, existingPlaybook, model, onEvent, signal }));
+    });
+
+    res.status(202).json({ trainId: id, step: "train-playbook", status: "running", videoCount: files.length });
+  }
+);
+
+router.get("/train-playbook/:id/result", (req, res) => {
+  let dir;
+  try {
+    dir = resolveBatchDir(req.params.id);
+  } catch (err) {
+    if (err instanceof InvalidBatchIdError) return res.status(400).json({ error: err.message });
+    throw err;
+  }
+  if (!existsSync(dir)) return res.status(404).json({ error: "Not found" });
+  const playbookPath = join(dir, "playbook.json");
+  const playbook = existsSync(playbookPath) ? JSON.parse(readFileSync(playbookPath, "utf-8")).playbook : null;
+  res.json({ status: readJobStatus(dir), playbook });
 });
 
 // Channel profiles — see lib/profiles.mjs doc comment. Not scoped under
@@ -505,6 +604,30 @@ router.post("/projects/:id/investigation-plan", withProjectDir, (req, res) => {
     });
 
   res.status(202).json({ step: "investigation-plan", status: "running" });
+});
+
+// "Dán kịch bản có sẵn" — user's own already-written script, model ONLY cuts scene
+// boundaries (see script-scene-cutter.mjs's own doc comment on why narration is
+// reconstructed in code, never retyped by the model). Same "fake plan done, leave
+// audio real" pattern as /investigation-plan above.
+router.post("/projects/:id/script-plan", withProjectDir, (req, res) => {
+  const { scriptText, targetDuration, platform, model, profileSlug } = req.body ?? {};
+  if (!scriptText?.trim()) return res.status(400).json({ error: "scriptText is required" });
+  setProjectProfile(req.projectDir, profileSlug);
+
+  runStep(req.projectDir, "script-plan", (onEvent, signal) =>
+    queues.dashscope.run(() =>
+      runScriptSceneCutter({ projectDir: req.projectDir, scriptText, targetDuration, platform, model, onEvent, signal })
+    )
+  )
+    .then(() => {
+      emitProgress(req.projectDir, { step: "plan", status: "done" });
+    })
+    .catch(() => {
+      /* already recorded as a "script-plan" error by runStep — "plan" stays unmarked */
+    });
+
+  res.status(202).json({ step: "script-plan", status: "running" });
 });
 
 // Remix — clones a style="sub" project into a NEW project dir, reusing its AI images

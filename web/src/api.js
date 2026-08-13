@@ -78,4 +78,23 @@ export const api = {
   },
   // "Bảng điều tra" tab — see components/Investigation.jsx.
   runInvestigationPlan: (id, params) => request(`/projects/${encodeURIComponent(id)}/investigation-plan`, { method: "POST", body: JSON.stringify(params ?? {}) }),
+  // "Dán kịch bản có sẵn" tab — see components/ScriptImport.jsx.
+  runScriptPlan: (id, params) => request(`/projects/${encodeURIComponent(id)}/script-plan`, { method: "POST", body: JSON.stringify(params ?? {}) }),
+  // "Training" Content playbook — see components/ProfileManager.jsx.
+  trainPlaybook: (params) => request("/train-playbook", { method: "POST", body: JSON.stringify(params) }),
+  getTrainPlaybookResult: (trainId) => request(`/train-playbook/${encodeURIComponent(trainId)}/result`),
+  // Training từ 1-5 video đối thủ — multipart, same reasoning as runAudioImport
+  // above for not using request().
+  trainPlaybookFromVideos: async (files, params) => {
+    const form = new FormData();
+    for (const file of files) form.append("videos", file);
+    for (const [key, value] of Object.entries(params ?? {})) {
+      if (value !== undefined && value !== "") form.append(key, value);
+    }
+    const res = await fetch(`${API_BASE}/train-playbook-videos`, { method: "POST", body: form });
+    const isJson = res.headers.get("content-type")?.includes("application/json");
+    const body = isJson ? await res.json() : await res.text();
+    if (!res.ok) throw new Error(body?.error || `${res.status} ${res.statusText}`);
+    return body;
+  },
 };

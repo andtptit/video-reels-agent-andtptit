@@ -70,6 +70,9 @@ const PROFILE_FIELDS = [
   "footageSpeedEnabled",
   "footageSpeedMin",
   "footageSpeedMax",
+  "footageZoomEnabled",
+  "footageZoomMin",
+  "footageZoomMax",
   // Batch idea-generation prefill only (see components/Batch.jsx) — pure convenience,
   // never required. `defaultAudience` bends the "audience is per-video, not
   // per-channel" rule this file's own doc comment states, but only as an editable

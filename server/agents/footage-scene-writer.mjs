@@ -60,7 +60,8 @@ export async function runFootageWriter({
   sceneTiming, // matching scenes-with-timing.json.scenes entry — narration + _audio.scene_duration
   format,
   footageConfig, // { minClipsPerScene, maxClipsPerScene, minClipSeconds, maxClipSeconds,
-  // flipEnabled, speedEnabled, speedMin, speedMax, fontFamily, libraryDir } — see build-footage-plan.mjs
+  // flipEnabled, speedEnabled, speedMin, speedMax, zoomEnabled, zoomMin, zoomMax,
+  // fontFamily, libraryDir } — see build-footage-plan.mjs
   onEvent,
   signal,
 }) {
@@ -73,6 +74,9 @@ export async function runFootageWriter({
     speedEnabled = false,
     speedMin = 1.0,
     speedMax = 1.3,
+    zoomEnabled = false,
+    zoomMin = 1.05,
+    zoomMax = 1.15,
     fontFamily,
     libraryDir,
   } = footageConfig ?? {};
@@ -94,23 +98,40 @@ export async function runFootageWriter({
   if (!existsSync(finalVideoAbsPath)) {
     const clipCount = Math.round(randomInRange(minClipsPerScene, maxClipsPerScene));
     const clipDurations = splitDuration(sceneDuration, clipCount, minClipSeconds, maxClipSeconds);
-    const picks = await pickRandomClips({ projectDir, count: clipCount, libraryDir: resolvedLibraryDir });
+    // Found live (user report): with `includeImages` omitted (the original,
+    // unchanged default), a folder containing only still images scanned as
+    // completely empty ("Kho footage rỗng") even with 100+ files in it — this
+    // template's own pool was always video-only by design (see this file's own doc
+    // comment history), unlike the "Đọc Caption" tab (hook-scene-writer.mjs), which
+    // already mixes images in. User wants the same mixing here — pass
+    // includeImages: true and handle `pick.durationSec === null` (image) the same
+    // way hook-scene-writer.mjs does below.
+    const picks = await pickRandomClips({ projectDir, count: clipCount, libraryDir: resolvedLibraryDir, includeImages: true });
 
     const tempClipPaths = [];
     for (let i = 0; i < clipCount; i++) {
       const pick = picks[i % picks.length]; // guard: pool smaller than clipCount shouldn't happen given hundreds of files, but never crash on it
       const outputDurationSec = clipDurations[i];
       const flip = flipEnabled && Math.random() < 0.5;
-      const speedFactor = speedEnabled ? randomInRange(speedMin, speedMax) : 1;
+      // A still image has no source timeline to seek into or speed up — durationSec
+      // is null for image picks (see footage-library.mjs), so skip the raw-cut/
+      // startSec math entirely rather than dividing by/comparing against null.
+      const isImage = pick.durationSec === null;
+      const speedFactor = !isImage && speedEnabled ? randomInRange(speedMin, speedMax) : 1;
 
       // Clamp the raw source cut to what the file actually has available — a source
       // shorter than `outputDurationSec * speedFactor` would otherwise make ffmpeg
       // fail outright; recompute the effective speed to match what's actually cut so
       // the output still lands on `outputDurationSec`.
       const desiredRawCut = outputDurationSec * speedFactor;
-      const rawCut = Math.min(desiredRawCut, pick.durationSec);
-      const effectiveSpeedFactor = rawCut / outputDurationSec;
-      const startSec = Math.max(0, Math.random() * (pick.durationSec - rawCut));
+      const rawCut = isImage ? outputDurationSec : Math.min(desiredRawCut, pick.durationSec);
+      const effectiveSpeedFactor = isImage ? 1 : rawCut / outputDurationSec;
+      const startSec = isImage ? 0 : Math.max(0, Math.random() * (pick.durationSec - rawCut));
+      // Random direction per clip (not just random magnitude) — applies to both
+      // images and video, same as flip; see ffmpeg-cli.mjs's cutClip for how "in"
+      // vs "out" gets baked into the crop ramp.
+      const zoomFactor = zoomEnabled ? randomInRange(zoomMin, zoomMax) : 1;
+      const zoomDirection = Math.random() < 0.5 ? "in" : "out";
 
       const destPath = clipCount === 1 ? finalVideoAbsPath : join(footageDir, `scene_${padded}_clip${i}.mp4`);
       await cutClip({
@@ -121,10 +142,22 @@ export async function runFootageWriter({
         width,
         height,
         flip,
+        zoomFactor,
+        zoomDirection,
         speedFactor: effectiveSpeedFactor,
         signal,
       });
-      onEvent?.({ type: "footage-clip", sourceFile: pick.file, startSec, outputDurationSec, flip, speedFactor: effectiveSpeedFactor });
+      onEvent?.({
+        type: "footage-clip",
+        sourceFile: pick.file,
+        kind: pick.kind,
+        startSec,
+        outputDurationSec,
+        flip,
+        speedFactor: effectiveSpeedFactor,
+        zoomFactor,
+        zoomDirection: zoomEnabled ? zoomDirection : undefined,
+      });
       if (clipCount > 1) tempClipPaths.push(destPath);
     }
 

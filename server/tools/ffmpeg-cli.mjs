@@ -26,6 +26,75 @@ const CONCAT_TIMEOUT_MS = 30_000;
 // circular dependency for the sake of one small constant.
 const IMAGE_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".webp"]);
 
+// Output frame rate — both the encoder (`-r`) and the zoom filter's own frame-count
+// math below are pinned to this same value so `n` (the crop filter's per-frame
+// counter) reliably corresponds to `elapsedSeconds * OUTPUT_FPS`, regardless of the
+// source's own native frame rate.
+const OUTPUT_FPS = 30;
+
+/**
+ * Builds a "digital zoom" filter that ramps linearly over `durationSec`, driven by
+ * `n` (frame index — always 0-based per filter invocation, unlike `t` which can
+ * start at a non-zero offset after input-side `-ss` seeking) rather than zoompan's
+ * own frame-count/hold semantics, which behave differently for a looped still image
+ * vs. a real video source and are a frequent source of silent off-by-one/no-op bugs.
+ *
+ * Grows/shrinks the frame via `scale` (continuously, `eval=frame`) to a size that
+ * changes every frame, THEN crops a FIXED window (constant `${width}x${height}`,
+ * no time-varying expression) out of the center. Found live this is meaningfully
+ * SMOOTHER than the more obvious "shrink a crop window, then scale it back up"
+ * approach: `crop`'s own w/h expressions (verified via consecutive-frame PSNR —
+ * alternating ~28dB/~89dB pairs, i.e. some frames visually frozen then a visible
+ * jump) update in coarse, unevenly-spaced steps for small per-frame deltas, while
+ * `scale` has an explicit `eval=frame` option (crop has none) and produces
+ * consistent ~30-34dB pairs — no frozen frames — for the same zoom range. Moving
+ * the only per-frame arithmetic onto `scale` and leaving `crop`'s own w/h as plain
+ * constants (only its default centered x/y adapts, driven by scale's already-smooth
+ * output size) sidesteps whatever coarser rounding `crop` applies to expression-
+ * evaluated dimensions.
+ *
+ * "in" grows 1.0 → zoomFactor (image/footage appears to move closer); "out" starts
+ * at zoomFactor and shrinks back to 1.0 (pulls back). Both directions produce the
+ * SAME scale/crop shape, just opposite progressions of the same expression.
+ *
+ * @param {number} width - target canvas width (post scale/crop normalization)
+ * @param {number} height - target canvas height
+ * @param {number} durationSec - how long the ramp should take to complete — MUST be
+ *   the duration of the clip AT THE POINT this filter sits in the chain (i.e. the
+ *   raw pre-speed-change duration if placed before `setpts`, not the final sped-up
+ *   output duration — see cutClip's own call site for why)
+ * @param {number} zoomFactor - e.g. 1.15 = 15% max zoom
+ * @param {"in"|"out"} direction
+ * @returns {string} filter chain segment (no leading/trailing comma)
+ */
+// Confirmed live: if the crop area evaluates to EXACTLY the input's own
+// width/height on frame 0 (i.e. zoom starts at a literal no-op crop), this ffmpeg
+// build's crop filter silently stops re-evaluating w/h/x/y for every subsequent
+// frame — the whole clip renders as if zoom were never applied, no error anywhere
+// (a "zoom in" clip, which starts at zoom=1.0 exactly, hit this; "zoom out",
+// which never touches exactly 1.0 until its very last frame, didn't). Keeping the
+// least-zoomed end of the ramp at 1+ZOOM_EPSILON instead of a literal 1.0 avoids
+// the no-op crop entirely — imperceptible on screen, but keeps the filter's
+// per-frame re-evaluation alive for the whole clip. Still applies with the scale-
+// based approach below (scale itself has the same identity-value risk).
+const ZOOM_EPSILON = 0.02;
+
+function buildZoomFilter(width, height, durationSec, zoomFactor, direction) {
+  const totalFrames = Math.max(1, Math.round(durationSec * OUTPUT_FPS));
+  const minZoom = 1 + ZOOM_EPSILON;
+  // `\,` escapes the comma inside min(...) so ffmpeg's filtergraph parser doesn't
+  // mistake it for a new filter separator (it operates on the whole -vf string,
+  // not aware of parens/quotes inside a single filter's option value).
+  const progress = `min(n/${totalFrames}\\,1)`;
+  const zoomExpr =
+    direction === "out"
+      ? `(${zoomFactor}-(${zoomFactor}-${minZoom})*${progress})`
+      : `(${minZoom}+(${zoomFactor}-${minZoom})*${progress})`;
+  const scaledW = `'${width}*${zoomExpr}'`;
+  const scaledH = `'${height}*${zoomExpr}'`;
+  return `scale=w=${scaledW}:h=${scaledH}:eval=frame,crop=w=${width}:h=${height}`;
+}
+
 function throwIfCancelled(err, signal) {
   if (signal?.aborted) throw signal.reason instanceof CancelledError ? signal.reason : new CancelledError();
   throw err;
@@ -76,13 +145,35 @@ export async function probeDuration(filePath, { signal } = {}) {
  *   `outputDurationSec * speedFactor` seconds (caller must ensure the source has that
  *   much material available from `startSec`), sped up via `setpts` to land back on
  *   exactly `outputDurationSec`.
+ * @param {number} [params.zoomFactor] - e.g. 1.15 = max 15% zoom; omit/1 for no zoom.
+ *   Applies to BOTH images and video.
+ * @param {"in"|"out"} [params.zoomDirection] - "in" grows across the clip, "out"
+ *   starts zoomed and shrinks back. Ignored if zoomFactor is omitted/1.
  * @param {AbortSignal} [params.signal]
  */
-export async function cutClip({ srcPath, destPath, startSec, outputDurationSec, width, height, flip = false, speedFactor = 1, signal }) {
-  const filters = [`scale=${width}:${height}:force_original_aspect_ratio=increase`, `crop=${width}:${height}`];
-  if (flip) filters.push("hflip");
+export async function cutClip({
+  srcPath,
+  destPath,
+  startSec,
+  outputDurationSec,
+  width,
+  height,
+  flip = false,
+  speedFactor = 1,
+  zoomFactor = 1,
+  zoomDirection = "in",
+  signal,
+}) {
+  // `fps=OUTPUT_FPS` up front makes the zoom filter's own frame-count math (`n`
+  // inside buildZoomFilter) exact regardless of the source's native frame rate —
+  // without it, a still image's default demux rate (or a video shot at 24/60fps)
+  // would desync the zoom ramp from real elapsed time. The later `-r` output flag
+  // becomes a no-op confirmation at that point, not load-bearing on its own anymore.
+  const filters = [`fps=${OUTPUT_FPS}`, `scale=${width}:${height}:force_original_aspect_ratio=increase`, `crop=${width}:${height}`];
 
   if (IMAGE_EXTENSIONS.has(extname(srcPath).toLowerCase())) {
+    if (zoomFactor > 1) filters.push(buildZoomFilter(width, height, outputDurationSec, zoomFactor, zoomDirection));
+    if (flip) filters.push("hflip");
     try {
       await execFileAsync(
         "ffmpeg",
@@ -93,7 +184,7 @@ export async function cutClip({ srcPath, destPath, startSec, outputDurationSec, 
           "-t", String(outputDurationSec),
           "-vf", filters.join(","),
           "-an",
-          "-r", "30",
+          "-r", String(OUTPUT_FPS),
           "-c:v", "libx264",
           "-preset", "veryfast",
           "-pix_fmt", "yuv420p",
@@ -108,6 +199,15 @@ export async function cutClip({ srcPath, destPath, startSec, outputDurationSec, 
   }
 
   const rawCutDurationSec = outputDurationSec * speedFactor;
+  // Zoom BEFORE setpts, sized to rawCutDurationSec (not outputDurationSec) — setpts
+  // only relabels PTS timestamps, it doesn't drop/duplicate frames, so the frame
+  // COUNT flowing through the zoom filter (and therefore its `n`-based progress) is
+  // still based on the RAW pre-speed-change duration regardless of chain position.
+  // Sizing the ramp to that same raw duration makes the zoom complete exactly when
+  // the (now sped-up) clip reaches its final outputDurationSec, instead of
+  // finishing early/late and holding at the extreme for the remainder.
+  if (zoomFactor > 1) filters.push(buildZoomFilter(width, height, rawCutDurationSec, zoomFactor, zoomDirection));
+  if (flip) filters.push("hflip");
   if (speedFactor !== 1) filters.push(`setpts=${(1 / speedFactor).toFixed(6)}*PTS`);
 
   try {
@@ -128,7 +228,7 @@ export async function cutClip({ srcPath, destPath, startSec, outputDurationSec, 
         "-vf", filters.join(","),
         "-an", // no audio — sub karaoke doesn't need the footage's own sound, and no
         // <audio> companion element is written for this style (see footage-style.mjs)
-        "-r", "30",
+        "-r", String(OUTPUT_FPS),
         "-c:v", "libx264",
         "-preset", "veryfast",
         "-pix_fmt", "yuv420p",

@@ -78,6 +78,9 @@ export async function runHookSceneWriter({
     speedEnabled = false,
     speedMin = 1.0,
     speedMax = 1.3,
+    zoomEnabled = false,
+    zoomMin = 1.05,
+    zoomMax = 1.15,
     fontFamily,
   } = footageConfig ?? {};
 
@@ -121,6 +124,8 @@ export async function runHookSceneWriter({
       const rawCut = isImage ? outputDurationSec : Math.min(desiredRawCut, pick.durationSec);
       const effectiveSpeedFactor = isImage ? 1 : rawCut / outputDurationSec;
       const startSec = isImage ? 0 : Math.max(0, Math.random() * (pick.durationSec - rawCut));
+      const zoomFactor = zoomEnabled ? randomInRange(zoomMin, zoomMax) : 1;
+      const zoomDirection = Math.random() < 0.5 ? "in" : "out";
 
       const destPath = clipCount === 1 ? finalVideoAbsPath : join(footageDir, `scene_01_clip${i}.mp4`);
       await cutClip({
@@ -131,10 +136,22 @@ export async function runHookSceneWriter({
         width,
         height,
         flip,
+        zoomFactor,
+        zoomDirection,
         speedFactor: effectiveSpeedFactor,
         signal,
       });
-      onEvent?.({ type: "footage-clip", sourceFile: pick.file, kind: pick.kind, startSec, outputDurationSec, flip, speedFactor: effectiveSpeedFactor });
+      onEvent?.({
+        type: "footage-clip",
+        sourceFile: pick.file,
+        kind: pick.kind,
+        startSec,
+        outputDurationSec,
+        flip,
+        speedFactor: effectiveSpeedFactor,
+        zoomFactor,
+        zoomDirection: zoomEnabled ? zoomDirection : undefined,
+      });
       if (clipCount > 1) tempClipPaths.push(destPath);
     }
 

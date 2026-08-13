@@ -486,6 +486,9 @@ export function Batch({ onProjectCreated }) {
                 speedEnabled: Boolean(profile.footageSpeedEnabled),
                 speedMin: Number(profile.footageSpeedMin ?? 1.0),
                 speedMax: Number(profile.footageSpeedMax ?? 1.3),
+                zoomEnabled: Boolean(profile.footageZoomEnabled),
+                zoomMin: Number(profile.footageZoomMin ?? 1.05),
+                zoomMax: Number(profile.footageZoomMax ?? 1.15),
                 fontFamily: profile.fontFamily,
               }
             : undefined,
