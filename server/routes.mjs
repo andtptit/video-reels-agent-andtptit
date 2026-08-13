@@ -31,7 +31,9 @@ import { runRootComposer } from "./agents/root-composer.mjs";
 import { runCaptionWriter } from "./agents/caption-writer.mjs";
 import { buildFootagePlan } from "./pipeline/build-footage-plan.mjs";
 import { runFootageWriter } from "./agents/footage-scene-writer.mjs";
-import { scanFootageLibrary } from "./lib/footage-library.mjs";
+import { scanFootageLibrary, resolveLibraryDir } from "./lib/footage-library.mjs";
+import { searchAndSaveVideos } from "./providers/video/pexels-video.mjs";
+import { chatCompletion } from "./providers/llm/dashscope.mjs";
 import { render } from "./tools/hyperframes-cli.mjs";
 import { readJobStatus, runStep, getEmitter, emitProgress, setProjectProfile } from "./jobs/job-status.mjs";
 import { queues } from "./jobs/queue.mjs";
@@ -41,7 +43,7 @@ import { createBatchDir, resolveBatchDir, InvalidBatchIdError } from "./lib/batc
 import { readIdeaHistory, appendIdeaHistory } from "./lib/idea-history.mjs";
 import { runIdeaGenerator } from "./agents/idea-generator.mjs";
 import { generateImage } from "./providers/image/dashscope-image.mjs";
-import { cancelStep } from "./jobs/cancel-registry.mjs";
+import { cancelStep, CancelledError } from "./jobs/cancel-registry.mjs";
 // "Đọc Caption" tab — fully separate video format (no voiceover, blurred footage
 // card + static hook/CTA text), own profile store. See plan.md.
 import { listHookProfiles, saveHookProfile, deleteHookProfile } from "./lib/hook-profiles.mjs";
@@ -219,12 +221,22 @@ router.get("/test-content-plan/:id/result", (req, res) => {
 // thật, không cần lưu profile trước). Xem playbook-trainer.mjs's doc comment cho lý
 // do trích xuất pattern trừu tượng thay vì chép nguyên văn mẫu.
 router.post("/train-playbook", (req, res) => {
-  const { description, sampleScript, existingPlaybook, model } = req.body ?? {};
-  if (!sampleScript?.trim()) return res.status(400).json({ error: "sampleScript is required" });
+  // `sampleScripts` (array, up to 5 — same cap as the video-training path below) is
+  // the real param; `sampleScript` (singular) still accepted for back-compat with
+  // any in-flight client build. Found live (user request): the paste-text path was
+  // artificially capped at exactly 1 sample even though runPlaybookTrainer itself
+  // already supports multiple (its own multi-sample "keep only repeated patterns"
+  // logic was written for this from the start) — the video-upload path already
+  // exposed 1-5, this just closes the same door on the text path.
+  const { description, sampleScript, sampleScripts, existingPlaybook, model } = req.body ?? {};
+  const samples = (Array.isArray(sampleScripts) ? sampleScripts : sampleScript ? [sampleScript] : [])
+    .filter((s) => typeof s === "string" && s.trim())
+    .slice(0, 5);
+  if (!samples.length) return res.status(400).json({ error: "Cần ít nhất 1 kịch bản mẫu" });
 
   const { id, dir } = createBatchDir();
   runInBackground(dir, "train-playbook", (onEvent, signal) =>
-    queues.dashscope.run(() => runPlaybookTrainer({ batchDir: dir, description, sampleScripts: [sampleScript], existingPlaybook, model, onEvent, signal }))
+    queues.dashscope.run(() => runPlaybookTrainer({ batchDir: dir, description, sampleScripts: samples, existingPlaybook, model, onEvent, signal }))
   );
   res.status(202).json({ trainId: id, step: "train-playbook", status: "running" });
 });
@@ -1174,6 +1186,93 @@ router.get("/footage-library/scan", async (req, res) => {
     res.json({ count: files.length, images, videos });
   } catch (err) {
     res.json({ count: 0, images: 0, videos: 0, error: err.message });
+  }
+});
+
+// Fetches real stock footage straight from Pexels Videos into a footage-library
+// folder by keyword — same PEXELS_API_KEY already used for still photos
+// (providers/image/pexels.mjs), just a different endpoint/response shape. Found
+// live (user request): the env var already existed but nothing called the video
+// search endpoint, so "footage" template users had no way to populate a folder
+// except manually downloading clips one by one. Synchronous (not runInBackground/
+// SSE) — a handful of short HTTP downloads, not an LLM call, no need for the
+// job-status machinery.
+router.post("/footage-library/fetch-pexels", async (req, res) => {
+  const { query, dir, format, count } = req.body ?? {};
+  // `query` may be a single string OR an array of keywords (comma-separated text
+  // from the client is split there before this route sees it) — see
+  // pexels-video.mjs's own doc comment for why several narrow keywords each
+  // searched separately beats one broad LLM-suggested phrase.
+  const keywords = (Array.isArray(query) ? query : [query]).map((q) => q?.trim()).filter(Boolean);
+  if (!keywords.length) return res.status(400).json({ error: "query is required" });
+  if (!dir?.trim()) return res.status(400).json({ error: "dir is required" });
+  // Multiple keywords × count each can genuinely take a while (each is its own
+  // search + N sequential downloads) — found live (user request): with no way to
+  // stop mid-fetch, a bad keyword pick meant sitting through the whole thing. The
+  // client aborts its own fetch() on "Dừng"; that alone doesn't stop OUR work
+  // server-side (Express keeps executing the handler), so tie an AbortController to
+  // `res`'s own "close" event and pass it into searchAndSaveVideos, which already
+  // threads a signal through to every download (see pexels-video.mjs). MUST be
+  // `res.on("close")`, not `req.on("close")` — confirmed live: the request stream's
+  // own "close" fires as soon as its (already-buffered, tiny JSON) body finishes
+  // being read, well before any real client disconnect, aborting every request
+  // instantly. `res` only closes when the underlying connection actually ends.
+  const controller = new AbortController();
+  res.on("close", () => {
+    if (!res.writableEnded) controller.abort();
+  });
+  try {
+    const destDir = resolveLibraryDir(dir.trim());
+    const result = await searchAndSaveVideos({ query: keywords, format, count, destDir, signal: controller.signal });
+    if (!res.writableEnded) res.json(result);
+  } catch (err) {
+    if (!res.writableEnded) res.status(err instanceof CancelledError ? 499 : 500).json({ error: err.message });
+  }
+});
+
+// Suggests an English search keyword for the Pexels Videos fetch above, derived from
+// the profile's own channelTheme/contentPlaybook — Pexels search works far better in
+// English than Vietnamese, and users setting up a channel profile shouldn't have to
+// hand-translate their own niche description into stock-footage search terms
+// themselves. One-shot chatCompletion (not the full agent/tool loop — nothing to
+// write to disk here), CHEAP_MODEL since this is a short answer, not real content.
+//
+// Returns SEVERAL short keywords (not 1 broad phrase) — found live (user feedback):
+// a single specific phrase like "man working hard" matches far fewer real Pexels
+// videos than several short, generic keywords (gym, running, discipline...) each
+// searched separately. See pexels-video.mjs's searchAndSaveVideos for the "1 call
+// per keyword" fetch side of this.
+router.post("/footage-library/suggest-keyword", async (req, res) => {
+  const { channelTheme, contentPlaybook } = req.body ?? {};
+  if (!channelTheme?.trim() && !contentPlaybook?.trim()) {
+    return res.status(400).json({ error: "Cần có channelTheme hoặc contentPlaybook để gợi ý từ khoá" });
+  }
+  try {
+    const response = await chatCompletion({
+      model: CHEAP_MODEL,
+      messages: [
+        {
+          role: "user",
+          content: `Kênh video ngắn có chủ đề: "${channelTheme ?? ""}"${
+            contentPlaybook?.trim() ? `\nĐịnh hướng nội dung: "${contentPlaybook.trim()}"` : ""
+          }\n\nGợi ý 5-10 từ khoá tiếng Anh NGẮN (1-2 từ mỗi từ khoá, vd "gym", "running", "hard work", "discipline") để
+tìm B-roll/stock footage trên Pexels Videos cho kênh này — mỗi từ khoá sẽ được search
+RIÊNG LẺ nên phải đủ PHỔ BIẾN/CHUNG CHUNG để ra nhiều kết quả thật trên Pexels, KHÔNG
+ghép thành 1 cụm dài cụ thể (vd "man working hard in the morning" là SAI — quá cụ thể,
+gần như không ra kết quả). Chỉ trả về đúng danh sách từ khoá, cách nhau bằng dấu phẩy,
+không đánh số, không giải thích, không dấu ngoặc kép.`,
+        },
+      ],
+    });
+    const raw = response.choices?.[0]?.message?.content?.trim() ?? "";
+    const keywords = raw
+      .split(",")
+      .map((k) => k.trim().replace(/^["']|["']$/g, ""))
+      .filter(Boolean);
+    if (!keywords.length) return res.status(500).json({ error: "Model không trả về từ khoá" });
+    res.json({ keywords });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 

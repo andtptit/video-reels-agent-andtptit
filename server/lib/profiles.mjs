@@ -73,6 +73,10 @@ const PROFILE_FIELDS = [
   "footageZoomEnabled",
   "footageZoomMin",
   "footageZoomMax",
+  // "none" | "dark" | "dark-dramatic" — see tools/ffmpeg-cli.mjs's COLOR_GRADES.
+  "footageColorGrade",
+  // "bottom" | "center" — see lib/karaoke-captions.mjs's `position` param.
+  "captionPosition",
   // Batch idea-generation prefill only (see components/Batch.jsx) — pure convenience,
   // never required. `defaultAudience` bends the "audience is per-video, not
   // per-channel" rule this file's own doc comment states, but only as an editable

@@ -26,6 +26,18 @@ const CONCAT_TIMEOUT_MS = 30_000;
 // circular dependency for the sake of one small constant.
 const IMAGE_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".webp"]);
 
+// "Color grade" presets for the "footage" template — found live (user request): a
+// moody/dark grade matches the "nghiêm túc, kỷ luật" (serious, disciplined) vibe of
+// motivation/gym-style profiles far better than the raw source color. `eq` handles
+// brightness/contrast/saturation; `colorbalance` pushes shadows/midtones toward
+// cool blue for the "dramatic" preset (a plain brightness drop alone just looks
+// underexposed, not intentional) — subtle enough not to need per-clip tuning.
+const COLOR_GRADES = {
+  none: null,
+  dark: "eq=brightness=-0.05:contrast=1.1:saturation=0.9",
+  "dark-dramatic": "eq=brightness=-0.1:contrast=1.25:saturation=0.75,colorbalance=rs=-0.05:gs=-0.02:bs=0.08:rm=-0.03:gm=-0.01:bm=0.05",
+};
+
 // Output frame rate — both the encoder (`-r`) and the zoom filter's own frame-count
 // math below are pinned to this same value so `n` (the crop filter's per-frame
 // counter) reliably corresponds to `elapsedSeconds * OUTPUT_FPS`, regardless of the
@@ -92,7 +104,12 @@ function buildZoomFilter(width, height, durationSec, zoomFactor, direction) {
       : `(${minZoom}+(${zoomFactor}-${minZoom})*${progress})`;
   const scaledW = `'${width}*${zoomExpr}'`;
   const scaledH = `'${height}*${zoomExpr}'`;
-  return `scale=w=${scaledW}:h=${scaledH}:eval=frame,crop=w=${width}:h=${height}`;
+  // `flags=lanczos` — found live (user report): ffmpeg's default scaler is
+  // bilinear, which looks visibly soft/blurry on a CONTINUOUS per-frame upscale
+  // (zooming in from 1.0x every frame is, in effect, a mild upscale every frame).
+  // Lanczos is sharper for exactly this case; the extra compute cost is negligible
+  // for a single 3-8s clip.
+  return `scale=w=${scaledW}:h=${scaledH}:eval=frame:flags=lanczos,crop=w=${width}:h=${height}`;
 }
 
 function throwIfCancelled(err, signal) {
@@ -149,6 +166,10 @@ export async function probeDuration(filePath, { signal } = {}) {
  *   Applies to BOTH images and video.
  * @param {"in"|"out"} [params.zoomDirection] - "in" grows across the clip, "out"
  *   starts zoomed and shrinks back. Ignored if zoomFactor is omitted/1.
+ * @param {"none"|"dark"|"dark-dramatic"} [params.colorGrade] - see COLOR_GRADES
+ *   above. Applies to BOTH images and video, AFTER zoom/flip (order doesn't matter
+ *   for a global color filter, but keeping it last avoids re-deriving zoom's
+ *   already-correct crop window against a color-shifted frame).
  * @param {AbortSignal} [params.signal]
  */
 export async function cutClip({
@@ -162,6 +183,7 @@ export async function cutClip({
   speedFactor = 1,
   zoomFactor = 1,
   zoomDirection = "in",
+  colorGrade = "none",
   signal,
 }) {
   // `fps=OUTPUT_FPS` up front makes the zoom filter's own frame-count math (`n`
@@ -169,11 +191,16 @@ export async function cutClip({
   // without it, a still image's default demux rate (or a video shot at 24/60fps)
   // would desync the zoom ramp from real elapsed time. The later `-r` output flag
   // becomes a no-op confirmation at that point, not load-bearing on its own anymore.
-  const filters = [`fps=${OUTPUT_FPS}`, `scale=${width}:${height}:force_original_aspect_ratio=increase`, `crop=${width}:${height}`];
+  // `flags=lanczos` here too — same softness issue as buildZoomFilter's own scale,
+  // just for the base normalize-to-canvas-size step every clip goes through
+  // (source resolution rarely matches the target exactly, so this scale is doing
+  // real up/down-sampling work, not a no-op).
+  const filters = [`fps=${OUTPUT_FPS}`, `scale=${width}:${height}:force_original_aspect_ratio=increase:flags=lanczos`, `crop=${width}:${height}`];
 
   if (IMAGE_EXTENSIONS.has(extname(srcPath).toLowerCase())) {
     if (zoomFactor > 1) filters.push(buildZoomFilter(width, height, outputDurationSec, zoomFactor, zoomDirection));
     if (flip) filters.push("hflip");
+    if (COLOR_GRADES[colorGrade]) filters.push(COLOR_GRADES[colorGrade]);
     try {
       await execFileAsync(
         "ffmpeg",
@@ -208,6 +235,7 @@ export async function cutClip({
   // finishing early/late and holding at the extreme for the remainder.
   if (zoomFactor > 1) filters.push(buildZoomFilter(width, height, rawCutDurationSec, zoomFactor, zoomDirection));
   if (flip) filters.push("hflip");
+  if (COLOR_GRADES[colorGrade]) filters.push(COLOR_GRADES[colorGrade]);
   if (speedFactor !== 1) filters.push(`setpts=${(1 / speedFactor).toFixed(6)}*PTS`);
 
   try {

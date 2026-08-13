@@ -61,7 +61,7 @@ export async function runFootageWriter({
   format,
   footageConfig, // { minClipsPerScene, maxClipsPerScene, minClipSeconds, maxClipSeconds,
   // flipEnabled, speedEnabled, speedMin, speedMax, zoomEnabled, zoomMin, zoomMax,
-  // fontFamily, libraryDir } — see build-footage-plan.mjs
+  // colorGrade, captionPosition, fontFamily, libraryDir } — see build-footage-plan.mjs
   onEvent,
   signal,
 }) {
@@ -77,6 +77,8 @@ export async function runFootageWriter({
     zoomEnabled = false,
     zoomMin = 1.05,
     zoomMax = 1.15,
+    colorGrade = "none",
+    captionPosition = "bottom",
     fontFamily,
     libraryDir,
   } = footageConfig ?? {};
@@ -144,6 +146,7 @@ export async function runFootageWriter({
         flip,
         zoomFactor,
         zoomDirection,
+        colorGrade,
         speedFactor: effectiveSpeedFactor,
         signal,
       });
@@ -157,6 +160,7 @@ export async function runFootageWriter({
         speedFactor: effectiveSpeedFactor,
         zoomFactor,
         zoomDirection: zoomEnabled ? zoomDirection : undefined,
+        colorGrade: colorGrade !== "none" ? colorGrade : undefined,
       });
       if (clipCount > 1) tempClipPaths.push(destPath);
     }
@@ -181,6 +185,7 @@ export async function runFootageWriter({
     sceneDuration,
     narration: sceneTiming?.narration ?? "",
     ...(fontFamily ? { fontFamily } : {}),
+    captionPosition,
   });
 
   mkdirSync(join(projectDir, "compositions"), { recursive: true });

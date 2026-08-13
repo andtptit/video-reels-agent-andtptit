@@ -146,6 +146,8 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, autoRunOnLoad
   const [footageZoomEnabled, setFootageZoomEnabled] = useState(false);
   const [footageZoomMin, setFootageZoomMin] = useState(1.05);
   const [footageZoomMax, setFootageZoomMax] = useState(1.15);
+  const [footageColorGrade, setFootageColorGrade] = useState("none");
+  const [captionPosition, setCaptionPosition] = useState("bottom");
   const [footageLibraryCount, setFootageLibraryCount] = useState(null);
   // Empty = dùng kho chung assets/footage-library/ — override theo profile, cùng
   // pattern "Thư mục footage riêng" đã có ở tab Đọc Caption (Hook.jsx).
@@ -172,6 +174,39 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, autoRunOnLoad
     } finally {
       setFootageScanLoading(false);
     }
+  }
+
+  const [pexelsQuery, setPexelsQuery] = useState("");
+  const [pexelsCount, setPexelsCount] = useState(5); // per keyword — xem pexels-video.mjs
+  const [pexelsLoading, setPexelsLoading] = useState(false);
+  const [pexelsResult, setPexelsResult] = useState(null);
+  const pexelsAbortRef = useRef(null);
+
+  async function fetchPexelsFootage() {
+    if (!pexelsQuery.trim()) return;
+    setPexelsLoading(true);
+    setPexelsResult(null);
+    const controller = new AbortController();
+    pexelsAbortRef.current = controller;
+    try {
+      const dir = footageLibraryDir.trim() || "assets/footage-library";
+      const keywords = pexelsQuery.split(",").map((k) => k.trim()).filter(Boolean);
+      const r = await api.fetchPexelsFootage({ query: keywords, dir, format: platform, count: Number(pexelsCount) || 5 }, controller.signal);
+      setPexelsResult({ ...r, done: true });
+      // Refresh the count shown just above so the download is visible right away.
+      if (footageLibraryDir.trim()) await checkFootageLibraryDir();
+      else api.getFootageLibraryInfo().then((info) => setFootageLibraryCount(info.count)).catch(() => {});
+    } catch (err) {
+      if (err.name === "AbortError") setPexelsResult({ stopped: true });
+      else setPexelsResult({ error: err.message });
+    } finally {
+      setPexelsLoading(false);
+      pexelsAbortRef.current = null;
+    }
+  }
+
+  function stopPexelsFetch() {
+    pexelsAbortRef.current?.abort();
   }
 
   // Steps a Huỷ click was fired for but job-status hasn't confirmed stopped yet —
@@ -360,6 +395,8 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, autoRunOnLoad
     if (p.footageZoomEnabled !== undefined) setFootageZoomEnabled(p.footageZoomEnabled);
     if (p.footageZoomMin !== undefined) setFootageZoomMin(p.footageZoomMin);
     if (p.footageZoomMax !== undefined) setFootageZoomMax(p.footageZoomMax);
+    if (p.footageColorGrade !== undefined) setFootageColorGrade(p.footageColorGrade);
+    if (p.captionPosition !== undefined) setCaptionPosition(p.captionPosition);
   }
 
   function onSelectProfile(slug) {
@@ -384,7 +421,7 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, autoRunOnLoad
         footageLibraryDir: footageLibraryDir.trim() || undefined,
         footageMinClips, footageMaxClips, footageMinSeconds, footageMaxSeconds,
         footageFlipEnabled, footageSpeedEnabled, footageSpeedMin, footageSpeedMax,
-        footageZoomEnabled, footageZoomMin, footageZoomMax,
+        footageZoomEnabled, footageZoomMin, footageZoomMax, footageColorGrade, captionPosition,
       });
       const r = await api.listProfiles();
       setProfiles(r.profiles ?? []);
@@ -498,6 +535,8 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, autoRunOnLoad
                   zoomEnabled: footageZoomEnabled,
                   zoomMin: Number(footageZoomMin),
                   zoomMax: Number(footageZoomMax),
+                  colorGrade: footageColorGrade,
+                  captionPosition,
                   fontFamily,
                   libraryDir: footageLibraryDir.trim() || undefined,
                 }
@@ -707,6 +746,7 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, autoRunOnLoad
               <option value="Charm">Charm (thư pháp, thanh)</option>
               <option value="Sriracha">Sriracha (bút lông, khoẻ)</option>
               <option value="Amatic SC">Amatic SC (marker, cô đặc)</option>
+              <option value="Anton">Anton (đậm, cao, mạnh mẽ)</option>
             </select>
           ) : (
             <>
@@ -745,6 +785,7 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, autoRunOnLoad
                 <option value="Charm">Charm (thư pháp, thanh)</option>
                 <option value="Sriracha">Sriracha (bút lông, khoẻ)</option>
                 <option value="Amatic SC">Amatic SC (marker, cô đặc)</option>
+                <option value="Anton">Anton (đậm, cao, mạnh mẽ)</option>
               </select>
             </>
           )}
@@ -781,6 +822,34 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, autoRunOnLoad
                   </>
                 )}
               </p>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                <span>Tải footage từ Pexels:</span>
+                <input
+                  value={pexelsQuery}
+                  onChange={(e) => setPexelsQuery(e.target.value)}
+                  placeholder="các từ khoá NGẮN, cách nhau bởi dấu phẩy — vd: gym, running, discipline"
+                  style={{ minWidth: "300px" }}
+                />
+                <input type="number" min="1" max="30" value={pexelsCount} onChange={(e) => setPexelsCount(e.target.value)} style={{ width: "60px" }} title="Số clip tải MỖI từ khoá" />
+                <span className="muted">clip/từ khoá</span>
+                {pexelsLoading ? (
+                  <button type="button" onClick={stopPexelsFetch}>Dừng</button>
+                ) : (
+                  <button type="button" className="linklike" disabled={!pexelsQuery.trim()} onClick={fetchPexelsFootage}>
+                    Tải từ Pexels
+                  </button>
+                )}
+              </div>
+              {pexelsLoading && <p className="muted">Đang tải…</p>}
+              {pexelsResult && (
+                <p className={pexelsResult.error ? "error" : "muted"}>
+                  {pexelsResult.error
+                    ? pexelsResult.error
+                    : pexelsResult.stopped
+                      ? "Đã dừng — một số clip có thể đã kịp tải trước khi dừng."
+                      : `Xong! ${pexelsResult.byKeyword?.length ?? 1} từ khoá — tìm thấy ${pexelsResult.found} clip, tải mới ${pexelsResult.downloaded}, đã có sẵn ${pexelsResult.skipped}${pexelsResult.errors?.length ? `, lỗi ${pexelsResult.errors.length}` : ""} — vào thư mục ${footageLibraryDir.trim() || "assets/footage-library"}`}
+                </p>
+              )}
               <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
                 <span>Số clip/scene:</span>
                 <input type="number" min="1" value={footageMinClips} onChange={(e) => setFootageMinClips(e.target.value)} style={{ width: "60px" }} />
@@ -822,6 +891,21 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, autoRunOnLoad
                     <span>x</span>
                   </>
                 )}
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                <span>Màu sắc:</span>
+                <select value={footageColorGrade} onChange={(e) => setFootageColorGrade(e.target.value)} title="Lớp phủ màu cho footage — hợp vibe nghiêm túc/kỷ luật">
+                  <option value="none">Không</option>
+                  <option value="dark">Tối nhẹ</option>
+                  <option value="dark-dramatic">Tối kịch tính</option>
+                </select>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                <span>Vị trí sub:</span>
+                <select value={captionPosition} onChange={(e) => setCaptionPosition(e.target.value)} title="Vị trí phụ đề — giữa màn hình chữ to hơn, tối đa 3 từ/khung hình">
+                  <option value="bottom">Dưới đáy (mặc định)</option>
+                  <option value="center">Giữa màn hình (chữ to, tối đa 3 từ)</option>
+                </select>
               </div>
             </div>
           )}
@@ -1029,6 +1113,8 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, autoRunOnLoad
                           zoomEnabled: footageZoomEnabled,
                           zoomMin: Number(footageZoomMin),
                           zoomMax: Number(footageZoomMax),
+                          colorGrade: footageColorGrade,
+                          captionPosition,
                           fontFamily,
                           libraryDir: footageLibraryDir.trim() || undefined,
                         }
@@ -1078,6 +1164,8 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, autoRunOnLoad
                           zoomEnabled: footageZoomEnabled,
                           zoomMin: Number(footageZoomMin),
                           zoomMax: Number(footageZoomMax),
+                          colorGrade: footageColorGrade,
+                          captionPosition,
                           fontFamily,
                           libraryDir: footageLibraryDir.trim() || undefined,
                         }

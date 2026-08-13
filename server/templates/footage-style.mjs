@@ -32,6 +32,8 @@ const DEFAULT_FONT = "Itim"; // must match templates/sub-styles/image-full-focus
  * @param {number} params.sceneDuration - composition's data-duration
  * @param {string} [params.narration]
  * @param {string} [params.fontFamily]
+ * @param {"bottom"|"center"} [params.captionPosition] - see karaoke-captions.mjs's
+ *   own doc comment on `position`.
  * @returns {string} full standalone HTML document for compositions/scene_XX.html
  */
 export function render({
@@ -44,6 +46,7 @@ export function render({
   sceneDuration,
   narration = "",
   fontFamily = DEFAULT_FONT,
+  captionPosition = "bottom",
 }) {
   const p = classPrefix;
   const shadeHeight = Math.round(height * 0.27);
@@ -55,6 +58,7 @@ export function render({
     wordTimestamps,
     sceneDuration,
     narration,
+    position: captionPosition,
   });
 
   return `<!doctype html>

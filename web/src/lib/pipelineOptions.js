@@ -26,4 +26,5 @@ export const FONT_OPTIONS = [
   ["Charm", "Charm (thư pháp, thanh)"],
   ["Sriracha", "Sriracha (bút lông, khoẻ)"],
   ["Amatic SC", "Amatic SC (marker, cô đặc)"],
+  ["Anton", "Anton (đậm, cao, mạnh mẽ — hợp động lực/kỷ luật)"],
 ];

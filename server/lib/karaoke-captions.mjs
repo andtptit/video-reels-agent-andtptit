@@ -37,21 +37,41 @@ function escapeHtml(s) {
  * @param {number} [params.trackIndex] - clip track for caption chunks. Default 1
  *   matches image_full_focus's existing convention (bg image on track 0); styles
  *   with more than one image layer must pass a track index past their own images'.
+ * @param {"bottom"|"center"} [params.position] - "bottom" (default) is the original
+ *   karaoke-strip placement; "center" is a big-text mode found live (user request,
+ *   "footage" template's motivation/discipline-style profiles) — much larger font,
+ *   vertically centered, capped at 3 words/chunk (vs. bottom's 6) since a huge
+ *   centered block reads worse with more words on screen at once. Never covers the
+ *   background on purpose (that's footage, not a fixed image) — user explicitly
+ *   confirmed this is fine for this template.
  * @returns {{css: string, html: string, wordTweensJs: string}}
  */
-export function renderKaraokeCaptions({ classPrefix, width, height, wordTimestamps, sceneDuration, narration = "", trackIndex = 1 }) {
+export function renderKaraokeCaptions({
+  classPrefix,
+  width,
+  height,
+  wordTimestamps,
+  sceneDuration,
+  narration = "",
+  trackIndex = 1,
+  position = "bottom",
+}) {
   const p = classPrefix;
+  const centered = position === "center";
 
   // Bumped from 0.046/0.073 — user compared against a competitor reference video
   // (caption sits noticeably higher and larger) and confirmed +30% font size /
   // +~92% bottom offset, applied to all 3 sub-styles since they share this helper.
-  const fontSize = Math.round(width * 0.06);
-  const strokeWidth = Math.max(2, Math.round(width * 0.0028));
-  const sidePadding = Math.round(width * 0.074);
+  // "center" mode goes noticeably bigger still (0.11 vs 0.06) — it's the ONLY thing
+  // on screen at that moment (no bottom-strip crowding), same reasoning short-form
+  // "big word" caption styles (CapCut-style) use.
+  const fontSize = Math.round(width * (centered ? 0.11 : 0.06));
+  const strokeWidth = Math.max(2, Math.round(width * (centered ? 0.004 : 0.0028)));
+  const sidePadding = Math.round(width * (centered ? 0.1 : 0.074));
   const bottomPadding = Math.round(height * 0.14);
 
   const words = wordTimestamps.length ? wordTimestamps : [{ word: "", start: 0, end: sceneDuration }];
-  const chunks = chunkWords(words, narration);
+  const chunks = chunkWords(words, narration, { maxWordsPerChunk: centered ? 3 : 6 });
 
   let globalWordIndex = 0;
   const wordTweens = [];
@@ -93,14 +113,20 @@ export function renderKaraokeCaptions({ classPrefix, width, height, wordTimestam
     })
     .join("\n      ");
 
+  const areaPosition = centered
+    ? `top: 50%; transform: translateY(-50%);`
+    : `bottom: ${bottomPadding}px;`;
+  const textPosition = centered ? `top: 50%; transform: translateY(-50%);` : `bottom: 0;`;
+
   const css = `
-    .${p}-subtitle-area { position: absolute; left: 0; right: 0; bottom: ${bottomPadding}px; padding: 0 ${sidePadding}px; text-align: center; z-index: 2; }
+    .${p}-subtitle-area { position: absolute; left: 0; right: 0; ${areaPosition} padding: 0 ${sidePadding}px; text-align: center; z-index: 2; }
 
     .${p}-text {
-      position: absolute; left: 0; right: 0; bottom: 0;
-      font-size: ${fontSize}px; font-weight: 800; line-height: 1.6; color: ${BASE_COLOR};
+      position: absolute; left: 0; right: 0; ${textPosition}
+      font-size: ${fontSize}px; font-weight: 800; line-height: ${centered ? 1.25 : 1.6}; color: ${BASE_COLOR};
       letter-spacing: 1px; -webkit-text-stroke: ${strokeWidth}px #000000; paint-order: stroke fill;
       text-shadow: 0 4px 10px rgba(0,0,0,0.4);
+      text-transform: ${centered ? "uppercase" : "none"};
     }
 
     .${p}-word { display: inline-block; }`;

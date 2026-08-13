@@ -489,6 +489,8 @@ export function Batch({ onProjectCreated }) {
                 zoomEnabled: Boolean(profile.footageZoomEnabled),
                 zoomMin: Number(profile.footageZoomMin ?? 1.05),
                 zoomMax: Number(profile.footageZoomMax ?? 1.15),
+                colorGrade: profile.footageColorGrade ?? "none",
+                captionPosition: profile.captionPosition ?? "bottom",
                 fontFamily: profile.fontFamily,
               }
             : undefined,

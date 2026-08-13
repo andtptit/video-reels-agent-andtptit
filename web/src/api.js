@@ -61,6 +61,8 @@ export const api = {
   runHookScene: (id) => request(`/projects/${encodeURIComponent(id)}/hook/scene`, { method: "POST" }),
   runHookRoot: (id) => request(`/projects/${encodeURIComponent(id)}/hook/root`, { method: "POST" }),
   scanFootageFolder: (dir) => request(`/footage-library/scan?dir=${encodeURIComponent(dir)}`),
+  fetchPexelsFootage: (params, signal) => request("/footage-library/fetch-pexels", { method: "POST", body: JSON.stringify(params), signal }),
+  suggestFootageKeyword: (params) => request("/footage-library/suggest-keyword", { method: "POST", body: JSON.stringify(params) }),
   // "Tạo từ audio có sẵn" tab — see components/AudioImport.jsx. Can't reuse request()
   // here: it always sets Content-Type: application/json, but a multipart body needs
   // its boundary set BY the browser (setting Content-Type by hand breaks that).

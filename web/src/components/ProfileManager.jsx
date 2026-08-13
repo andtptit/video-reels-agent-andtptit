@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "../api.js";
 import { useEventStream } from "../useJobStatus.js";
 import { LiveLog } from "./LiveLog.jsx";
@@ -47,12 +47,19 @@ export function ProfileManager({ profiles, onProfilesChanged, startExpanded = fa
   // job (like TestScriptPreview's own "test-plan"), not tied to a saved profile —
   // works fine on a brand-new, not-yet-saved profile too.
   const [trainDescription, setTrainDescription] = useState("");
-  const [trainSampleScript, setTrainSampleScript] = useState("");
+  const [trainSampleScripts, setTrainSampleScripts] = useState([""]); // 1-5 mẫu, giống cap của nhánh video bên dưới
   const [trainVideos, setTrainVideos] = useState([]); // File[] — 1-5 video đối thủ
   const [trainId, setTrainId] = useState(null);
   const [training, setTraining] = useState(false);
   const [trainError, setTrainError] = useState(null);
   const [trainMsg, setTrainMsg] = useState(null);
+  // Found live (user report): training successfully fills "Content playbook" but
+  // only in local state — switching profile (dropdown) or "Tạo profile mới thay vì
+  // sửa" silently discarded it with zero warning if the user forgot to click "Lưu
+  // profile" first. Tracks exactly that one risky window; cleared on a successful
+  // save (any save, not just this field, since saveCurrentAsProfile always sends
+  // the full current state).
+  const [playbookUnsaved, setPlaybookUnsaved] = useState(false);
   // Scratch topic just to drive "Sinh kịch bản test" below — never saved to the
   // profile itself (ProfileManager has no real "idea" field, unlike a project).
   const [testIdea, setTestIdea] = useState("");
@@ -73,6 +80,8 @@ export function ProfileManager({ profiles, onProfilesChanged, startExpanded = fa
   const [footageZoomEnabled, setFootageZoomEnabled] = useState(false);
   const [footageZoomMin, setFootageZoomMin] = useState(1.05);
   const [footageZoomMax, setFootageZoomMax] = useState(1.15);
+  const [footageColorGrade, setFootageColorGrade] = useState("none");
+  const [captionPosition, setCaptionPosition] = useState("bottom");
   const [footageLibraryCount, setFootageLibraryCount] = useState(null);
   // Empty = dùng kho chung assets/footage-library/ — cùng pattern "Thư mục footage
   // riêng" đã có ở tab Đọc Caption (Hook.jsx) và tab Pipeline.
@@ -90,6 +99,16 @@ export function ProfileManager({ profiles, onProfilesChanged, startExpanded = fa
   const [testPromptError, setTestPromptError] = useState(null);
 
   useEffect(() => {
+    if (!playbookUnsaved) return;
+    const handler = (e) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [playbookUnsaved]);
+
+  useEffect(() => {
     if (!expanded) return;
     api.listMusicLibrary().then((r) => setMusicTracks(r.tracks ?? [])).catch(() => {});
   }, [expanded]);
@@ -99,20 +118,78 @@ export function ProfileManager({ profiles, onProfilesChanged, startExpanded = fa
     api.getFootageLibraryInfo().then((r) => setFootageLibraryCount(r.count)).catch(() => setFootageLibraryCount(null));
   }, [expanded, footageLibraryDir]);
 
-  async function checkFootageLibraryDir() {
-    if (!footageLibraryDir.trim()) {
+  async function checkFootageLibraryDir(dirOverride) {
+    const dir = (dirOverride ?? footageLibraryDir).trim();
+    if (!dir) {
       setFootageScan(null);
       return;
     }
     setFootageScanLoading(true);
     try {
-      const r = await api.scanFootageFolder(footageLibraryDir.trim());
+      const r = await api.scanFootageFolder(dir);
       setFootageScan(r);
     } catch (err) {
       setFootageScan({ count: 0, images: 0, videos: 0, error: err.message });
     } finally {
       setFootageScanLoading(false);
     }
+  }
+
+  const [pexelsQuery, setPexelsQuery] = useState("");
+  const [pexelsCount, setPexelsCount] = useState(5); // per keyword — vd 8 keyword × 5 = tới 40 clip
+  const [pexelsLoading, setPexelsLoading] = useState(false);
+  const [pexelsResult, setPexelsResult] = useState(null);
+  const [keywordLoading, setKeywordLoading] = useState(false);
+
+  async function suggestKeyword() {
+    setKeywordLoading(true);
+    setPexelsResult(null);
+    try {
+      const r = await api.suggestFootageKeyword({ channelTheme, contentPlaybook });
+      setPexelsQuery(r.keywords.join(", "));
+    } catch (err) {
+      setPexelsResult({ error: err.message });
+    } finally {
+      setKeywordLoading(false);
+    }
+  }
+
+  // Đây là nơi setup CHÍNH cho profile (không phải Pipeline.jsx) — nên sau khi tải
+  // xong, tự điền luôn "Thư mục footage" nếu đang trống, thay vì bắt user tự gõ tay
+  // đường dẫn vừa tải vào. Vẫn cần bấm "Lưu profile" ở trên để thực sự lưu lại, cùng
+  // quy ước với mọi field khác trong form này (không âm thầm ghi đè profile).
+  function slugifyFolderName(text) {
+    return (text || "kenh")
+      .normalize("NFD").replace(/[̀-ͯ]/g, "")
+      .toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-+|-+$)/g, "").slice(0, 40) || "kenh";
+  }
+
+  const pexelsAbortRef = useRef(null);
+
+  async function fetchPexelsFootage() {
+    if (!pexelsQuery.trim()) return;
+    setPexelsLoading(true);
+    setPexelsResult(null);
+    const controller = new AbortController();
+    pexelsAbortRef.current = controller;
+    try {
+      const dir = footageLibraryDir.trim() || `assets/footage-library/${slugifyFolderName(profileName || channelTheme)}`;
+      const keywords = pexelsQuery.split(",").map((k) => k.trim()).filter(Boolean);
+      const r = await api.fetchPexelsFootage({ query: keywords, dir, format: "9:16", count: Number(pexelsCount) || 20 }, controller.signal);
+      setPexelsResult({ ...r, done: true });
+      if (!footageLibraryDir.trim()) setFootageLibraryDir(dir);
+      await checkFootageLibraryDir(dir);
+    } catch (err) {
+      if (err.name === "AbortError") setPexelsResult({ stopped: true });
+      else setPexelsResult({ error: err.message });
+    } finally {
+      setPexelsLoading(false);
+      pexelsAbortRef.current = null;
+    }
+  }
+
+  function stopPexelsFetch() {
+    pexelsAbortRef.current?.abort();
   }
 
   function applyProfile(p) {
@@ -146,11 +223,22 @@ export function ProfileManager({ profiles, onProfilesChanged, startExpanded = fa
     if (p.footageZoomEnabled !== undefined) setFootageZoomEnabled(p.footageZoomEnabled);
     if (p.footageZoomMin !== undefined) setFootageZoomMin(p.footageZoomMin);
     if (p.footageZoomMax !== undefined) setFootageZoomMax(p.footageZoomMax);
+    if (p.footageColorGrade !== undefined) setFootageColorGrade(p.footageColorGrade);
+    if (p.captionPosition !== undefined) setCaptionPosition(p.captionPosition);
     if (p.channelTheme !== undefined) setChannelTheme(p.channelTheme);
     if (p.defaultAudience !== undefined) setDefaultAudience(p.defaultAudience);
   }
 
+  function confirmDiscardUnsavedPlaybook() {
+    if (!playbookUnsaved) return true;
+    return window.confirm(
+      'Content playbook vừa train CHƯA được lưu — chuyển/tạo profile khác sẽ MẤT nội dung này. Vẫn tiếp tục?'
+    );
+  }
+
   function onSelectProfile(slug) {
+    if (!confirmDiscardUnsavedPlaybook()) return;
+    setPlaybookUnsaved(false);
     setSelectedSlug(slug);
     setProfileMsg(null);
     const p = profiles.find((x) => x.slug === slug);
@@ -161,6 +249,8 @@ export function ProfileManager({ profiles, onProfilesChanged, startExpanded = fa
   }
 
   function startNewProfile() {
+    if (!confirmDiscardUnsavedPlaybook()) return;
+    setPlaybookUnsaved(false);
     setSelectedSlug("");
     setProfileName("");
     setProfileMsg(null);
@@ -179,10 +269,11 @@ export function ProfileManager({ profiles, onProfilesChanged, startExpanded = fa
         footageLibraryDir: footageLibraryDir.trim() || undefined,
         footageMinClips, footageMaxClips, footageMinSeconds, footageMaxSeconds,
         footageFlipEnabled, footageSpeedEnabled, footageSpeedMin, footageSpeedMax,
-        footageZoomEnabled, footageZoomMin, footageZoomMax,
+        footageZoomEnabled, footageZoomMin, footageZoomMax, footageColorGrade, captionPosition,
         channelTheme, defaultAudience,
       });
       setSelectedSlug(saved.slug);
+      setPlaybookUnsaved(false);
       setProfileMsg({ ok: true, text: `Đã lưu profile "${saved.name}".` });
       onProfilesChanged?.();
     } catch (err) {
@@ -222,6 +313,7 @@ export function ProfileManager({ profiles, onProfilesChanged, startExpanded = fa
       .then((r) => {
         if (r.playbook) {
           setContentPlaybook(r.playbook);
+          setPlaybookUnsaved(true);
           setTrainMsg('Đã cập nhật "Content playbook" bên trên — xem lại rồi bấm "Lưu profile" để giữ.');
         } else {
           setTrainError("Không nhận được playbook từ kết quả training.");
@@ -232,18 +324,20 @@ export function ProfileManager({ profiles, onProfilesChanged, startExpanded = fa
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trainId, training, trainStatus]);
 
+  const trainSampleScriptsFilled = trainSampleScripts.filter((s) => s.trim());
+
   async function runTraining() {
     setTrainError(null);
     setTrainMsg(null);
-    if (!trainSampleScript.trim()) {
-      setTrainError("Cần dán 1 kịch bản mẫu trước.");
+    if (!trainSampleScriptsFilled.length) {
+      setTrainError("Cần dán ít nhất 1 kịch bản mẫu trước.");
       return;
     }
     setTraining(true);
     try {
       const { trainId: id } = await api.trainPlaybook({
         description: trainDescription.trim() || undefined,
-        sampleScript: trainSampleScript,
+        sampleScripts: trainSampleScriptsFilled,
         existingPlaybook: contentPlaybook.trim() || undefined,
       });
       setTrainId(id);
@@ -358,9 +452,11 @@ export function ProfileManager({ profiles, onProfilesChanged, startExpanded = fa
 
       <div className="card" style={{ marginTop: "8px" }}>
         <p className="muted">
-          <strong>Training Content playbook</strong> — mô tả ý muốn + dán 1 kịch bản mẫu bạn ưng ý, AI tự trích ra
+          <strong>Training Content playbook</strong> — mô tả ý muốn + dán 1-5 kịch bản mẫu bạn ưng ý, AI tự trích ra
           giọng văn/quy tắc rồi điền lại ô "Content playbook" ở trên (chưa lưu — bạn xem lại rồi bấm "Lưu profile").
-          Train nhiều lần sẽ tự bổ sung dần vào playbook cũ, không ghi đè trắng.
+          Dán từ 2 mẫu trở lên: AI chỉ giữ pattern LẶP LẠI xuyên suốt, bỏ qua cái chỉ xuất hiện đúng 1 mẫu (nhiều khả
+          năng là ngẫu nhiên, không phải công thức thật). Train nhiều lần sẽ tự bổ sung dần vào playbook cũ, không
+          ghi đè trắng.
         </p>
         <textarea
           value={trainDescription}
@@ -369,15 +465,41 @@ export function ProfileManager({ profiles, onProfilesChanged, startExpanded = fa
           rows={2}
           disabled={training}
         />
-        <textarea
-          value={trainSampleScript}
-          onChange={(e) => setTrainSampleScript(e.target.value)}
-          placeholder="Dán 1 kịch bản mẫu bạn ưng ý vào đây..."
-          rows={8}
-          disabled={training}
-        />
-        <button type="button" onClick={runTraining} disabled={training || !trainSampleScript.trim()}>
-          {training ? "Đang train..." : "Train playbook (từ text)"}
+        {trainSampleScripts.map((script, i) => (
+          <div key={i} style={{ position: "relative" }}>
+            <textarea
+              value={script}
+              onChange={(e) =>
+                setTrainSampleScripts((prev) => prev.map((s, idx) => (idx === i ? e.target.value : s)))
+              }
+              placeholder={`Dán kịch bản mẫu #${i + 1} bạn ưng ý vào đây...`}
+              rows={8}
+              disabled={training}
+            />
+            {trainSampleScripts.length > 1 && (
+              <button
+                type="button"
+                className="linklike"
+                disabled={training}
+                onClick={() => setTrainSampleScripts((prev) => prev.filter((_, idx) => idx !== i))}
+              >
+                Xoá mẫu #{i + 1}
+              </button>
+            )}
+          </div>
+        ))}
+        {trainSampleScripts.length < 5 && (
+          <button
+            type="button"
+            className="linklike"
+            disabled={training}
+            onClick={() => setTrainSampleScripts((prev) => [...prev, ""])}
+          >
+            + Thêm kịch bản mẫu ({trainSampleScripts.length}/5)
+          </button>
+        )}
+        <button type="button" onClick={runTraining} disabled={training || !trainSampleScriptsFilled.length}>
+          {training ? "Đang train..." : `Train playbook (từ ${trainSampleScriptsFilled.length || ""} text)`}
         </button>
 
         <p className="muted" style={{ marginTop: "8px" }}>
@@ -525,7 +647,7 @@ export function ProfileManager({ profiles, onProfilesChanged, startExpanded = fa
                 style={{ minWidth: "380px" }}
               />
               {footageLibraryDir.trim() && (
-                <button type="button" className="linklike" disabled={footageScanLoading} onClick={checkFootageLibraryDir}>
+                <button type="button" className="linklike" disabled={footageScanLoading} onClick={() => checkFootageLibraryDir()}>
                   {footageScanLoading ? "Đang kiểm tra…" : "Kiểm tra thư mục"}
                 </button>
               )}
@@ -546,6 +668,37 @@ export function ProfileManager({ profiles, onProfilesChanged, startExpanded = fa
                 </>
               )}
             </p>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+              <span>Tải footage từ Pexels:</span>
+              <input
+                value={pexelsQuery}
+                onChange={(e) => setPexelsQuery(e.target.value)}
+                placeholder="các từ khoá tiếng Anh NGẮN, cách nhau bởi dấu phẩy — vd: gym, running, discipline, hard work"
+                style={{ minWidth: "320px" }}
+              />
+              <button type="button" className="linklike" disabled={keywordLoading} onClick={suggestKeyword} title="LLM đọc chủ đề kênh + content playbook để tự gợi ý 5-10 từ khoá ngắn">
+                {keywordLoading ? "Đang tìm…" : "LLM tìm keyword"}
+              </button>
+              <input type="number" min="1" max="30" value={pexelsCount} onChange={(e) => setPexelsCount(e.target.value)} style={{ width: "60px" }} title="Số clip tải MỖI từ khoá" />
+              <span className="muted">clip/từ khoá</span>
+              {pexelsLoading ? (
+                <button type="button" onClick={stopPexelsFetch}>Dừng</button>
+              ) : (
+                <button type="button" className="linklike" disabled={!pexelsQuery.trim()} onClick={fetchPexelsFootage}>
+                  Tải từ Pexels
+                </button>
+              )}
+            </div>
+            {pexelsLoading && <p className="muted">Đang tải…</p>}
+            {pexelsResult && (
+              <p className={pexelsResult.error ? "error" : "muted"}>
+                {pexelsResult.error
+                  ? pexelsResult.error
+                  : pexelsResult.stopped
+                    ? "Đã dừng — một số clip có thể đã kịp tải trước khi dừng."
+                    : `Xong! ${pexelsResult.byKeyword?.length ?? 1} từ khoá — tìm thấy ${pexelsResult.found} clip, tải mới ${pexelsResult.downloaded}, đã có sẵn ${pexelsResult.skipped}${pexelsResult.errors?.length ? `, lỗi ${pexelsResult.errors.length}` : ""}. Đã tự điền "Thư mục footage" ở trên — nhớ bấm "Lưu profile" để giữ lại.`}
+              </p>
+            )}
             <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
               <span>Số clip/scene:</span>
               <input type="number" min="1" value={footageMinClips} onChange={(e) => setFootageMinClips(e.target.value)} style={{ width: "60px" }} />
@@ -587,6 +740,21 @@ export function ProfileManager({ profiles, onProfilesChanged, startExpanded = fa
                   <span>x</span>
                 </>
               )}
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+              <span>Màu sắc:</span>
+              <select value={footageColorGrade} onChange={(e) => setFootageColorGrade(e.target.value)} title="Lớp phủ màu cho footage — hợp vibe nghiêm túc/kỷ luật">
+                <option value="none">Không</option>
+                <option value="dark">Tối nhẹ</option>
+                <option value="dark-dramatic">Tối kịch tính</option>
+              </select>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+              <span>Vị trí sub:</span>
+              <select value={captionPosition} onChange={(e) => setCaptionPosition(e.target.value)} title="Vị trí phụ đề — giữa màn hình chữ to hơn, tối đa 3 từ/khung hình">
+                <option value="bottom">Dưới đáy (mặc định)</option>
+                <option value="center">Giữa màn hình (chữ to, tối đa 3 từ)</option>
+              </select>
             </div>
           </div>
         )}
