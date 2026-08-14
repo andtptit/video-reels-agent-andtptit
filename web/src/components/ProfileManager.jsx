@@ -71,6 +71,8 @@ export function ProfileManager({ profiles, onProfilesChanged, startExpanded = fa
 
   const [footageMinClips, setFootageMinClips] = useState(1);
   const [footageMaxClips, setFootageMaxClips] = useState(3);
+  const [footageScenesPerClipMin, setFootageScenesPerClipMin] = useState(1);
+  const [footageScenesPerClipMax, setFootageScenesPerClipMax] = useState(1);
   const [footageMinSeconds, setFootageMinSeconds] = useState(3);
   const [footageMaxSeconds, setFootageMaxSeconds] = useState(6);
   const [footageFlipEnabled, setFootageFlipEnabled] = useState(false);
@@ -214,6 +216,8 @@ export function ProfileManager({ profiles, onProfilesChanged, startExpanded = fa
     if (p.footageLibraryDir !== undefined) setFootageLibraryDir(p.footageLibraryDir);
     if (p.footageMinClips !== undefined) setFootageMinClips(p.footageMinClips);
     if (p.footageMaxClips !== undefined) setFootageMaxClips(p.footageMaxClips);
+    if (p.footageScenesPerClipMin !== undefined) setFootageScenesPerClipMin(p.footageScenesPerClipMin);
+    if (p.footageScenesPerClipMax !== undefined) setFootageScenesPerClipMax(p.footageScenesPerClipMax);
     if (p.footageMinSeconds !== undefined) setFootageMinSeconds(p.footageMinSeconds);
     if (p.footageMaxSeconds !== undefined) setFootageMaxSeconds(p.footageMaxSeconds);
     if (p.footageFlipEnabled !== undefined) setFootageFlipEnabled(p.footageFlipEnabled);
@@ -267,7 +271,8 @@ export function ProfileManager({ profiles, onProfilesChanged, startExpanded = fa
         ttsProvider, ttsRate, ttsVoice, musicTrack, musicVolume, template, visualStyle, subStyle, photoProvider, fontFamily,
         imageStylePrefix, contentPlaybook, kenBurns, grain, plannerModel, cheapModel, imgModel,
         footageLibraryDir: footageLibraryDir.trim() || undefined,
-        footageMinClips, footageMaxClips, footageMinSeconds, footageMaxSeconds,
+        footageMinClips, footageMaxClips, footageScenesPerClipMin, footageScenesPerClipMax,
+        footageMinSeconds, footageMaxSeconds,
         footageFlipEnabled, footageSpeedEnabled, footageSpeedMin, footageSpeedMax,
         footageZoomEnabled, footageZoomMin, footageZoomMax, footageColorGrade, captionPosition,
         channelTheme, defaultAudience,
@@ -704,6 +709,12 @@ export function ProfileManager({ profiles, onProfilesChanged, startExpanded = fa
               <input type="number" min="1" value={footageMinClips} onChange={(e) => setFootageMinClips(e.target.value)} style={{ width: "60px" }} />
               <span>–</span>
               <input type="number" min="1" value={footageMaxClips} onChange={(e) => setFootageMaxClips(e.target.value)} style={{ width: "60px" }} />
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+              <span title="Số scene liên tiếp dùng chung 1 clip/ảnh trước khi đổi sang cái khác — để 1-1 = mỗi scene tự đổi clip riêng">Số scene / 1 clip:</span>
+              <input type="number" min="1" value={footageScenesPerClipMin} onChange={(e) => setFootageScenesPerClipMin(e.target.value)} style={{ width: "60px" }} />
+              <span>–</span>
+              <input type="number" min="1" value={footageScenesPerClipMax} onChange={(e) => setFootageScenesPerClipMax(e.target.value)} style={{ width: "60px" }} />
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
               <span>Độ dài mỗi đoạn (giây):</span>

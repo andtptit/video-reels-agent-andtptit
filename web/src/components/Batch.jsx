@@ -101,8 +101,7 @@ const BATCH_STEP_TIMEOUT_MS = 15 * 60 * 1000; // generous shared ceiling — thi
 // batch instead of burning through the rest one-by-one for no reason — see plan.md.
 const SYSTEMIC_FAILURE_THRESHOLD = 3;
 
-export function Batch({ onProjectCreated }) {
-  const [profiles, setProfiles] = useState([]);
+export function Batch({ onProjectCreated, profiles, onProfilesChanged }) {
   const [profileSlug, setProfileSlug] = useState("");
   const [channelTheme, setChannelTheme] = useState("");
   const [audience, setAudience] = useState("");
@@ -162,10 +161,6 @@ export function Batch({ onProjectCreated }) {
   }
 
   useEffect(() => {
-    api.listProfiles().then((r) => setProfiles(r.profiles ?? [])).catch(() => {});
-  }, []);
-
-  useEffect(() => {
     if (ideateStatus === "done" && batchId) {
       api.getBatch(batchId).then((r) => setIdeasMeta(r.ideas)).catch((err) => setFormError(err.message));
     }
@@ -215,18 +210,13 @@ export function Batch({ onProjectCreated }) {
     if (!stored) setIdeasMeta(null);
   }
 
-  // saveProfile() overwrites the whole profile with exactly the fields sent — spread
-  // the ALREADY-LOADED profile object (from listProfiles(), still has every other
-  // field: template, imageStylePrefix, models...) instead of sending only
-  // channelTheme/audience, or this would silently wipe the rest of the profile.
   async function saveThemeToProfile() {
     setProfileSaveMsg(null);
     const p = profiles.find((x) => x.slug === profileSlug);
     if (!p) return;
     try {
-      const saved = await api.saveProfile(p.name, { ...p, channelTheme, defaultAudience: audience });
-      const r = await api.listProfiles();
-      setProfiles(r.profiles ?? []);
+      const saved = await api.saveProfile(p.name, { channelTheme, defaultAudience: audience });
+      onProfilesChanged?.();
       setProfileSaveMsg(`Đã lưu chủ đề + đối tượng vào profile "${saved.name}" — lần sau chọn profile này sẽ tự điền sẵn.`);
     } catch (err) {
       setProfileSaveMsg(err.message);
@@ -480,6 +470,8 @@ export function Batch({ onProjectCreated }) {
                 libraryDir: profile.footageLibraryDir || undefined,
                 minClipsPerScene: Number(profile.footageMinClips ?? 1),
                 maxClipsPerScene: Number(profile.footageMaxClips ?? 3),
+                scenesPerClipMin: Number(profile.footageScenesPerClipMin ?? 1),
+                scenesPerClipMax: Number(profile.footageScenesPerClipMax ?? 1),
                 minClipSeconds: Number(profile.footageMinSeconds ?? 3),
                 maxClipSeconds: Number(profile.footageMaxSeconds ?? 6),
                 flipEnabled: Boolean(profile.footageFlipEnabled),

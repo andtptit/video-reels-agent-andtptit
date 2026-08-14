@@ -34,10 +34,14 @@ export default function App() {
   // pipeline run behind the user's back.
   const [autoStartPipeline, setAutoStartPipeline] = useState(false);
 
-  // Channel profiles list, lifted up here so ProjectForm's dropdown and
-  // ProfileManager's own editor (both rendered on the "no project yet" screen) stay
-  // in sync without a page reload — ProfileManager calls refreshProfiles() after any
-  // save/delete instead of each component fetching its own independent copy.
+  // Channel profiles list, lifted up here so every tab that reads/edits profiles
+  // (ProjectForm, ProfileManager, AudioImport, Investigation, ScriptImport, Batch)
+  // stays in sync without a page reload — any of them can call refreshProfiles() after
+  // a save/delete and every other tab sees it immediately, instead of each maintaining
+  // its own independent fetched-once copy. Found live: Batch.jsx used to fetch its own
+  // separate copy on mount, so editing a profile's channelTheme/contentPlaybook in
+  // ProfileManager showed correctly there but not in "Hàng loạt" until that tab was
+  // re-mounted — same-looking data going stale purely from which tab fetched it last.
   // Pipeline.jsx still fetches its own (unrelated screen, no sync need there).
   const [profiles, setProfiles] = useState([]);
   function refreshProfiles() {
@@ -112,7 +116,7 @@ export default function App() {
       {tab === "history" ? (
         <History onProjectDeleted={handleProjectDeletedInHistory} />
       ) : tab === "batch" ? (
-        <Batch onProjectCreated={handleCreated} />
+        <Batch onProjectCreated={handleCreated} profiles={profiles} onProfilesChanged={refreshProfiles} />
       ) : tab === "hook" ? (
         <Hook />
       ) : tab === "audio-import" ? (

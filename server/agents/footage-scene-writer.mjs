@@ -13,7 +13,7 @@
  * ever sees it, matching how MoneyPrinterTurbo's own `combine_videos()` works (ffmpeg
  * concat demuxer, not a multi-clip render timeline).
  */
-import { writeFileSync, mkdirSync, existsSync } from "fs";
+import { writeFileSync, mkdirSync, existsSync, readFileSync } from "fs";
 import { join, resolve } from "path";
 import { dimensionsForFormat } from "../lib/canvas.mjs";
 import { lint } from "../tools/hyperframes-cli.mjs";
@@ -52,6 +52,119 @@ function splitDuration(targetDuration, count, minSeconds, maxSeconds) {
   }
   durations.push(Math.max(0.5, remaining));
   return durations;
+}
+
+// Persists which source clip each footage GROUP (see build-footage-plan.mjs's
+// `applyFootageGrouping`) picked, plus how far into it playback has progressed — so a
+// follower scene generated in a later API call can find and continue the same clip the
+// group's leader scene started. Scenes run sequentially within one project (Pipeline.jsx's
+// "Chạy toàn bộ pipeline" awaits each scene in order), so no concurrent-write concern.
+function readGroupState(footageDir) {
+  const p = join(footageDir, "group-state.json");
+  if (!existsSync(p)) return {};
+  try {
+    return JSON.parse(readFileSync(p, "utf-8"));
+  } catch {
+    return {};
+  }
+}
+
+function writeGroupState(footageDir, state) {
+  writeFileSync(join(footageDir, "group-state.json"), JSON.stringify(state, null, 2));
+}
+
+/**
+ * Cuts ONE scene's footage segment when it belongs to a multi-scene group. The
+ * leader (first scene of the group) picks a fresh clip and records it in `groupState`;
+ * every follower reuses that SAME source file — continuing forward through it for
+ * video (so the group plays as one continuous shot across its scenes, not a jump back
+ * to the start each time) or just redisplaying the same still for an image. Falls back
+ * to picking its own clip if no leader entry exists yet (e.g. a scene re-generated out
+ * of order) rather than crashing.
+ */
+async function writeGroupedFootage({
+  projectDir,
+  groupState,
+  footageGroupId,
+  isLeader,
+  resolvedLibraryDir,
+  destPath,
+  sceneDuration,
+  width,
+  height,
+  flipEnabled,
+  zoomEnabled,
+  zoomMin,
+  zoomMax,
+  colorGrade,
+  speedEnabled,
+  speedMin,
+  speedMax,
+  signal,
+  onEvent,
+}) {
+  const key = String(footageGroupId);
+  let entry = groupState[key];
+
+  if (isLeader || !entry) {
+    const [pick] = await pickRandomClips({ projectDir, count: 1, libraryDir: resolvedLibraryDir, includeImages: true });
+    entry = {
+      file: pick.file,
+      kind: pick.kind,
+      durationSec: pick.durationSec,
+      cursorSec: 0,
+      flip: flipEnabled && Math.random() < 0.5,
+      zoomDirection: Math.random() < 0.5 ? "in" : "out",
+    };
+  }
+
+  const isImage = entry.durationSec === null;
+  const speedFactor = !isImage && speedEnabled ? randomInRange(speedMin, speedMax) : 1;
+  const zoomFactor = zoomEnabled ? randomInRange(zoomMin, zoomMax) : 1;
+
+  let startSec = 0;
+  let rawCut = sceneDuration;
+  if (!isImage) {
+    const desiredRawCut = sceneDuration * speedFactor;
+    rawCut = Math.min(desiredRawCut, entry.durationSec);
+    startSec = entry.cursorSec;
+    // Ran past the end of the source — wrap back to the start rather than erroring out
+    // (a short library clip shared across a long group will otherwise run dry).
+    if (startSec + rawCut > entry.durationSec) startSec = 0;
+  }
+  const effectiveSpeedFactor = isImage ? 1 : rawCut / sceneDuration;
+
+  await cutClip({
+    srcPath: join(resolvedLibraryDir, entry.file),
+    destPath,
+    startSec,
+    outputDurationSec: sceneDuration,
+    width,
+    height,
+    flip: entry.flip,
+    zoomFactor,
+    zoomDirection: entry.zoomDirection,
+    colorGrade,
+    speedFactor: effectiveSpeedFactor,
+    signal,
+  });
+
+  onEvent?.({
+    type: "footage-clip",
+    sourceFile: entry.file,
+    kind: entry.kind,
+    startSec,
+    outputDurationSec: sceneDuration,
+    flip: entry.flip,
+    speedFactor: effectiveSpeedFactor,
+    zoomFactor,
+    zoomDirection: zoomEnabled ? entry.zoomDirection : undefined,
+    colorGrade: colorGrade !== "none" ? colorGrade : undefined,
+    footageGroupId,
+  });
+
+  entry.cursorSec = isImage ? 0 : startSec + rawCut;
+  groupState[key] = entry;
 }
 
 export async function runFootageWriter({
@@ -97,7 +210,37 @@ export async function runFootageWriter({
   const finalVideoPath = `assets/footage/scene_${padded}.mp4`;
   const finalVideoAbsPath = join(projectDir, finalVideoPath);
 
-  if (!existsSync(finalVideoAbsPath)) {
+  if (!existsSync(finalVideoAbsPath) && scene.footageGroupId != null) {
+    // "2-3 scenes per photo/clip" mode (see build-footage-plan.mjs's applyFootageGrouping)
+    // — a grouped scene always uses exactly ONE clip of its own duration (the "Số
+    // clip/scene" min/max above is about splicing MULTIPLE clips together within a
+    // single scene, a separate knob that would fight with sharing one clip ACROSS
+    // scenes), so it bypasses the multi-clip-per-scene branch below entirely.
+    const groupState = readGroupState(footageDir);
+    await writeGroupedFootage({
+      projectDir,
+      groupState,
+      footageGroupId: scene.footageGroupId,
+      isLeader: !!scene.footageGroupLeader,
+      resolvedLibraryDir,
+      destPath: finalVideoAbsPath,
+      sceneDuration,
+      width,
+      height,
+      flipEnabled,
+      zoomEnabled,
+      zoomMin,
+      zoomMax,
+      colorGrade,
+      speedEnabled,
+      speedMin,
+      speedMax,
+      signal,
+      onEvent,
+    });
+    writeGroupState(footageDir, groupState);
+    onEvent?.({ type: "write", outPath: finalVideoPath });
+  } else if (!existsSync(finalVideoAbsPath)) {
     const clipCount = Math.round(randomInRange(minClipsPerScene, maxClipsPerScene));
     const clipDurations = splitDuration(sceneDuration, clipCount, minClipSeconds, maxClipSeconds);
     // Found live (user report): with `includeImages` omitted (the original,

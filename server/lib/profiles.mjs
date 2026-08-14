@@ -73,6 +73,11 @@ const PROFILE_FIELDS = [
   "footageZoomEnabled",
   "footageZoomMin",
   "footageZoomMax",
+  // How many consecutive scenes share ONE footage pick before switching to a new
+  // clip/image — see pipeline/build-footage-plan.mjs's applyFootageGrouping. Default
+  // 1/1 (every scene picks its own, unchanged legacy behavior).
+  "footageScenesPerClipMin",
+  "footageScenesPerClipMax",
   // "none" | "dark" | "dark-dramatic" — see tools/ffmpeg-cli.mjs's COLOR_GRADES.
   "footageColorGrade",
   // "bottom" | "center" — see lib/karaoke-captions.mjs's `position` param.
@@ -113,11 +118,21 @@ export function saveProfile(name, data) {
   const slug = slugify(name);
   if (!slug) throw new Error("Tên profile không hợp lệ (cần ít nhất 1 ký tự chữ/số)");
   ensureDir();
-  const payload = { name: String(name).trim(), slug, updatedAt: new Date().toISOString() };
+  const file = join(PROFILES_DIR, `${slug}.json`);
+  // Merge onto the existing file (PATCH semantics) instead of rebuilding it from just
+  // this call's fields — found live: Pipeline.jsx and Batch.jsx each only track a
+  // subset of PROFILE_FIELDS (e.g. neither sends `defaultAudience`/`contentPlaybook`,
+  // those live in ProfileManager.jsx only), so a full-overwrite save from either of
+  // them silently deleted fields set from the other tab. A field is only cleared now
+  // if the caller explicitly sends it as `null`; an absent/`undefined` key means "this
+  // tab doesn't manage this field," not "clear it."
+  const existing = existsSync(file) ? JSON.parse(readFileSync(file, "utf-8")) : {};
+  const payload = { ...existing, name: String(name).trim(), slug, updatedAt: new Date().toISOString() };
   for (const field of PROFILE_FIELDS) {
-    if (data?.[field] !== undefined) payload[field] = data[field];
+    if (data?.[field] === null) delete payload[field];
+    else if (data?.[field] !== undefined) payload[field] = data[field];
   }
-  writeFileSync(join(PROFILES_DIR, `${slug}.json`), JSON.stringify(payload, null, 2));
+  writeFileSync(file, JSON.stringify(payload, null, 2));
   return payload;
 }
 

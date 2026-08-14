@@ -137,6 +137,11 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, autoRunOnLoad
   // (không LLM/DashScope), nên mặc định thoải mái random lại nhiều lần.
   const [footageMinClips, setFootageMinClips] = useState(1);
   const [footageMaxClips, setFootageMaxClips] = useState(3);
+  // "2-3 scene mới chuyển 1 ảnh/video" — số scene liên tiếp dùng chung 1 clip/ảnh
+  // trước khi đổi sang cái khác. Mặc định 1-1 = mỗi scene tự chọn clip riêng (hành vi
+  // cũ, không đổi).
+  const [footageScenesPerClipMin, setFootageScenesPerClipMin] = useState(1);
+  const [footageScenesPerClipMax, setFootageScenesPerClipMax] = useState(1);
   const [footageMinSeconds, setFootageMinSeconds] = useState(3);
   const [footageMaxSeconds, setFootageMaxSeconds] = useState(6);
   const [footageFlipEnabled, setFootageFlipEnabled] = useState(false);
@@ -245,6 +250,13 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, autoRunOnLoad
   // every time a channel's audience rarely changes video to video.
   const selectedProfile = profiles.find((p) => p.slug === selectedProfileSlug);
   const effectiveAudience = audience.trim() || selectedProfile?.defaultAudience || "";
+  // Audience only ever feeds content-planner (runPlan). Once "plan" is already done —
+  // pasted script (ScriptImport), audio-import, investigation, or a normal run that
+  // already finished — content-planner is never called again (ensureStepDone skips
+  // it), so requiring audience past that point was blocking users for no reason. Found
+  // live: user pastes their own script, content already exists, yet "Chạy toàn bộ
+  // pipeline" stayed disabled and the page kept demanding an audience nobody needed.
+  const audienceRequired = planStatus !== "done" && !effectiveAudience;
 
   const stepsRef = useRef(steps);
   useEffect(() => {
@@ -386,6 +398,8 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, autoRunOnLoad
     if (p.footageLibraryDir !== undefined) setFootageLibraryDir(p.footageLibraryDir);
     if (p.footageMinClips !== undefined) setFootageMinClips(p.footageMinClips);
     if (p.footageMaxClips !== undefined) setFootageMaxClips(p.footageMaxClips);
+    if (p.footageScenesPerClipMin !== undefined) setFootageScenesPerClipMin(p.footageScenesPerClipMin);
+    if (p.footageScenesPerClipMax !== undefined) setFootageScenesPerClipMax(p.footageScenesPerClipMax);
     if (p.footageMinSeconds !== undefined) setFootageMinSeconds(p.footageMinSeconds);
     if (p.footageMaxSeconds !== undefined) setFootageMaxSeconds(p.footageMaxSeconds);
     if (p.footageFlipEnabled !== undefined) setFootageFlipEnabled(p.footageFlipEnabled);
@@ -422,6 +436,7 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, autoRunOnLoad
         footageMinClips, footageMaxClips, footageMinSeconds, footageMaxSeconds,
         footageFlipEnabled, footageSpeedEnabled, footageSpeedMin, footageSpeedMax,
         footageZoomEnabled, footageZoomMin, footageZoomMax, footageColorGrade, captionPosition,
+        footageScenesPerClipMin, footageScenesPerClipMax,
       });
       const r = await api.listProfiles();
       setProfiles(r.profiles ?? []);
@@ -526,6 +541,8 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, autoRunOnLoad
               ? {
                   minClipsPerScene: Number(footageMinClips),
                   maxClipsPerScene: Number(footageMaxClips),
+                  scenesPerClipMin: Number(footageScenesPerClipMin),
+                  scenesPerClipMax: Number(footageScenesPerClipMax),
                   minClipSeconds: Number(footageMinSeconds),
                   maxClipSeconds: Number(footageMaxSeconds),
                   flipEnabled: footageFlipEnabled,
@@ -654,7 +671,7 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, autoRunOnLoad
             onChange={(e) => setAudience(e.target.value)}
           />
         </div>
-        {!effectiveAudience && (
+        {audienceRequired && (
           <p className="error">
             Cần nhập "Đối tượng xem" ở trên — profile{selectedProfile ? ` "${selectedProfile.name}"` : " đã chọn"} chưa có
             đối tượng mặc định. Nhập trực tiếp ở đây (chỉ áp dụng cho video này), hoặc sang tab "Hồ sơ kênh" điền ô
@@ -664,7 +681,7 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, autoRunOnLoad
 
         <TestScriptPreview
           kind="content-planner"
-          disabled={!effectiveAudience}
+          disabled={audienceRequired}
           getParams={() => ({
             idea,
             audience: effectiveAudience,
@@ -857,6 +874,12 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, autoRunOnLoad
                 <input type="number" min="1" value={footageMaxClips} onChange={(e) => setFootageMaxClips(e.target.value)} style={{ width: "60px" }} />
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                <span title="Số scene liên tiếp dùng chung 1 clip/ảnh trước khi đổi sang cái khác — để 1-1 = mỗi scene tự đổi clip riêng">Số scene / 1 clip:</span>
+                <input type="number" min="1" value={footageScenesPerClipMin} onChange={(e) => setFootageScenesPerClipMin(e.target.value)} style={{ width: "60px" }} />
+                <span>–</span>
+                <input type="number" min="1" value={footageScenesPerClipMax} onChange={(e) => setFootageScenesPerClipMax(e.target.value)} style={{ width: "60px" }} />
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
                 <span>Độ dài mỗi đoạn (giây):</span>
                 <input type="number" min="0.5" step="0.5" value={footageMinSeconds} onChange={(e) => setFootageMinSeconds(e.target.value)} style={{ width: "60px" }} />
                 <span>–</span>
@@ -1021,7 +1044,7 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, autoRunOnLoad
         </p>
         <button
           type="button"
-          disabled={!effectiveAudience || runAllActive}
+          disabled={audienceRequired || runAllActive}
           onClick={() => runAllPipeline()}
         >
           {runAllActive ? "Đang chạy..." : "Chạy toàn bộ pipeline"}
@@ -1104,6 +1127,8 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, autoRunOnLoad
                       ? {
                           minClipsPerScene: Number(footageMinClips),
                           maxClipsPerScene: Number(footageMaxClips),
+                          scenesPerClipMin: Number(footageScenesPerClipMin),
+                          scenesPerClipMax: Number(footageScenesPerClipMax),
                           minClipSeconds: Number(footageMinSeconds),
                           maxClipSeconds: Number(footageMaxSeconds),
                           flipEnabled: footageFlipEnabled,
@@ -1155,6 +1180,8 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, autoRunOnLoad
                       ? {
                           minClipsPerScene: Number(footageMinClips),
                           maxClipsPerScene: Number(footageMaxClips),
+                          scenesPerClipMin: Number(footageScenesPerClipMin),
+                          scenesPerClipMax: Number(footageScenesPerClipMax),
                           minClipSeconds: Number(footageMinSeconds),
                           maxClipSeconds: Number(footageMaxSeconds),
                           flipEnabled: footageFlipEnabled,
