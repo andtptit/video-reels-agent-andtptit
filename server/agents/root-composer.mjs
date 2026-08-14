@@ -113,10 +113,17 @@ function computeTotalDuration(doneScenes) {
  * `src`/`data-volume` to the model either.
  */
 function enforceMusicTag(html, musicTrack, musicVolume, totalDuration) {
-  const withoutOldMusic = html.replace(/[ \t]*<audio\b[^>]*data-track-index="20"[^>]*>\s*<\/audio>\n?/g, "");
+  // ["']20["'] (not a hard-coded double quote) — same class of bug as
+  // enforceSceneTiming's tween-stripper below: an HTML attribute written with
+  // single quotes (`data-track-index='20'`) would silently fail to match a
+  // double-quote-only pattern, leaving a stray old tag behind. Not yet observed
+  // for HTML attributes specifically (unlike the JS tween case, which was), but
+  // it's the identical failure mode, so hardened proactively rather than waiting
+  // for it to burn another few hundred k tokens before anyone notices.
+  const withoutOldMusic = html.replace(/[ \t]*<audio\b[^>]*data-track-index=["']20["'][^>]*>\s*<\/audio>\n?/g, "");
   if (!musicTrack) return withoutOldMusic;
   const tag = `    <audio id="bg-music" class="clip" data-start="0" data-duration="${totalDuration}" data-track-index="20" data-volume="${musicVolume}" src="${musicTrack}"></audio>`;
-  const voMarker = withoutOldMusic.search(/<audio\b[^>]*data-track-index="21"/);
+  const voMarker = withoutOldMusic.search(/<audio\b[^>]*data-track-index=["']21["']/);
   const sceneMarker = withoutOldMusic.search(/<div[^>]*data-composition-src=/);
   const insertAt = voMarker !== -1 ? voMarker : sceneMarker;
   if (insertAt === -1) return withoutOldMusic;
@@ -150,7 +157,8 @@ function buildVoiceoverBlock(doneScenes) {
  */
 function enforceVoiceoverTags(html, doneScenes) {
   const correctBlock = buildVoiceoverBlock(doneScenes);
-  const withoutOldVo = html.replace(/[ \t]*<audio\b[^>]*data-track-index="21"[^>]*>\s*<\/audio>\n?/g, "");
+  // Same quote-agnostic hardening as enforceMusicTag above.
+  const withoutOldVo = html.replace(/[ \t]*<audio\b[^>]*data-track-index=["']21["'][^>]*>\s*<\/audio>\n?/g, "");
   const marker = withoutOldVo.search(/<div[^>]*data-composition-src=/);
   if (marker === -1 || !correctBlock) return withoutOldVo;
   return withoutOldVo.slice(0, marker) + correctBlock + "\n\n    " + withoutOldVo.slice(marker);
@@ -204,8 +212,11 @@ function enforceSceneTiming(html, doneScenes, width, height) {
   // voiceover <audio> tag lands scenes back in the same spot without guessing at
   // generic HTML structure.
   const sceneBlock = buildSceneBlock(doneScenes, width, height);
-  const withoutOldScenes = html.replace(/[ \t]*<div\b[^>]*data-composition-src="compositions\/scene_[^"]*\.html"[^>]*>\s*<\/div>\n?/g, "");
-  const audioMatches = [...withoutOldScenes.matchAll(/<audio\b[^>]*data-track-index="21"[^>]*>\s*<\/audio>\n?/g)];
+  // Same quote-agnostic hardening as enforceMusicTag/enforceVoiceoverTags above —
+  // backreference so `data-composition-src='compositions/scene_01.html'` (single
+  // quotes) is stripped just as reliably as the double-quoted form.
+  const withoutOldScenes = html.replace(/[ \t]*<div\b[^>]*data-composition-src=(["'])compositions\/scene_[^"']*\.html\1[^>]*>\s*<\/div>\n?/g, "");
+  const audioMatches = [...withoutOldScenes.matchAll(/<audio\b[^>]*data-track-index=["']21["'][^>]*>\s*<\/audio>\n?/g)];
   const insertAt = audioMatches.length
     ? audioMatches[audioMatches.length - 1].index + audioMatches[audioMatches.length - 1][0].length
     : withoutOldScenes.search(/<\/div>\s*\n\s*<\/div>/);
@@ -213,7 +224,15 @@ function enforceSceneTiming(html, doneScenes, width, height) {
     insertAt === -1 || !sceneBlock ? withoutOldScenes : withoutOldScenes.slice(0, insertAt) + "\n" + sceneBlock + "\n" + withoutOldScenes.slice(insertAt);
 
   const crossfadeScript = buildCrossfadeScript(doneScenes);
-  const withoutOldTweens = withScenes.replace(/[ \t]*tl\.(to|set)\('#scene-[^']+',[^;]*\);\n?/g, "");
+  // Found live (user report): the model doesn't always match the worked example's
+  // single-quote style for the selector string — when it wrote `tl.to("#scene-01",
+  // ...)` (double quotes), this regex's single-quote-only pattern silently failed to
+  // match it, so the OLD (LLM-authored) tween never got stripped before the NEW
+  // (code-computed) one was inserted — leaving both in the file, tripping lint's
+  // overlapping_gsap_tweens on every scene and never converging across retries
+  // (the model kept regenerating the same double-quoted style each attempt). Quote
+  // character captured as a backreference so either style is matched and removed.
+  const withoutOldTweens = withScenes.replace(/[ \t]*tl\.(to|set)\((['"])#scene-[^'"]+\2,[^;]*\);\n?/g, "");
   const tlMarker = withoutOldTweens.search(/const tl = gsap\.timeline\([^)]*\);\n?/);
   if (tlMarker === -1 || !crossfadeScript) return withoutOldTweens;
   const afterTlLine = withoutOldTweens.indexOf("\n", tlMarker) + 1;
@@ -398,6 +417,8 @@ trả lời bằng 1 câu tóm tắt — không tool call nào nữa.`;
 
   const baseline = await lint(projectDir);
   let lastNewFindings = [];
+  let previousFindingKeys = null;
+  let stuck = false;
   let agentResult;
   // See run-agent.mjs's priorMessages doc + scene-writer.mjs's identical pattern —
   // carries the conversation across fix attempts so retries only send the new lint
@@ -470,7 +491,33 @@ trả lời bằng 1 câu tóm tắt — không tool call nào nữa.`;
       if (staticWarnings.length) onEvent?.({ type: "static-check", staticWarnings });
       return { ok: true, attempts: attempt + 1, agentResult, staticWarnings, usage };
     }
+
+    // Found live (user report): a real 200k-token, 9-call retry run where the
+    // SAME 8 findings recurred identically on every single attempt — the actual
+    // bug turned out to be in the enforce* functions above (a quote-style regex
+    // gap), not anything the model could fix through prompting, since the model
+    // never sees the duplicate its OWN output triggers in code. Retrying against
+    // an unchanging finding set can never converge; bail out early instead of
+    // burning through the rest of maxFixAttempts on the same dead end — this is
+    // a generic safety net for whatever the NEXT undiscovered enforce-function
+    // gap turns out to be, not a fix for this specific bug (already fixed above).
+    const currentFindingKeys = new Set(lastNewFindings.map(findingKey));
+    if (previousFindingKeys && currentFindingKeys.size === previousFindingKeys.size && [...currentFindingKeys].every((k) => previousFindingKeys.has(k))) {
+      onEvent?.({ type: "stuck", attempt, findingCount: lastNewFindings.length });
+      stuck = true;
+      break;
+    }
+    previousFindingKeys = currentFindingKeys;
   }
 
-  return { ok: false, attempts: maxFixAttempts + 1, newFindings: lastNewFindings, agentResult, usage };
+  return {
+    ok: false,
+    attempts: stuck ? undefined : maxFixAttempts + 1,
+    newFindings: lastNewFindings,
+    agentResult,
+    usage,
+    error: stuck
+      ? `Lỗi lint không giảm giữa 2 lần thử liên tiếp (${lastNewFindings.length} lỗi, không đổi) — dừng sớm thay vì thử hết ${maxFixAttempts + 1} lần, vì nhiều khả năng đây là lỗi ở code enforce (xem root-composer.mjs), không phải thứ model có thể tự sửa qua prompt.`
+      : undefined,
+  };
 }

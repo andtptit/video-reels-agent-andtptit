@@ -1,7 +1,7 @@
 {
   "name": "Profile động lực nghiêm túc",
   "slug": "profile-ong-luc-nghiem-tuc",
-  "updatedAt": "2026-08-13T16:32:09.804Z",
+  "updatedAt": "2026-08-14T03:44:46.571Z",
   "ttsProvider": "vbee",
   "ttsRate": 1,
   "ttsVoice": "n_hanoi_male_baotrungmc_news_vc",
@@ -10,7 +10,7 @@
   "template": "footage",
   "visualStyle": "animation",
   "subStyle": "image_full_focus",
-  "fontFamily": "Sriracha",
+  "fontFamily": "Anton",
   "imageStylePrefix": "",
   "kenBurns": false,
   "grain": false,
