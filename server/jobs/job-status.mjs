@@ -38,9 +38,15 @@ function writeJobStatusFile(projectDir, status) {
  * video-plan.json's scene count for an accurate "N/M scene" fraction — cheap for a
  * personal-scale tool with a handful of projects, not worth caching.
  */
+// `profileSlug` is added by the exported wrapper below, after this returns — kept out
+// of every individual branch here so adding it didn't require touching each of the
+// function's many early-return statements.
 export function summarizeProjectStatus(projectDir) {
   const status = readJobStatus(projectDir);
-  const steps = status.steps ?? {};
+  return { ...summarizeSteps(projectDir, status.steps ?? {}), profileSlug: status.profileSlug };
+}
+
+function summarizeSteps(projectDir, steps) {
   // `renderDone` is a separate stable boolean (not just `label === "Đã render"") so
   // callers like the History tab can filter reliably without string-matching a
   // Vietnamese label that's free to reword later.

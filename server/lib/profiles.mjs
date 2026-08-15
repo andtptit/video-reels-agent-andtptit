@@ -89,6 +89,10 @@ const PROFILE_FIELDS = [
   // the single-video flow (Pipeline.jsx) is untouched and still has no such prefill.
   "channelTheme",
   "defaultAudience",
+  // Public Facebook Page ID this profile's videos publish to — NOT the Access Token
+  // (that's a real credential, kept out of this committed file entirely; see
+  // lib/facebook-secrets.mjs).
+  "facebookPageId",
 ];
 
 export function listProfiles() {

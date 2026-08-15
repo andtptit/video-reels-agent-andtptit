@@ -39,6 +39,14 @@ import { readJobStatus, runStep, getEmitter, emitProgress, setProjectProfile } f
 import { queues } from "./jobs/queue.mjs";
 import { ensurePreview, touchPreview, startIdleSweep } from "./jobs/preview.mjs";
 import { listProfiles, saveProfile, deleteProfile } from "./lib/profiles.mjs";
+import {
+  getPageAccessToken,
+  hasPageAccessToken,
+  savePageAccessToken,
+  deletePageAccessToken,
+} from "./lib/facebook-secrets.mjs";
+import { testConnection as testFacebookConnection, publishReelToFacebook } from "./providers/social/facebook-reels.mjs";
+import { probeDuration } from "./tools/ffmpeg-cli.mjs";
 import { createBatchDir, resolveBatchDir, InvalidBatchIdError } from "./lib/batch-id.mjs";
 import { readIdeaHistory, appendIdeaHistory } from "./lib/idea-history.mjs";
 import { runIdeaGenerator } from "./agents/idea-generator.mjs";
@@ -331,6 +339,43 @@ router.delete("/profiles/:slug", (req, res) => {
 router.post("/profiles/:slug/idea-history", (req, res) => {
   try {
     res.status(201).json(appendIdeaHistory(req.params.slug, req.body ?? {}));
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Facebook Page Access Token — deliberately NOT part of PUT /profiles/:name's payload,
+// see lib/facebook-secrets.mjs's own doc comment on why (real credential, kept out of
+// the committed profile JSON). GET only ever exposes whether a token is saved, never
+// its value.
+router.get("/profiles/:slug/facebook-token", (req, res) => {
+  res.json({ hasToken: hasPageAccessToken(req.params.slug) });
+});
+
+router.put("/profiles/:slug/facebook-token", (req, res) => {
+  try {
+    savePageAccessToken(req.params.slug, req.body?.pageAccessToken);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+router.delete("/profiles/:slug/facebook-token", (req, res) => {
+  deletePageAccessToken(req.params.slug);
+  res.status(204).end();
+});
+
+// "Kiểm tra kết nối" button in Hồ sơ kênh — confirms the Page ID + saved token are
+// valid and match, without touching video_reels at all.
+router.post("/profiles/:slug/facebook-test", async (req, res) => {
+  const profile = listProfiles().find((p) => p.slug === req.params.slug);
+  if (!profile?.facebookPageId) return res.status(400).json({ error: "Profile chưa có Facebook Page ID — điền ở Hồ sơ kênh trước." });
+  const pageAccessToken = getPageAccessToken(req.params.slug);
+  if (!pageAccessToken) return res.status(400).json({ error: "Profile chưa lưu Facebook Page Access Token." });
+  try {
+    const { pageName } = await testFacebookConnection({ pageId: profile.facebookPageId, pageAccessToken });
+    res.json({ ok: true, pageName });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
@@ -1099,6 +1144,54 @@ router.get("/projects/:id/renders/:name", withProjectDir, (req, res) => {
   if (escapes || !name.endsWith(".mp4")) return res.status(400).json({ error: "Invalid render filename" });
   if (!existsSync(file)) return res.status(404).json({ error: `${name} not found` });
   res.sendFile(file);
+});
+
+// Publish the finished render as a Facebook Reel on the project's channel profile's
+// Page — called from the standalone "Đăng bài" tab (web/src/components/Publish.jsx),
+// NOT from Pipeline.jsx (user explicitly wants posting kept separate from the
+// per-project creation flow, since this tool's whole point is running many projects in
+// bulk). `renderName` optional — defaults to the newest render, same "renders[0]"
+// convention already used by RenderPlayer.jsx/History.jsx/Hook.jsx.
+router.post("/projects/:id/publish-facebook-reel", withProjectDir, async (req, res) => {
+  const { description, renderName } = req.body ?? {};
+  const profileSlug = readJobStatus(req.projectDir).profileSlug;
+  const profile = profileSlug ? listProfiles().find((p) => p.slug === profileSlug) : null;
+  if (!profile?.facebookPageId) {
+    return res.status(400).json({ error: "Project này chưa gắn với profile có Facebook Page — vào Hồ sơ kênh cấu hình Page ID cho profile." });
+  }
+  const pageAccessToken = getPageAccessToken(profileSlug);
+  if (!pageAccessToken) {
+    return res.status(400).json({ error: `Profile "${profile.name}" chưa lưu Facebook Page Access Token — vào Hồ sơ kênh.` });
+  }
+
+  const rendersDir = join(req.projectDir, "renders");
+  let name = renderName;
+  if (!name) {
+    const renders = existsSync(rendersDir)
+      ? readdirSync(rendersDir).filter((f) => f.endsWith(".mp4") && !f.startsWith("._")).map((f) => ({ name: f, mtime: statSync(join(rendersDir, f)).mtimeMs })).sort((a, b) => b.mtime - a.mtime)
+      : [];
+    name = renders[0]?.name;
+  }
+  if (!name) return res.status(400).json({ error: "Chưa có render nào — chạy bước Render trước." });
+  const videoPath = join(rendersDir, name);
+  if (!existsSync(videoPath)) return res.status(404).json({ error: `Render "${name}" không tồn tại` });
+
+  let durationSec;
+  try {
+    durationSec = await probeDuration(videoPath);
+  } catch (err) {
+    return res.status(400).json({ error: `Không đọc được thời lượng video: ${err.message}` });
+  }
+  if (durationSec < 3 || durationSec > 90) {
+    return res.status(400).json({
+      error: `Facebook Reels yêu cầu video dài 3–90 giây — video này dài ${durationSec.toFixed(1)}s.`,
+    });
+  }
+
+  runInBackground(req.projectDir, "publish-facebook", (onEvent, signal) =>
+    publishReelToFacebook({ pageId: profile.facebookPageId, pageAccessToken, videoPath, description, onEvent, signal })
+  );
+  res.status(202).json({ step: "publish-facebook", status: "running" });
 });
 
 // Serves a scene's AI-generated background image (assets/images/scene_XX.png) so the

@@ -94,6 +94,18 @@ export function ProfileManager({ profiles, onProfilesChanged, startExpanded = fa
   const [channelTheme, setChannelTheme] = useState("");
   const [defaultAudience, setDefaultAudience] = useState("");
 
+  // Facebook Page — facebookPageId is a normal profile field (goes through
+  // saveCurrentAsProfile like everything else above). The Access Token is NOT: it's a
+  // real credential kept out of the committed profile JSON entirely (see
+  // server/lib/facebook-secrets.mjs), so it has its own input + save button + status
+  // fetch, never bundled into saveCurrentAsProfile's payload.
+  const [facebookPageId, setFacebookPageId] = useState("");
+  const [facebookTokenInput, setFacebookTokenInput] = useState("");
+  const [facebookHasToken, setFacebookHasToken] = useState(false);
+  const [facebookTokenMsg, setFacebookTokenMsg] = useState(null);
+  const [facebookTestMsg, setFacebookTestMsg] = useState(null);
+  const [facebookTesting, setFacebookTesting] = useState(false);
+
   const [testPromptOpen, setTestPromptOpen] = useState(false);
   const [testPromptSubject, setTestPromptSubject] = useState("");
   const [testPromptLoading, setTestPromptLoading] = useState(false);
@@ -231,6 +243,7 @@ export function ProfileManager({ profiles, onProfilesChanged, startExpanded = fa
     if (p.captionPosition !== undefined) setCaptionPosition(p.captionPosition);
     if (p.channelTheme !== undefined) setChannelTheme(p.channelTheme);
     if (p.defaultAudience !== undefined) setDefaultAudience(p.defaultAudience);
+    if (p.facebookPageId !== undefined) setFacebookPageId(p.facebookPageId);
   }
 
   function confirmDiscardUnsavedPlaybook() {
@@ -245,10 +258,18 @@ export function ProfileManager({ profiles, onProfilesChanged, startExpanded = fa
     setPlaybookUnsaved(false);
     setSelectedSlug(slug);
     setProfileMsg(null);
+    setFacebookTokenMsg(null);
+    setFacebookTestMsg(null);
+    setFacebookTokenInput("");
     const p = profiles.find((x) => x.slug === slug);
     if (p) {
       applyProfile(p);
       setProfileName(p.name);
+    }
+    if (slug) {
+      api.getFacebookTokenStatus(slug).then((r) => setFacebookHasToken(r.hasToken)).catch(() => setFacebookHasToken(false));
+    } else {
+      setFacebookHasToken(false);
     }
   }
 
@@ -258,6 +279,11 @@ export function ProfileManager({ profiles, onProfilesChanged, startExpanded = fa
     setSelectedSlug("");
     setProfileName("");
     setProfileMsg(null);
+    setFacebookPageId("");
+    setFacebookHasToken(false);
+    setFacebookTokenInput("");
+    setFacebookTokenMsg(null);
+    setFacebookTestMsg(null);
   }
 
   async function saveCurrentAsProfile() {
@@ -276,6 +302,7 @@ export function ProfileManager({ profiles, onProfilesChanged, startExpanded = fa
         footageFlipEnabled, footageSpeedEnabled, footageSpeedMin, footageSpeedMax,
         footageZoomEnabled, footageZoomMin, footageZoomMax, footageColorGrade, captionPosition,
         channelTheme, defaultAudience,
+        facebookPageId: facebookPageId.trim() || undefined,
       });
       setSelectedSlug(saved.slug);
       setPlaybookUnsaved(false);
@@ -298,6 +325,40 @@ export function ProfileManager({ profiles, onProfilesChanged, startExpanded = fa
       onProfilesChanged?.();
     } catch (err) {
       setProfileMsg({ ok: false, text: err.message });
+    }
+  }
+
+  async function saveFacebookTokenClick() {
+    setFacebookTokenMsg(null);
+    setFacebookTestMsg(null);
+    if (!selectedSlug) {
+      setFacebookTokenMsg({ ok: false, text: "Lưu profile trước đã (cần có tên/slug để gắn token vào)." });
+      return;
+    }
+    if (!facebookTokenInput.trim()) {
+      setFacebookTokenMsg({ ok: false, text: "Dán Access Token trước đã." });
+      return;
+    }
+    try {
+      await api.saveFacebookToken(selectedSlug, facebookTokenInput.trim());
+      setFacebookHasToken(true);
+      setFacebookTokenInput("");
+      setFacebookTokenMsg({ ok: true, text: "Đã lưu token." });
+    } catch (err) {
+      setFacebookTokenMsg({ ok: false, text: err.message });
+    }
+  }
+
+  async function testFacebookConnectionClick() {
+    setFacebookTestMsg(null);
+    setFacebookTesting(true);
+    try {
+      const { pageName } = await api.testFacebookConnection(selectedSlug);
+      setFacebookTestMsg({ ok: true, text: `Kết nối OK — Page "${pageName}".` });
+    } catch (err) {
+      setFacebookTestMsg({ ok: false, text: err.message });
+    } finally {
+      setFacebookTesting(false);
     }
   }
 
@@ -438,6 +499,35 @@ export function ProfileManager({ profiles, onProfilesChanged, startExpanded = fa
           placeholder="Đối tượng xem mặc định — vd: các bà mẹ trẻ có con nhỏ"
         />
       </div>
+
+      <p className="muted" style={{ marginTop: "12px" }}>
+        Facebook Page — để đăng video đã render lên Reels từ tab "Đăng bài". Page ID lưu
+        theo profile như bình thường; Access Token là credential thật nên lưu riêng, KHÔNG
+        nằm trong file profile commit lên git.
+      </p>
+      <div className="inline-form">
+        <input
+          value={facebookPageId}
+          onChange={(e) => setFacebookPageId(e.target.value)}
+          placeholder="Facebook Page ID"
+        />
+      </div>
+      <div className="inline-form">
+        <input
+          type="password"
+          value={facebookTokenInput}
+          onChange={(e) => setFacebookTokenInput(e.target.value)}
+          placeholder={facebookHasToken ? "Đã lưu token — dán token mới để thay thế" : "Facebook Page Access Token"}
+          style={{ minWidth: "320px" }}
+        />
+        <button type="button" onClick={saveFacebookTokenClick}>Lưu token</button>
+        <button type="button" onClick={testFacebookConnectionClick} disabled={!selectedSlug || facebookTesting}>
+          {facebookTesting ? "Đang kiểm tra..." : "Kiểm tra kết nối"}
+        </button>
+        <span className="muted">{facebookHasToken ? "Đã lưu token ✓" : "Chưa có token"}</span>
+      </div>
+      {facebookTokenMsg && <p className={facebookTokenMsg.ok ? "muted" : "error"}>{facebookTokenMsg.text}</p>}
+      {facebookTestMsg && <p className={facebookTestMsg.ok ? "muted" : "error"}>{facebookTestMsg.text}</p>}
 
       <p className="muted" style={{ marginTop: "12px" }}>
         Content playbook — định hướng nội dung riêng của kênh (nhân vật, giọng kể, điều nên/không nên). Áp dụng cho cả

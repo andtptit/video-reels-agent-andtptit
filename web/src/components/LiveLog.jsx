@@ -88,6 +88,14 @@ function formatEvent(e) {
       return `${e.sceneId}: đã cắt audio`;
     case "scene-audio-cut-error":
       return `${e.sceneId}: LỖI cắt audio — ${e.error}`;
+    case "publish-start":
+      return "Bắt đầu đăng lên Facebook Reels...";
+    case "publish-uploading":
+      return e.bytes ? `Đã tải video lên Facebook (${Math.round(e.bytes / 1024 / 1024)}MB)` : "Đang tải video lên Facebook...";
+    case "publish-processing":
+      return "Facebook đang xử lý video...";
+    case "publish-published":
+      return `Đã đăng thành công (video_id: ${e.videoId})`;
     default:
       return null;
   }

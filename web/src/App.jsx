@@ -10,6 +10,7 @@ import { Hook } from "./components/Hook.jsx";
 import { AudioImport } from "./components/AudioImport.jsx";
 import { Investigation } from "./components/Investigation.jsx";
 import { ScriptImport } from "./components/ScriptImport.jsx";
+import { Publish } from "./components/Publish.jsx";
 import { RunningBanner } from "./components/RunningBanner.jsx";
 import "./App.css";
 
@@ -25,7 +26,7 @@ function loadStored() {
 
 export default function App() {
   const [project, setProject] = useState(loadStored);
-  const [tab, setTab] = useState("pipeline"); // "pipeline" | "history" | "batch" | "hook" | "audio-import" | "investigation" | "script-import" | "profiles"
+  const [tab, setTab] = useState("pipeline"); // "pipeline" | "history" | "batch" | "hook" | "audio-import" | "investigation" | "script-import" | "profiles" | "publish"
   // One-shot, NOT persisted to localStorage (unlike `project`) — a hand-off from a
   // flow that already produced real content (audio upload) can ask Pipeline.jsx to
   // auto-run the rest of the pipeline instead of the user re-picking every setting
@@ -87,6 +88,9 @@ export default function App() {
           <button type="button" className={tab === "history" ? "active" : ""} onClick={() => setTab("history")}>
             History
           </button>
+          <button type="button" className={tab === "publish" ? "active" : ""} onClick={() => setTab("publish")}>
+            Đăng bài
+          </button>
           <button type="button" className={tab === "batch" ? "active" : ""} onClick={() => setTab("batch")}>
             Hàng loạt
           </button>
@@ -115,6 +119,8 @@ export default function App() {
       <RunningBanner currentProjectId={project?.id} onJump={handleSelect} />
       {tab === "history" ? (
         <History onProjectDeleted={handleProjectDeletedInHistory} />
+      ) : tab === "publish" ? (
+        <Publish profiles={profiles} />
       ) : tab === "batch" ? (
         <Batch onProjectCreated={handleCreated} profiles={profiles} onProfilesChanged={refreshProfiles} />
       ) : tab === "hook" ? (

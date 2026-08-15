@@ -45,6 +45,12 @@ export const api = {
   deleteProfile: (slug) => request(`/profiles/${encodeURIComponent(slug)}`, { method: "DELETE" }),
   openFolder: (id) => request(`/projects/${encodeURIComponent(id)}/open-folder`, { method: "POST" }),
   deleteProject: (id) => request(`/projects/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  // Facebook Page Access Token — never returned in full, see facebook-secrets.mjs.
+  getFacebookTokenStatus: (slug) => request(`/profiles/${encodeURIComponent(slug)}/facebook-token`),
+  saveFacebookToken: (slug, pageAccessToken) => request(`/profiles/${encodeURIComponent(slug)}/facebook-token`, { method: "PUT", body: JSON.stringify({ pageAccessToken }) }),
+  deleteFacebookToken: (slug) => request(`/profiles/${encodeURIComponent(slug)}/facebook-token`, { method: "DELETE" }),
+  testFacebookConnection: (slug) => request(`/profiles/${encodeURIComponent(slug)}/facebook-test`, { method: "POST" }),
+  publishFacebookReel: (id, params) => request(`/projects/${encodeURIComponent(id)}/publish-facebook-reel`, { method: "POST", body: JSON.stringify(params ?? {}) }),
   // "Hàng loạt" (Batch) tab — see components/Batch.jsx.
   startBatch: (params) => request("/batches", { method: "POST", body: JSON.stringify(params) }),
   getBatch: (id) => request(`/batches/${encodeURIComponent(id)}`),
