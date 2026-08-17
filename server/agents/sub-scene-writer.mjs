@@ -25,7 +25,7 @@ import { SUB_STYLES, DEFAULT_SUB_STYLE } from "../templates/sub-styles/index.mjs
 import { ensureFontCopied } from "../lib/fonts.mjs";
 import { ensureGrainCopied } from "../lib/grain.mjs";
 import { ensureKineticBgCopied } from "../lib/kinetic-bg.mjs";
-import { findReusableImage, addToLibrary, copyFromLibrary, tryReserveReuseSlot } from "../lib/image-library.mjs";
+import { findReusableImage, addToLibrary, copyFromLibrary, tryReserveReuseSlot, readUsedLibraryIds, recordUsedLibraryId } from "../lib/image-library.mjs";
 
 const DEFAULT_FONT = "Itim"; // must match templates/sub-styles/image-full-focus.mjs's own default
 
@@ -111,9 +111,11 @@ export async function runSubSceneWriter({
       }
       imageResult = stockResult;
     } else if (imageLibrary?.enabled) {
-      const match = findReusableImage({ profileSlug: imageLibrary.profileSlug, format: imageFormat, tags: scene.image_tags });
+      const usedIds = readUsedLibraryIds(projectDir);
+      const match = findReusableImage({ profileSlug: imageLibrary.profileSlug, format: imageFormat, tags: scene.image_tags, excludeIds: usedIds });
       if (match && tryReserveReuseSlot(projectDir, imageLibrary.maxReuse)) {
         imageResult = copyFromLibrary(match, imageAbsPath);
+        recordUsedLibraryId(projectDir, match.id);
       }
     }
     if (!imageResult) {
@@ -128,13 +130,19 @@ export async function runSubSceneWriter({
       // re-adding an already-reused or already-existing image would just bloat the
       // manifest with duplicates of images already in it.
       if (!imageResult.skipped && imageLibrary?.enabled) {
-        addToLibrary({
+        const banked = addToLibrary({
           profileSlug: imageLibrary.profileSlug,
           format: imageFormat,
           tags: scene.image_tags,
           prompt: scene.image_prompt,
           srcImagePath: imageAbsPath,
         });
+        // Found live (user report): scene_01 generates fresh + gets banked here,
+        // then scene_03 of the SAME video (overlapping tags) immediately reused
+        // scene_01's own image — 2 scenes in one video showing the identical
+        // picture. Recording it as "used by this project" the moment it's banked
+        // closes that window for every later scene in the same run.
+        recordUsedLibraryId(projectDir, banked?.id);
       }
     }
     onEvent?.({

@@ -54,12 +54,21 @@ function tagOverlapCount(a, b) {
 }
 
 /**
+ * @param {string[]} [excludeIds] - library entry ids to skip — see
+ *   readUsedLibraryIds/recordUsedLibraryId below. Found live (user report): scene_01
+ *   of a video generated a fresh image, got added to the shared library, and
+ *   scene_03 of the SAME video (overlapping `image_tags`) immediately reused it —
+ *   two scenes in ONE video showing the identical picture. The library exists to
+ *   save cost ACROSS different videos, not to let sibling scenes of the same video
+ *   collapse onto one image; excluding whatever this project has already used
+ *   (fresh OR reused) keeps every scene in a video visually distinct.
  * @returns {{id: string, file: string}|null} the best-matching library entry for
  *   this profile+format+tags, or null if nothing clears MIN_TAG_OVERLAP.
  */
-export function findReusableImage({ profileSlug, format, tags }) {
+export function findReusableImage({ profileSlug, format, tags, excludeIds = [] }) {
   if (!profileSlug || !tags?.length) return null;
-  const entries = readManifest().filter((e) => e.profileSlug === profileSlug && e.format === format);
+  const excluded = new Set(excludeIds);
+  const entries = readManifest().filter((e) => e.profileSlug === profileSlug && e.format === format && !excluded.has(e.id));
   let best = null;
   let bestScore = MIN_TAG_OVERLAP - 1;
   for (const entry of entries) {
@@ -96,26 +105,28 @@ export function copyFromLibrary(entry, destPath) {
   return { destPath, bytes: statSync(destPath).size, skipped: false, reusedFromLibrary: true };
 }
 
-// --- Per-project reuse budget (imageLibraryMaxReuse) ---
-// Tracked in a small per-project state file (not the shared library) since it's a
-// "how many scenes of THIS video have reused so far" counter, reset naturally by
+// --- Per-project reuse budget (imageLibraryMaxReuse) + per-project "already used
+// this library image" tracking (see findReusableImage's excludeIds doc comment) ---
+// Both tracked in the SAME small per-project state file (not the shared library)
+// since they're both "what has THIS video already done" facts, reset naturally by
 // virtue of living inside the project dir.
 function stateFilePath(projectDir) {
   return join(projectDir, "image-library-state.json");
 }
 
-function readProjectReuseCount(projectDir) {
+function readState(projectDir) {
   const p = stateFilePath(projectDir);
-  if (!existsSync(p)) return 0;
+  if (!existsSync(p)) return { reusedCount: 0, usedIds: [] };
   try {
-    return JSON.parse(readFileSync(p, "utf-8")).reusedCount ?? 0;
+    const state = JSON.parse(readFileSync(p, "utf-8"));
+    return { reusedCount: state.reusedCount ?? 0, usedIds: state.usedIds ?? [] };
   } catch {
-    return 0;
+    return { reusedCount: 0, usedIds: [] };
   }
 }
 
-function writeProjectReuseCount(projectDir, count) {
-  writeFileSync(stateFilePath(projectDir), JSON.stringify({ reusedCount: count }, null, 2));
+function writeState(projectDir, state) {
+  writeFileSync(stateFilePath(projectDir), JSON.stringify(state, null, 2));
 }
 
 /** Returns true (and reserves 1 slot) if this project hasn't hit `maxReuse` yet —
@@ -124,8 +135,26 @@ function writeProjectReuseCount(projectDir, count) {
  *  cap (always allowed). */
 export function tryReserveReuseSlot(projectDir, maxReuse) {
   if (maxReuse === null || maxReuse === undefined) return true;
-  const current = readProjectReuseCount(projectDir);
-  if (current >= maxReuse) return false;
-  writeProjectReuseCount(projectDir, current + 1);
+  const state = readState(projectDir);
+  if (state.reusedCount >= maxReuse) return false;
+  writeState(projectDir, { ...state, reusedCount: state.reusedCount + 1 });
   return true;
+}
+
+/** Every library image id this project has already used (freshly generated-then-
+ *  banked, or reused from another video) — pass as findReusableImage's
+ *  `excludeIds` so no two scenes of the same video ever collapse onto one image. */
+export function readUsedLibraryIds(projectDir) {
+  return readState(projectDir).usedIds;
+}
+
+/** Records `id` as used by this project — call after EITHER a fresh generation gets
+ *  banked via addToLibrary (its returned id) OR an existing entry gets reused via
+ *  findReusableImage (that entry's own id), so both paths feed the same exclusion
+ *  list for this project's remaining scenes. */
+export function recordUsedLibraryId(projectDir, id) {
+  if (!id) return;
+  const state = readState(projectDir);
+  if (state.usedIds.includes(id)) return;
+  writeState(projectDir, { ...state, usedIds: [...state.usedIds, id] });
 }

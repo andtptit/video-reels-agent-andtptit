@@ -194,8 +194,24 @@ nền (tiếng Anh, để model sinh ảnh hiểu đúng) theo đúng các quy t
   mô tả 1 hình minh hoạ/biểu tượng thể hiện đúng ý nghĩa câu đó).
 - TUYỆT ĐỐI không có chữ/số/watermark trong ảnh (\`"no text, no words, no watermark"\`
   luôn có ở cuối mỗi prompt) — chữ thật sẽ do HTML overlay lên trên.
-- Chừa khoảng trống thị giác (negative space) ở giữa hoặc 1 phía cho text overlay đọc
-  được — nói rõ trong prompt (vd \`"empty center for text overlay"\`).
+${
+            template === "sub"
+              ? `- Style này KHÔNG đè chữ/đồ hoạ lên GIỮA ảnh — phụ đề nằm trong 1 dải riêng ở ĐÁY
+  màn hình (ngoài vùng ảnh chính), nên ẢNH PHẢI full-bleed, KHÔNG chừa khoảng trống/
+  negative space ở giữa, KHÔNG mô tả ảnh như 1 "banner nền chờ chữ" — mô tả THẲNG cảnh
+  đang diễn ra trong narration của scene đó như 1 bức minh hoạ hoàn chỉnh, có bố cục
+  đầy đủ, không phải nền trừu tượng. Bỏ qua hoàn toàn \`content_shape\`/khái niệm
+  "title-card"/"cycle-flow" v.v. khi viết \`image_prompt\` — những khái niệm đó chỉ áp
+  dụng cho đồ hoạ CSS/GSAP của style "motion", không liên quan gì tới ảnh minh hoạ ở
+  đây.
+- Nếu narration của scene xoay quanh MỘT MỐI QUAN HỆ/CUỘC TRÒ CHUYỆN giữa 2 người (vd
+  nói với "anh"/"em", chuyện tình cảm, mâu thuẫn giữa 2 người) — ƯU TIÊN mô tả CẢ HAI
+  nhân vật nam và nữ cùng xuất hiện trong ảnh (vd đang đối thoại/đứng cạnh nhau/thể
+  hiện đúng cảm xúc của scene), không chỉ vẽ 1 người hay vật vô tri, trừ khi ngữ cảnh
+  scene đó rõ ràng chỉ có 1 người (độc thoại nội tâm, suy ngẫm một mình).`
+              : `- Chừa khoảng trống thị giác (negative space) ở giữa hoặc 1 phía cho text overlay đọc
+  được — nói rõ trong prompt (vd \`"empty center for text overlay"\`).`
+          }
 - BẮT BUỘC kết thúc MỌI prompt của video này bằng ĐÚNG NGUYÊN VĂN cụm sau (không tự
   đổi, không tự diễn giải lại, không tự bịa cụm khác) — \`"${imageStylePrefix}"\` —
   chỉ phần trước đó (chủ thể/composition) mới đổi theo từng scene.

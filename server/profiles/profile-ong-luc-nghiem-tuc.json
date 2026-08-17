@@ -15,7 +15,7 @@
   "kenBurns": false,
   "grain": false,
   "photoProvider": "pexels",
-  "contentPlaybook": "MỞ ĐẦU BẰNG CÂU HỎI TU TỪ NGẮN GỌN, TẠO CẢM GIÁC THẤT BẠI HOẶC THỬ THÁCH. DÙNG CẤU TRÚC LẶP LẠI ĐỂ XÂY DỰNG ĐỘNG LỰC. ƯU TIÊN VÍ DỤ CỤ THỂ TỪ ĐỜI SỐNG HÀNG NGÀY. DÙNG TỪ NGỮ MẠNH NHƯNG ĐƠN GIẢN, DỄ HÌNH DUNG. KẾT THÚC BẰNG CÂU HỎI GÂY ÁP LỰC NHẸ, KHUYẾN KHÍCH HÀNH ĐỘNG. KHÔNG DÙNG PHÉP SO SÁNH PHỨC TẠP, TRÁNH TỪ LÁNG TRÁNH. XƯNG HÔ 'BẠN' ĐỂ TẠO SỰ GẦN GŨI VÀ CẢM GIÁC CÁ NHÂN HOÁ. KHÔNG KỂ CHUYỆN DÀI, LUÔN ĐI VÀO ĐỀ NGAY TỪ CÂU ĐẦU. KHÔNG DÙNG CÂU KỂ DÀI QUÁ 10 TỪ, ƯU TIÊN CÂU NGẮN MẠCH LẠC. KHÔNG NÓI LÝ THUYẾT CHUNG, LUÔN GẮN VỚI HÀNH ĐỘNG CỤ THỂ. KẾT CẤU MỖI ĐOẠN KHÔNG QUÁ 3 CÂU, TẠO NHỊP ĐIỆU GÃY.",
+  "contentPlaybook": "PHẢI xưng hô \"mày/tao\" xuyên suốt, tạo sự trực diện. MỞ ĐẦU bằng tuyên bố thẳng vào cơ chế hành vi, KHÔNG dùng câu hỏi vu vơ. ĐÓNG KHUNG mọi thói quen dưới lăng kính năng lượng và hiệu suất; TUYỆT ĐỐI KHÔNG phán xét đạo đức hay đòi hỏi sự thánh thiện. CHỈ RA hệ quả sinh lý/tâm lý cụ thể. DÙNG cấu trúc đối chiếu để lật ngược nhận thức thông thường. NHẤN MẠNH sự đánh đổi giữa sự dễ dàng tức thời và sức mạnh dài hạn. GIỮ nhịp gãy: câu dưới 10 từ, đoạn tối đa 3 câu. VÍ DỤ phải chạm vào trải nghiệm thực tế. KẾT THÚC bằng câu hỏi nhị phân, buộc đối diện với lựa chọn. KHÔNG dùng từ mỹ miều, ẩn dụ phức tạp hay lý thuyết suông.",
   "plannerModel": "",
   "cheapModel": "",
   "imgModel": "",
@@ -33,6 +33,6 @@
   "footageZoomMax": 1.15,
   "footageColorGrade": "dark",
   "captionPosition": "center",
-  "channelTheme": "Động lực, kỷ luật bản thân, tập luyện thể thao (gym, chạy bộ) — xây dựng ý chí qua hành động hàng ngày, không lý thuyết suông",
-  "defaultAudience": "đàn ông trẻ 20-35 tuổi, muốn rèn kỷ luật bản thân, tập gym/chạy bộ, thoát khỏi trì hoãn"
+  "channelTheme": "Động lực, kỷ luật bản thân, tự chủ hành vi — gym, chạy bộ, bỏ thói quen tiêu hao năng lượng vô ích (thủ dâm, trì hoãn, thức khuya vô nghĩa). Đóng khung mọi thứ dưới góc độ đánh đổi năng lượng/hiệu suất, KHÔNG giảng đạo đức, KHÔNG phán xét.",
+  "defaultAudience": "đàn ông trẻ 18-30 tuổi, muốn kiểm soát bản thân, bỏ thói quen xấu tiêu hao năng lượng, xây sức mạnh/hiệu suất thật"
 }
