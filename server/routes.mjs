@@ -997,6 +997,7 @@ router.post("/projects/:id/root", withProjectDir, (req, res) => {
         doneSceneIds,
         format: videoPlan.format,
         template: videoPlan.template,
+        sceneSfxEnabled: videoPlan.footageConfig?.sceneSfxEnabled,
         model: videoPlan.cheapModel,
         onEvent,
         signal,

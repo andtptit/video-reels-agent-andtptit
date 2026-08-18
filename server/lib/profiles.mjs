@@ -78,6 +78,9 @@ const PROFILE_FIELDS = [
   // 1/1 (every scene picks its own, unchanged legacy behavior).
   "footageScenesPerClipMin",
   "footageScenesPerClipMax",
+  // "Tự thêm SFX cuối mỗi scene" (cười/vỗ tay) — see root-composer.mjs's
+  // enforceSfxTags. User drops their own .mp3 files into assets/sfx/reactions/.
+  "footageSceneSfxEnabled",
   // "none" | "dark" | "dark-dramatic" — see tools/ffmpeg-cli.mjs's COLOR_GRADES.
   "footageColorGrade",
   // "bottom" | "center" — see lib/karaoke-captions.mjs's `position` param.

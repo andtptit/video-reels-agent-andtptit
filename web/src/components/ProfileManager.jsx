@@ -73,6 +73,7 @@ export function ProfileManager({ profiles, onProfilesChanged, startExpanded = fa
   const [footageMaxClips, setFootageMaxClips] = useState(3);
   const [footageScenesPerClipMin, setFootageScenesPerClipMin] = useState(1);
   const [footageScenesPerClipMax, setFootageScenesPerClipMax] = useState(1);
+  const [footageSceneSfxEnabled, setFootageSceneSfxEnabled] = useState(false);
   const [footageMinSeconds, setFootageMinSeconds] = useState(3);
   const [footageMaxSeconds, setFootageMaxSeconds] = useState(6);
   const [footageFlipEnabled, setFootageFlipEnabled] = useState(false);
@@ -230,6 +231,7 @@ export function ProfileManager({ profiles, onProfilesChanged, startExpanded = fa
     if (p.footageMaxClips !== undefined) setFootageMaxClips(p.footageMaxClips);
     if (p.footageScenesPerClipMin !== undefined) setFootageScenesPerClipMin(p.footageScenesPerClipMin);
     if (p.footageScenesPerClipMax !== undefined) setFootageScenesPerClipMax(p.footageScenesPerClipMax);
+    if (p.footageSceneSfxEnabled !== undefined) setFootageSceneSfxEnabled(p.footageSceneSfxEnabled);
     if (p.footageMinSeconds !== undefined) setFootageMinSeconds(p.footageMinSeconds);
     if (p.footageMaxSeconds !== undefined) setFootageMaxSeconds(p.footageMaxSeconds);
     if (p.footageFlipEnabled !== undefined) setFootageFlipEnabled(p.footageFlipEnabled);
@@ -297,7 +299,7 @@ export function ProfileManager({ profiles, onProfilesChanged, startExpanded = fa
         ttsProvider, ttsRate, ttsVoice, musicTrack, musicVolume, template, visualStyle, subStyle, photoProvider, fontFamily,
         imageStylePrefix, contentPlaybook, kenBurns, grain, plannerModel, cheapModel, imgModel,
         footageLibraryDir: footageLibraryDir.trim() || undefined,
-        footageMinClips, footageMaxClips, footageScenesPerClipMin, footageScenesPerClipMax,
+        footageMinClips, footageMaxClips, footageScenesPerClipMin, footageScenesPerClipMax, footageSceneSfxEnabled,
         footageMinSeconds, footageMaxSeconds,
         footageFlipEnabled, footageSpeedEnabled, footageSpeedMin, footageSpeedMax,
         footageZoomEnabled, footageZoomMin, footageZoomMax, footageColorGrade, captionPosition,
@@ -805,6 +807,20 @@ export function ProfileManager({ profiles, onProfilesChanged, startExpanded = fa
               <input type="number" min="1" value={footageScenesPerClipMin} onChange={(e) => setFootageScenesPerClipMin(e.target.value)} style={{ width: "60px" }} />
               <span>–</span>
               <input type="number" min="1" value={footageScenesPerClipMax} onChange={(e) => setFootageScenesPerClipMax(e.target.value)} style={{ width: "60px" }} />
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+              <label style={{ display: "inline-flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={footageSceneSfxEnabled}
+                  onChange={(e) => setFootageSceneSfxEnabled(e.target.checked)}
+                  style={{ width: "auto", marginBottom: 0 }}
+                />
+                Tự thêm SFX cuối mỗi scene (cười/vỗ tay)
+              </label>
+              <span className="muted" title="Bỏ file .mp3 vào assets/sfx/reactions/ trước khi bật — trống thì tính năng tự bỏ qua">
+                cần chuẩn bị sẵn file trong assets/sfx/reactions/
+              </span>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
               <span>Độ dài mỗi đoạn (giây):</span>

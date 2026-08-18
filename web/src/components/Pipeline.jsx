@@ -142,6 +142,9 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, autoRunOnLoad
   // cũ, không đổi).
   const [footageScenesPerClipMin, setFootageScenesPerClipMin] = useState(1);
   const [footageScenesPerClipMax, setFootageScenesPerClipMax] = useState(1);
+  // "Tự thêm SFX cuối mỗi scene" (cười/vỗ tay) — user chuẩn bị sẵn file .mp3 trong
+  // assets/sfx/reactions/, root-composer tự chọn ngẫu nhiên + đặt cuối mỗi scene.
+  const [footageSceneSfxEnabled, setFootageSceneSfxEnabled] = useState(false);
   const [footageMinSeconds, setFootageMinSeconds] = useState(3);
   const [footageMaxSeconds, setFootageMaxSeconds] = useState(6);
   const [footageFlipEnabled, setFootageFlipEnabled] = useState(false);
@@ -400,6 +403,7 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, autoRunOnLoad
     if (p.footageMaxClips !== undefined) setFootageMaxClips(p.footageMaxClips);
     if (p.footageScenesPerClipMin !== undefined) setFootageScenesPerClipMin(p.footageScenesPerClipMin);
     if (p.footageScenesPerClipMax !== undefined) setFootageScenesPerClipMax(p.footageScenesPerClipMax);
+    if (p.footageSceneSfxEnabled !== undefined) setFootageSceneSfxEnabled(p.footageSceneSfxEnabled);
     if (p.footageMinSeconds !== undefined) setFootageMinSeconds(p.footageMinSeconds);
     if (p.footageMaxSeconds !== undefined) setFootageMaxSeconds(p.footageMaxSeconds);
     if (p.footageFlipEnabled !== undefined) setFootageFlipEnabled(p.footageFlipEnabled);
@@ -436,7 +440,7 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, autoRunOnLoad
         footageMinClips, footageMaxClips, footageMinSeconds, footageMaxSeconds,
         footageFlipEnabled, footageSpeedEnabled, footageSpeedMin, footageSpeedMax,
         footageZoomEnabled, footageZoomMin, footageZoomMax, footageColorGrade, captionPosition,
-        footageScenesPerClipMin, footageScenesPerClipMax,
+        footageScenesPerClipMin, footageScenesPerClipMax, footageSceneSfxEnabled,
       });
       const r = await api.listProfiles();
       setProfiles(r.profiles ?? []);
@@ -543,6 +547,7 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, autoRunOnLoad
                   maxClipsPerScene: Number(footageMaxClips),
                   scenesPerClipMin: Number(footageScenesPerClipMin),
                   scenesPerClipMax: Number(footageScenesPerClipMax),
+                  sceneSfxEnabled: footageSceneSfxEnabled,
                   minClipSeconds: Number(footageMinSeconds),
                   maxClipSeconds: Number(footageMaxSeconds),
                   flipEnabled: footageFlipEnabled,
@@ -880,6 +885,20 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, autoRunOnLoad
                 <input type="number" min="1" value={footageScenesPerClipMax} onChange={(e) => setFootageScenesPerClipMax(e.target.value)} style={{ width: "60px" }} />
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                <label style={{ display: "inline-flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
+                  <input
+                    type="checkbox"
+                    checked={footageSceneSfxEnabled}
+                    onChange={(e) => setFootageSceneSfxEnabled(e.target.checked)}
+                    style={{ width: "auto", marginBottom: 0 }}
+                  />
+                  Tự thêm SFX cuối mỗi scene (cười/vỗ tay)
+                </label>
+                <span className="muted" title="Bỏ file .mp3 vào assets/sfx/reactions/ trước khi bật — trống thì tính năng tự bỏ qua">
+                  cần chuẩn bị sẵn file trong assets/sfx/reactions/
+                </span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
                 <span>Độ dài mỗi đoạn (giây):</span>
                 <input type="number" min="0.5" step="0.5" value={footageMinSeconds} onChange={(e) => setFootageMinSeconds(e.target.value)} style={{ width: "60px" }} />
                 <span>–</span>
@@ -1129,6 +1148,7 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, autoRunOnLoad
                           maxClipsPerScene: Number(footageMaxClips),
                           scenesPerClipMin: Number(footageScenesPerClipMin),
                           scenesPerClipMax: Number(footageScenesPerClipMax),
+                          sceneSfxEnabled: footageSceneSfxEnabled,
                           minClipSeconds: Number(footageMinSeconds),
                           maxClipSeconds: Number(footageMaxSeconds),
                           flipEnabled: footageFlipEnabled,
@@ -1182,6 +1202,7 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, autoRunOnLoad
                           maxClipsPerScene: Number(footageMaxClips),
                           scenesPerClipMin: Number(footageScenesPerClipMin),
                           scenesPerClipMax: Number(footageScenesPerClipMax),
+                          sceneSfxEnabled: footageSceneSfxEnabled,
                           minClipSeconds: Number(footageMinSeconds),
                           maxClipSeconds: Number(footageMaxSeconds),
                           flipEnabled: footageFlipEnabled,

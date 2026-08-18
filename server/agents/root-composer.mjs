@@ -17,15 +17,22 @@
  * findings after each attempt, feed them back for up to maxFixAttempts auto-fix
  * rounds.
  */
-import { readFileSync, writeFileSync } from "fs";
+import { readFileSync, writeFileSync, readdirSync, mkdirSync, copyFileSync, existsSync } from "fs";
 import { join } from "path";
 import { runAgent, CHEAP_MODEL } from "./run-agent.mjs";
 import { createFsTools } from "../tools/fs-tools.mjs";
 import { lint } from "../tools/hyperframes-cli.mjs";
 import { checkPseudoElementAnimations, checkAllCanvasDimensions, checkClipClassOverride, checkVoiceoverOverlap, checkVoiceoverCompleteness } from "../tools/validators.mjs";
 import { dimensionsForFormat } from "../lib/canvas.mjs";
+import { probeDuration } from "../tools/ffmpeg-cli.mjs";
 
 const SKILL_PATH = join(import.meta.dirname, "..", "..", ".agents", "skills", "hyperframes", "SKILL.md");
+// User-prepared reaction SFX ("cười/vỗ tay cuối mỗi scene") — a separate, code-only
+// pool from the id-keyed assets/sfx/ catalog video-planner's LLM picks sfx_picks from
+// for "sub"/"motion" (that mechanism doesn't exist for "footage", which has no LLM
+// video-plan step at all — see build-footage-plan.mjs's own doc comment). User drops
+// .mp3 files directly here; nothing else reads this folder.
+const SFX_REACTION_DIR = join(import.meta.dirname, "..", "..", "assets", "sfx", "reactions");
 
 // From output/2026-05-16/huong-dan-cau-hinh-claude-xay-kenh-marketing-mien-/video/index.html
 // (authored correctly by a human via Claude Code + /hyperframes in an earlier session)
@@ -263,6 +270,69 @@ function enforceTotalDuration(html, doneScenes) {
 }
 
 /**
+ * Optional "cười/vỗ tay cuối mỗi scene" feature (user request) — never involves the
+ * LLM at all: picks are random, but WHERE each lands (data-start/data-duration) is
+ * 100% computed from `doneScenes`, same `crossfadeStarts()` ground truth
+ * enforceVoiceoverTags already uses. All reaction tags share ONE track (40) — they
+ * never overlap in time by construction (one per scene, placed at that scene's own
+ * end), same reasoning karaoke caption chunks already reuse one track for. Silently
+ * no-ops (returns html with old tags stripped, nothing added) if the toggle is off or
+ * `assets/sfx/reactions/` has no files yet — never blocks a render on a pool the user
+ * hasn't filled in.
+ */
+async function enforceSfxTags(html, doneScenes, projectDir, sceneSfxEnabled, signal) {
+  // These ids are only ever written by THIS function (the LLM is never told about
+  // this feature) — stripping on every attempt just makes a rerun idempotent, no
+  // quote-style hardening needed unlike the other enforce* functions above.
+  const withoutOld = html.replace(/[ \t]*<audio\b[^>]*\bid=["']sfx-reaction-[^>][^>]*>\s*<\/audio>\n?/g, "");
+  if (!sceneSfxEnabled) return withoutOld;
+
+  let files;
+  try {
+    files = readdirSync(SFX_REACTION_DIR).filter((f) => f.endsWith(".mp3") && !f.startsWith("._"));
+  } catch {
+    files = [];
+  }
+  if (!files.length) return withoutOld;
+
+  const destDir = join(projectDir, "assets", "sfx", "reactions");
+  mkdirSync(destDir, { recursive: true });
+
+  const starts = crossfadeStarts(doneScenes);
+  const tags = [];
+  for (let i = 0; i < doneScenes.length; i++) {
+    const s = doneScenes[i];
+    const file = files[Math.floor(Math.random() * files.length)];
+    const srcPath = join(SFX_REACTION_DIR, file);
+    let sfxDuration;
+    try {
+      sfxDuration = await probeDuration(srcPath, { signal });
+    } catch {
+      continue; // unreadable file on disk — skip this scene's sfx rather than fail the whole root step
+    }
+    const destPath = join(destDir, file);
+    if (!existsSync(destPath)) copyFileSync(srcPath, destPath);
+
+    const sceneEnd = starts[i] + s._audio.scene_duration;
+    const effectiveDuration = Math.round(Math.min(sfxDuration, s._audio.scene_duration) * 1000) / 1000;
+    const start = Math.round((sceneEnd - effectiveDuration) * 1000) / 1000;
+    const num = s.sceneId.replace(/^scene_?/, "");
+    tags.push(
+      `    <audio id="sfx-reaction-${num}" class="clip" data-start="${start}" data-duration="${effectiveDuration}" data-track-index="40" data-volume="0.9" src="assets/sfx/reactions/${file}"></audio>`
+    );
+  }
+  if (!tags.length) return withoutOld;
+
+  // Land right after the LAST scene div's closing tag — same spot enforceSceneTiming
+  // itself just finished inserting the scene block, so this always lines up.
+  const sceneMatches = [...withoutOld.matchAll(/<div\b[^>]*data-composition-src=(["'])compositions\/scene_[^"']*\.html\1[^>]*>\s*<\/div>/g)];
+  if (!sceneMatches.length) return withoutOld;
+  const last = sceneMatches[sceneMatches.length - 1];
+  const insertAt = last.index + last[0].length;
+  return withoutOld.slice(0, insertAt) + "\n" + tags.join("\n") + withoutOld.slice(insertAt);
+}
+
+/**
  * @param {object} params
  * @param {string} params.projectDir
  * @param {string} params.design - DESIGN.md content
@@ -294,6 +364,11 @@ export async function runRootComposer({
   doneSceneIds,
   format,
   template,
+  // "Số scene / 1 clip" grouping (build-footage-plan.mjs) has a footage-template
+  // sibling knob; this one is generic — read off videoPlan.footageConfig?.sceneSfxEnabled
+  // by the caller (routes.mjs), currently only ever populated by the "footage" template's
+  // UI, but the mechanism itself doesn't depend on any footage-specific state.
+  sceneSfxEnabled = false,
   model = CHEAP_MODEL,
   // Was 8 — confirmed live that's too tight: the model spent 6 of 8 turns re-reading
   // index.html/compositions/*.html/assets/* via read_file/list_dir even though all
@@ -463,7 +538,8 @@ trả lời bằng 1 câu tóm tắt — không tool call nào nữa.`;
     const withMusic = enforceMusicTag(rawHtml, scenesWithTiming._audio?.music_track, scenesWithTiming._audio?.music_volume ?? 0.18, totalDuration);
     const withVoiceover = enforceVoiceoverTags(withMusic, doneScenes);
     const withSceneTiming = enforceSceneTiming(withVoiceover, doneScenes, width, height);
-    const html = enforceTotalDuration(withSceneTiming, doneScenes);
+    const withTotalDuration = enforceTotalDuration(withSceneTiming, doneScenes);
+    const html = await enforceSfxTags(withTotalDuration, doneScenes, projectDir, sceneSfxEnabled, signal);
     if (html !== rawHtml) writeFileSync(indexPath, html);
 
     const current = await lint(projectDir);

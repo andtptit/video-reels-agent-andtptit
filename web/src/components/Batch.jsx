@@ -472,6 +472,7 @@ export function Batch({ onProjectCreated, profiles, onProfilesChanged }) {
                 maxClipsPerScene: Number(profile.footageMaxClips ?? 3),
                 scenesPerClipMin: Number(profile.footageScenesPerClipMin ?? 1),
                 scenesPerClipMax: Number(profile.footageScenesPerClipMax ?? 1),
+                sceneSfxEnabled: Boolean(profile.footageSceneSfxEnabled),
                 minClipSeconds: Number(profile.footageMinSeconds ?? 3),
                 maxClipSeconds: Number(profile.footageMaxSeconds ?? 6),
                 flipEnabled: Boolean(profile.footageFlipEnabled),
