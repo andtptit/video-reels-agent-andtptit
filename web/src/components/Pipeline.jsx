@@ -573,6 +573,12 @@ export function Pipeline({ id, idea, platform, initialProfileSlug, autoRunOnLoad
 
       await ensureStepDone("root", () => api.runRoot(id));
       await ensureStepDone("render", () => api.runRender(id));
+      // Found live (user report): "Chạy toàn bộ pipeline" stopped at render — caption
+      // (step 6, "sẵn sàng đăng bài") needed a separate manual click every single
+      // time, so most auto-run projects ended up with no caption.md at all. No LLM
+      // cost concern here (cheap step, master_content.md already paid for) — chain
+      // it in by default like every other step above.
+      await ensureStepDone("caption", () => api.runCaption(id));
     } catch (err) {
       setFormError(err.message);
     } finally {

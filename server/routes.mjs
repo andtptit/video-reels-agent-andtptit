@@ -13,6 +13,7 @@ import { join, resolve, relative, isAbsolute, sep, dirname, extname } from "path
 import { execFile } from "child_process";
 import multer from "multer";
 import { resolveProjectDir, toProjectId, listProjects, InvalidProjectIdError } from "./lib/project-id.mjs";
+import { exportProject, exportAllReady, EXPORT_DIR } from "./lib/export-ready.mjs";
 import { DEFAULT_MODEL, CHEAP_MODEL } from "./agents/run-agent.mjs";
 import { createProject } from "./pipeline/new-project.mjs";
 import { runGenerateAudio } from "./pipeline/generate-audio.mjs";
@@ -224,32 +225,48 @@ router.get("/test-content-plan/:id/result", (req, res) => {
   res.json({ status: readJobStatus(dir), text });
 });
 
+// Cap on how many sample scripts go into ONE runPlaybookTrainer call — found live
+// (user request): raising the UI limit to 10 samples straight into a single LLM
+// call risks an overly long prompt (10 full video transcripts combined). Instead,
+// chunk into groups of this size and call the trainer SEQUENTIALLY, feeding each
+// chunk's result forward as the next chunk's `existingPlaybook` — this is exactly
+// the "cộng dồn, không ghi đè" behavior playbook-trainer.mjs already implements for
+// re-training an existing profile, just looped within one training run instead of
+// across separate user-initiated trainings.
+const TRAIN_CHUNK_SIZE = 5;
+
+async function trainPlaybookInChunks({ batchDir, description, sampleScripts, existingPlaybook, model, onEvent, signal }) {
+  let currentPlaybook = existingPlaybook;
+  let result;
+  for (let i = 0; i < sampleScripts.length; i += TRAIN_CHUNK_SIZE) {
+    const chunk = sampleScripts.slice(i, i + TRAIN_CHUNK_SIZE);
+    result = await runPlaybookTrainer({ batchDir, description, sampleScripts: chunk, existingPlaybook: currentPlaybook, model, onEvent, signal });
+    currentPlaybook = result.playbook;
+  }
+  return result;
+}
+
 // "Training" cho Content playbook — ProfileManager.jsx. Cùng shape scratch-dir +
 // runInBackground + poll-result như /test-content-plan ở trên (không phải project
 // thật, không cần lưu profile trước). Xem playbook-trainer.mjs's doc comment cho lý
 // do trích xuất pattern trừu tượng thay vì chép nguyên văn mẫu.
 router.post("/train-playbook", (req, res) => {
-  // `sampleScripts` (array, up to 5 — same cap as the video-training path below) is
-  // the real param; `sampleScript` (singular) still accepted for back-compat with
-  // any in-flight client build. Found live (user request): the paste-text path was
-  // artificially capped at exactly 1 sample even though runPlaybookTrainer itself
-  // already supports multiple (its own multi-sample "keep only repeated patterns"
-  // logic was written for this from the start) — the video-upload path already
-  // exposed 1-5, this just closes the same door on the text path.
+  // `sampleScripts` (array, up to 10) is the real param; `sampleScript` (singular)
+  // still accepted for back-compat with any in-flight client build.
   const { description, sampleScript, sampleScripts, existingPlaybook, model } = req.body ?? {};
   const samples = (Array.isArray(sampleScripts) ? sampleScripts : sampleScript ? [sampleScript] : [])
     .filter((s) => typeof s === "string" && s.trim())
-    .slice(0, 5);
+    .slice(0, 10);
   if (!samples.length) return res.status(400).json({ error: "Cần ít nhất 1 kịch bản mẫu" });
 
   const { id, dir } = createBatchDir();
   runInBackground(dir, "train-playbook", (onEvent, signal) =>
-    queues.dashscope.run(() => runPlaybookTrainer({ batchDir: dir, description, sampleScripts: samples, existingPlaybook, model, onEvent, signal }))
+    queues.dashscope.run(() => trainPlaybookInChunks({ batchDir: dir, description, sampleScripts: samples, existingPlaybook, model, onEvent, signal }))
   );
   res.status(202).json({ trainId: id, step: "train-playbook", status: "running" });
 });
 
-// Training từ video đối thủ (thay vì paste text) — up to 5 file, mỗi file tự
+// Training từ video đối thủ (thay vì paste text) — up to 10 file, mỗi file tự
 // transcribe qua Whisper (nhận thẳng video, tự tách audio bên trong — xác nhận qua
 // tài liệu hyperframes-media skill: `npx hyperframes transcribe video.mp4` là cú
 // pháp hợp lệ, không cần code tự tách audio bằng ffmpeg trước). Batch dir phải được
@@ -268,7 +285,7 @@ const trainVideoUpload = multer({
     },
     filename: (req, file, cb) => cb(null, `${Date.now()}-${Math.round(Math.random() * 1e9)}${extname(file.originalname) || ".mp4"}`),
   }),
-  limits: { fileSize: 500 * 1024 * 1024, files: 5 }, // 500MB/file — a few minutes of 1080p Reels video
+  limits: { fileSize: 500 * 1024 * 1024, files: 10 }, // 500MB/file — a few minutes of 1080p Reels video
 });
 
 router.post(
@@ -279,7 +296,7 @@ router.post(
     req.trainBatchDir = dir;
     next();
   },
-  trainVideoUpload.array("videos", 5),
+  trainVideoUpload.array("videos", 10),
   (req, res) => {
     const { description, existingPlaybook, model, language } = req.body ?? {};
     const files = req.files ?? [];
@@ -296,7 +313,7 @@ router.post(
         sampleScripts.push(fullText);
         onEvent({ type: "transcribe-done", file: file.originalname, chars: fullText.length });
       }
-      return queues.dashscope.run(() => runPlaybookTrainer({ batchDir: dir, description, sampleScripts, existingPlaybook, model, onEvent, signal }));
+      return queues.dashscope.run(() => trainPlaybookInChunks({ batchDir: dir, description, sampleScripts, existingPlaybook, model, onEvent, signal }));
     });
 
     res.status(202).json({ trainId: id, step: "train-playbook", status: "running", videoCount: files.length });
@@ -1145,6 +1162,35 @@ router.get("/projects/:id/renders/:name", withProjectDir, (req, res) => {
   if (escapes || !name.endsWith(".mp4")) return res.status(400).json({ error: "Invalid render filename" });
   if (!existsSync(file)) return res.status(404).json({ error: `${name} not found` });
   res.sendFile(file);
+});
+
+// "Xuất gọn" — see lib/export-ready.mjs's own doc comment. Synchronous (a file copy
+// + small text write, not an LLM call) — no job-status/SSE plumbing needed.
+router.post("/projects/:id/export", withProjectDir, (req, res) => {
+  try {
+    res.json(exportProject(toProjectId(req.projectDir)));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post("/export-ready-all", (req, res) => {
+  try {
+    const results = exportAllReady();
+    res.json({ results, exportDir: EXPORT_DIR });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post("/export-ready-all/open-folder", async (req, res) => {
+  try {
+    mkdirSync(EXPORT_DIR, { recursive: true });
+    await openInFileManager(EXPORT_DIR);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Publish the finished render as a Facebook Reel on the project's channel profile's

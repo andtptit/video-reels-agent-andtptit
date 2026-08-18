@@ -5,15 +5,17 @@ function formatDate(mtime) {
   return new Date(mtime).toLocaleString("vi-VN");
 }
 
-// Small grid card (video + caption if any) — same compact style as the "Kết quả" grid
-// in Hook.jsx's "Đọc Caption" tab (components/Hook.jsx's HookResultPreview), applied
-// here for every template (motion/sub/footage/hook all write caption.md the same way
-// via caption-writer.mjs/hook-content-writer.mjs) instead of just one tab's results.
-function HistoryItem({ project, onDeleted }) {
+// Redesigned per user reference (an external content-dashboard repo's card grid +
+// copy-button UX) — same underlying data/actions as the old version (video preview,
+// caption copy, open folder, delete), just laid out as a cleaner 2-column card grid
+// instead of the generic .scene-grid/.scene-card also shared by SceneGrid/Hook.
+function HistoryCard({ project, onDeleted }) {
   const [renders, setRenders] = useState(null);
   const [caption, setCaption] = useState(null);
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [exportMsg, setExportMsg] = useState(null);
   const [error, setError] = useState(null);
 
   useEffect(() => {
@@ -41,6 +43,20 @@ function HistoryItem({ project, onDeleted }) {
     }
   }
 
+  async function exportReady() {
+    setExporting(true);
+    setExportMsg(null);
+    setError(null);
+    try {
+      const r = await api.exportProjectReady(project.id);
+      setExportMsg(r.exported ? `Đã xuất ra output-ready/${r.destName}.mp4` : "Chưa có render để xuất");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setExporting(false);
+    }
+  }
+
   async function deleteProject() {
     // Plain window.confirm (same pattern as ProjectPicker's profile delete) but with
     // the wording made explicit about what's actually lost — this destroys real
@@ -61,25 +77,39 @@ function HistoryItem({ project, onDeleted }) {
   }
 
   return (
-    <div className="scene-card">
-      <strong>{project.slug}</strong>
-      <span className="muted">{project.date} · {formatDate(project.mtime)}</span>
-      {project.remixedFrom && <p className="muted">remix từ {project.remixedFrom.split("/")[1]}</p>}
-      {renders === null && <p className="muted">Đang tải render…</p>}
-      {latest && <video controls src={api.renderUrl(project.id, latest.name)} style={{ width: "100%", display: "block", borderRadius: "8px" }} />}
-      {renders?.length > 1 && <p className="muted">+{renders.length - 1} bản render khác (đang xem bản mới nhất)</p>}
-      {caption && (
+    <div className="dash-card">
+      <div className="dash-card-header">
         <div>
-          <button type="button" className="linklike" onClick={copyCaption}>{copied ? "Đã copy caption ✓" : "Copy caption"}</button>
-          <pre className="checkpoint">{caption}</pre>
+          <strong>{project.slug}</strong>
+          <div className="muted" style={{ fontSize: "0.8em" }}>{project.date} · {formatDate(project.mtime)}</div>
+          {project.remixedFrom && <div className="muted" style={{ fontSize: "0.8em" }}>remix từ {project.remixedFrom.split("/")[1]}</div>}
         </div>
-      )}
-      <div className="inline-form">
-        <button type="button" onClick={openFolder}>Mở thư mục output</button>
+        {caption && (
+          <button type="button" className={`dash-copy-btn${copied ? " copied" : ""}`} onClick={copyCaption}>
+            {copied ? "✓ Đã copy" : "Copy caption"}
+          </button>
+        )}
+      </div>
+
+      <div className="dash-card-visual">
+        {renders === null && <p className="muted">Đang tải render…</p>}
+        {latest && <video controls src={api.renderUrl(project.id, latest.name)} />}
+        {renders?.length > 1 && <p className="muted dash-render-count">+{renders.length - 1} bản render khác (đang xem bản mới nhất)</p>}
+      </div>
+
+      {caption && <pre className="dash-caption-text">{caption}</pre>}
+      {!caption && <p className="muted dash-no-caption">Chưa chạy bước "Đọc Caption" — mở thư mục để xem master_content.md làm caption tạm.</p>}
+
+      <div className="dash-card-actions">
+        <button type="button" onClick={openFolder}>Mở thư mục</button>
+        <button type="button" className="linklike" onClick={exportReady} disabled={exporting}>
+          {exporting ? "Đang xuất…" : "Xuất gọn"}
+        </button>
         <button type="button" className="linklike" onClick={deleteProject} disabled={busy}>
-          {busy ? "Đang xoá..." : "Xoá project"}
+          {busy ? "Đang xoá..." : "Xoá"}
         </button>
       </div>
+      {exportMsg && <p className="muted">{exportMsg}</p>}
       {error && <p className="error">{error}</p>}
     </div>
   );
@@ -88,6 +118,8 @@ function HistoryItem({ project, onDeleted }) {
 export function History({ onProjectDeleted }) {
   const [projects, setProjects] = useState(null);
   const [error, setError] = useState(null);
+  const [exportingAll, setExportingAll] = useState(false);
+  const [exportAllMsg, setExportAllMsg] = useState(null);
 
   useEffect(() => {
     load();
@@ -104,16 +136,48 @@ export function History({ onProjectDeleted }) {
     onProjectDeleted?.(id);
   }
 
+  async function exportAll() {
+    setExportingAll(true);
+    setExportAllMsg(null);
+    try {
+      const r = await api.exportAllReady();
+      const done = r.results.filter((x) => x.exported).length;
+      setExportAllMsg(`Đã xuất ${done}/${r.results.length} video vào ${r.exportDir}`);
+    } catch (err) {
+      setExportAllMsg(null);
+      setError(err.message);
+    } finally {
+      setExportingAll(false);
+    }
+  }
+
+  async function openExportFolder() {
+    try {
+      await api.openExportReadyFolder();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
   if (error) return <p className="error">{error}</p>;
   if (!projects) return <p className="muted">Đang tải…</p>;
   if (!projects.length) return <p className="muted">Chưa có video nào render xong.</p>;
 
   return (
     <div className="card">
-      <p className="muted">{projects.length} video đã render xong</p>
-      <div className="scene-grid">
+      <div className="dash-toolbar">
+        <p className="muted">{projects.length} video đã render xong</p>
+        <div className="inline-form" style={{ marginTop: 0 }}>
+          <button type="button" onClick={exportAll} disabled={exportingAll}>
+            {exportingAll ? "Đang xuất…" : "Xuất tất cả ra output-ready/"}
+          </button>
+          <button type="button" className="linklike" onClick={openExportFolder}>Mở thư mục output-ready</button>
+        </div>
+        {exportAllMsg && <p className="muted">{exportAllMsg}</p>}
+      </div>
+      <div className="dash-grid">
         {projects.map((p) => (
-          <HistoryItem key={p.id} project={p} onDeleted={handleDeleted} />
+          <HistoryCard key={p.id} project={p} onDeleted={handleDeleted} />
         ))}
       </div>
     </div>

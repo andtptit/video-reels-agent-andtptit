@@ -44,6 +44,9 @@ export const api = {
   saveProfile: (name, data) => request(`/profiles/${encodeURIComponent(name)}`, { method: "PUT", body: JSON.stringify(data) }),
   deleteProfile: (slug) => request(`/profiles/${encodeURIComponent(slug)}`, { method: "DELETE" }),
   openFolder: (id) => request(`/projects/${encodeURIComponent(id)}/open-folder`, { method: "POST" }),
+  exportProjectReady: (id) => request(`/projects/${encodeURIComponent(id)}/export`, { method: "POST" }),
+  exportAllReady: () => request("/export-ready-all", { method: "POST" }),
+  openExportReadyFolder: () => request("/export-ready-all/open-folder", { method: "POST" }),
   deleteProject: (id) => request(`/projects/${encodeURIComponent(id)}`, { method: "DELETE" }),
   // Facebook Page Access Token — never returned in full, see facebook-secrets.mjs.
   getFacebookTokenStatus: (slug) => request(`/profiles/${encodeURIComponent(slug)}/facebook-token`),

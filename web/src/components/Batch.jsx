@@ -502,6 +502,13 @@ export function Batch({ onProjectCreated, profiles, onProfilesChanged }) {
     if (stopRequestedRef.current) return;
 
     await ensureProjectStep(projectId, "render", () => api.runRender(projectId));
+    if (stopRequestedRef.current) return;
+
+    // Found live (user report): batch runs never went past render, so caption.md
+    // (the copy-paste-ready Reels caption "Xuất gọn"/History depend on) was missing
+    // for almost every video produced this way — see Pipeline.jsx's own
+    // runAllPipeline for the same fix on the single-video flow.
+    await ensureProjectStep(projectId, "caption", () => api.runCaption(projectId));
   }
 
   async function runBatchPipeline() {

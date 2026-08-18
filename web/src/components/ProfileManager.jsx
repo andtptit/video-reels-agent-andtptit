@@ -549,11 +549,12 @@ export function ProfileManager({ profiles, onProfilesChanged, startExpanded = fa
 
       <div className="card" style={{ marginTop: "8px" }}>
         <p className="muted">
-          <strong>Training Content playbook</strong> — mô tả ý muốn + dán 1-5 kịch bản mẫu bạn ưng ý, AI tự trích ra
+          <strong>Training Content playbook</strong> — mô tả ý muốn + dán 1-10 kịch bản mẫu bạn ưng ý, AI tự trích ra
           giọng văn/quy tắc rồi điền lại ô "Content playbook" ở trên (chưa lưu — bạn xem lại rồi bấm "Lưu profile").
           Dán từ 2 mẫu trở lên: AI chỉ giữ pattern LẶP LẠI xuyên suốt, bỏ qua cái chỉ xuất hiện đúng 1 mẫu (nhiều khả
-          năng là ngẫu nhiên, không phải công thức thật). Train nhiều lần sẽ tự bổ sung dần vào playbook cũ, không
-          ghi đè trắng.
+          năng là ngẫu nhiên, không phải công thức thật). Trên 5 mẫu sẽ tự chia thành nhiều lượt gọi AI liên tiếp
+          (mỗi lượt tối đa 5 mẫu, cộng dồn kết quả) để tránh 1 lượt gọi quá dài. Train nhiều lần sẽ tự bổ sung dần
+          vào playbook cũ, không ghi đè trắng.
         </p>
         <textarea
           value={trainDescription}
@@ -585,14 +586,14 @@ export function ProfileManager({ profiles, onProfilesChanged, startExpanded = fa
             )}
           </div>
         ))}
-        {trainSampleScripts.length < 5 && (
+        {trainSampleScripts.length < 10 && (
           <button
             type="button"
             className="linklike"
             disabled={training}
             onClick={() => setTrainSampleScripts((prev) => [...prev, ""])}
           >
-            + Thêm kịch bản mẫu ({trainSampleScripts.length}/5)
+            + Thêm kịch bản mẫu ({trainSampleScripts.length}/10)
           </button>
         )}
         <button type="button" onClick={runTraining} disabled={training || !trainSampleScriptsFilled.length}>
@@ -600,14 +601,15 @@ export function ProfileManager({ profiles, onProfilesChanged, startExpanded = fa
         </button>
 
         <p className="muted" style={{ marginTop: "8px" }}>
-          Hoặc train từ 1-5 video đối thủ (vd Reels viral) — mỗi video được tự phiên âm (Whisper) rồi phân tích chung
-          để tìm pattern LẶP LẠI xuyên suốt (bỏ qua cái chỉ xuất hiện ở 1 video, vì nhiều khả năng là ngẫu nhiên).
+          Hoặc train từ 1-10 video đối thủ (vd Reels viral) — mỗi video được tự phiên âm (Whisper) rồi phân tích
+          chung để tìm pattern LẶP LẠI xuyên suốt (bỏ qua cái chỉ xuất hiện ở 1 video, vì nhiều khả năng là ngẫu
+          nhiên). Trên 5 video cũng tự chia lượt gọi AI như trên.
         </p>
         <input
           type="file"
           accept="video/*"
           multiple
-          onChange={(e) => setTrainVideos(Array.from(e.target.files ?? []).slice(0, 5))}
+          onChange={(e) => setTrainVideos(Array.from(e.target.files ?? []).slice(0, 10))}
           disabled={training}
         />
         {trainVideos.length > 0 && <p className="muted">{trainVideos.length} video đã chọn: {trainVideos.map((f) => f.name).join(", ")}</p>}
