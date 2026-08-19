@@ -20,6 +20,11 @@ node_modules/
 # Phase 2 runtime job progress — ephemeral, regenerated per pipeline run
 job-status.json
 
+# Image-model fallback runtime state (which model the chain is currently on) —
+# ephemeral, see lib/image-model-fallback.mjs. server/config/ (the ordered chain
+# itself) IS committed — only this mutable pointer file is excluded.
+server/state/
+
 # Generated video projects — output/ holds real render artifacts (images, HTML,
 # hundreds of MB per project), not source. Only *.mp4/*.mp3 were excluded before,
 # leaving PNG/HTML/JSON untracked-but-visible; excluding the whole tree instead.

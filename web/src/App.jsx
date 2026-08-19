@@ -118,7 +118,7 @@ export default function App() {
       </header>
       <RunningBanner currentProjectId={project?.id} onJump={handleSelect} />
       {tab === "history" ? (
-        <History onProjectDeleted={handleProjectDeletedInHistory} />
+        <History onProjectDeleted={handleProjectDeletedInHistory} profiles={profiles} />
       ) : tab === "publish" ? (
         <Publish profiles={profiles} />
       ) : tab === "batch" ? (

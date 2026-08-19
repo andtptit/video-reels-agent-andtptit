@@ -1,0 +1,17 @@
+{
+  "chain": [
+    "wan2.6-image",
+    "qwen-image",
+    "qwen-image-2.0",
+    "z-image-turbo",
+    "wan2.5-t2i-preview",
+    "wan2.2-t2i-plus",
+    "wan2.2-t2i-flash",
+    "wan2.1-t2i-plus",
+    "wan2.1-t2i-turbo",
+    "qwen-image-plus",
+    "qwen-image-2.0-pro",
+    "qwen-image-3.0-pro",
+    "qwen-image-3.0"
+  ]
+}

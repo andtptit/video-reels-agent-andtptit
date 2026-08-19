@@ -5,6 +5,30 @@ function formatDate(mtime) {
   return new Date(mtime).toLocaleString("vi-VN");
 }
 
+/** Polls a single project's "caption" step until it leaves "running" — same shape as
+ *  Batch.jsx's own waitForProjectStep, kept local here since History.jsx doesn't
+ *  otherwise need per-project SSE (would be wasteful to open a live connection per
+ *  card just for the rare case a caption still needs generating). */
+function waitForCaptionStep(projectId, { pollMs = 1500, timeoutMs = 90_000 } = {}) {
+  const deadline = Date.now() + timeoutMs;
+  return new Promise((resolvePromise, reject) => {
+    const check = async () => {
+      let status;
+      try {
+        ({ status } = await api.getProject(projectId));
+      } catch (err) {
+        return reject(err);
+      }
+      const s = status.steps?.caption;
+      if (s?.status === "done") return resolvePromise();
+      if (s?.status === "error") return reject(new Error(s.error || "Viết caption thất bại"));
+      if (Date.now() > deadline) return reject(new Error("Timeout chờ viết caption"));
+      setTimeout(check, pollMs);
+    };
+    check();
+  });
+}
+
 // Redesigned per user reference (an external content-dashboard repo's card grid +
 // copy-button UX) — same underlying data/actions as the old version (video preview,
 // caption copy, open folder, delete), just laid out as a cleaner 2-column card grid
@@ -17,6 +41,8 @@ function HistoryCard({ project, onDeleted }) {
   const [exporting, setExporting] = useState(false);
   const [exportMsg, setExportMsg] = useState(null);
   const [error, setError] = useState(null);
+  const [generatingCaption, setGeneratingCaption] = useState(false);
+  const [captionError, setCaptionError] = useState(null);
 
   useEffect(() => {
     api.listRenders(project.id).then((r) => setRenders(r.renders)).catch(() => setRenders([]));
@@ -34,6 +60,21 @@ function HistoryCard({ project, onDeleted }) {
     });
   }
 
+  async function generateCaption() {
+    setGeneratingCaption(true);
+    setCaptionError(null);
+    try {
+      await api.runCaption(project.id);
+      await waitForCaptionStep(project.id);
+      const text = await api.getFile(project.id, "caption.md");
+      setCaption(text);
+    } catch (err) {
+      setCaptionError(err.message);
+    } finally {
+      setGeneratingCaption(false);
+    }
+  }
+
   async function openFolder() {
     setError(null);
     try {
@@ -49,7 +90,7 @@ function HistoryCard({ project, onDeleted }) {
     setError(null);
     try {
       const r = await api.exportProjectReady(project.id);
-      setExportMsg(r.exported ? `Đã xuất ra output-ready/${r.destName}.mp4` : "Chưa có render để xuất");
+      setExportMsg(r.exported ? `Đã xuất ra output-ready/${r.folder}/${r.destName}.mp4` : "Chưa có render để xuất");
     } catch (err) {
       setError(err.message);
     } finally {
@@ -98,7 +139,15 @@ function HistoryCard({ project, onDeleted }) {
       </div>
 
       {caption && <pre className="dash-caption-text">{caption}</pre>}
-      {!caption && <p className="muted dash-no-caption">Chưa chạy bước "Đọc Caption" — mở thư mục để xem master_content.md làm caption tạm.</p>}
+      {!caption && (
+        <div className="dash-no-caption">
+          <p className="muted">Chưa có caption.</p>
+          <button type="button" className="linklike" onClick={generateCaption} disabled={generatingCaption}>
+            {generatingCaption ? "Đang viết caption..." : "Viết caption"}
+          </button>
+          {captionError && <p className="error">{captionError}</p>}
+        </div>
+      )}
 
       <div className="dash-card-actions">
         <button type="button" onClick={openFolder}>Mở thư mục</button>
@@ -115,11 +164,12 @@ function HistoryCard({ project, onDeleted }) {
   );
 }
 
-export function History({ onProjectDeleted }) {
+export function History({ onProjectDeleted, profiles = [] }) {
   const [projects, setProjects] = useState(null);
   const [error, setError] = useState(null);
   const [exportingAll, setExportingAll] = useState(false);
   const [exportAllMsg, setExportAllMsg] = useState(null);
+  const [selectedSlug, setSelectedSlug] = useState(null); // null = "Tất cả"
 
   useEffect(() => {
     load();
@@ -163,6 +213,16 @@ export function History({ onProjectDeleted }) {
   if (!projects) return <p className="muted">Đang tải…</p>;
   if (!projects.length) return <p className="muted">Chưa có video nào render xong.</p>;
 
+  // Counts per profile — lets the filter row show "(3)" etc. without a second fetch;
+  // projects with no profileSlug (created before profile-tracking existed, or via a
+  // flow that never set one) fall under "Tất cả" only, never under a specific chip.
+  const countBySlug = {};
+  for (const p of projects) {
+    if (p.profileSlug) countBySlug[p.profileSlug] = (countBySlug[p.profileSlug] ?? 0) + 1;
+  }
+  const profilesWithVideos = profiles.filter((pr) => countBySlug[pr.slug]);
+  const visibleProjects = selectedSlug ? projects.filter((p) => p.profileSlug === selectedSlug) : projects;
+
   return (
     <div className="card">
       <div className="dash-toolbar">
@@ -175,8 +235,26 @@ export function History({ onProjectDeleted }) {
         </div>
         {exportAllMsg && <p className="muted">{exportAllMsg}</p>}
       </div>
+      {profilesWithVideos.length > 0 && (
+        <div className="app-tabs" style={{ marginBottom: 16, flexWrap: "wrap" }}>
+          <button type="button" className={selectedSlug === null ? "active" : ""} onClick={() => setSelectedSlug(null)}>
+            Tất cả ({projects.length})
+          </button>
+          {profilesWithVideos.map((pr) => (
+            <button
+              key={pr.slug}
+              type="button"
+              className={selectedSlug === pr.slug ? "active" : ""}
+              onClick={() => setSelectedSlug(pr.slug)}
+            >
+              {pr.name} ({countBySlug[pr.slug]})
+            </button>
+          ))}
+        </div>
+      )}
+      {!visibleProjects.length && <p className="muted">Profile này chưa có video nào render xong.</p>}
       <div className="dash-grid">
-        {projects.map((p) => (
+        {visibleProjects.map((p) => (
           <HistoryCard key={p.id} project={p} onDeleted={handleDeleted} />
         ))}
       </div>
