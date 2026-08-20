@@ -5,9 +5,12 @@ server/profiles/secrets/
 # Dependencies
 node_modules/
 
-# Binary media — không commit MP4/MP3
+# Binary media — không commit MP4/MP3, TRỪ nhạc nền/SFX dùng chung của workspace
+# (nhỏ, cố định, cần có sẵn để render chạy được ngay sau khi clone).
 *.mp4
 *.mp3
+!assets/music/**
+!assets/sfx/**
 
 # HyperFrames cache
 .hyperframes/
@@ -43,3 +46,13 @@ server/batches/
 # without native xattr support, so every file write leaves a "._filename" twin.
 # hyperframes lint has been observed scanning these as bogus composition files.
 ._*
+
+# Footage/image library — push CHỈ cấu trúc thư mục (giữ qua .gitkeep), KHÔNG push
+# ảnh/clip thật bên trong: nội dung do người dùng tự thêm/AI tự sinh liên tục theo
+# từng profile, không phải nguồn cố định của workspace, và có thể chứa ảnh nhạy cảm
+# không nên để công khai trên repo. manifest.json (cache thời lượng/tag) cũng loại
+# theo, vì nó vô nghĩa khi không có file thật đi kèm.
+assets/footage-library/*
+!assets/footage-library/.gitkeep
+assets/image-library/*
+!assets/image-library/.gitkeep
