@@ -56,6 +56,10 @@ export const api = {
   publishFacebookReel: (id, params) => request(`/projects/${encodeURIComponent(id)}/publish-facebook-reel`, { method: "POST", body: JSON.stringify(params ?? {}) }),
   // "Hàng loạt" (Batch) tab — see components/Batch.jsx.
   startBatch: (params) => request("/batches", { method: "POST", body: JSON.stringify(params) }),
+  // Bulk "Kịch bản có sẵn" — same batch engine as startBatch, but the ideas come from
+  // user-pasted scripts (split client-side on "---") instead of an LLM idea-generation
+  // call, so this returns synchronously (no "ideate" step to poll for).
+  createBatchFromScripts: (params) => request("/batches/from-scripts", { method: "POST", body: JSON.stringify(params) }),
   getBatch: (id) => request(`/batches/${encodeURIComponent(id)}`),
   saveBatchIdeas: (id, ideas) => request(`/batches/${encodeURIComponent(id)}/ideas`, { method: "PUT", body: JSON.stringify({ ideas }) }),
   batchEventsUrl: (id) => `${API_BASE}/batches/${encodeURIComponent(id)}/events`,

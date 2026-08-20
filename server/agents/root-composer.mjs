@@ -17,14 +17,13 @@
  * findings after each attempt, feed them back for up to maxFixAttempts auto-fix
  * rounds.
  */
-import { readFileSync, writeFileSync, readdirSync, mkdirSync, copyFileSync, existsSync } from "fs";
+import { readFileSync, writeFileSync, mkdirSync, copyFileSync, existsSync } from "fs";
 import { join } from "path";
 import { runAgent, CHEAP_MODEL } from "./run-agent.mjs";
 import { createFsTools } from "../tools/fs-tools.mjs";
 import { lint } from "../tools/hyperframes-cli.mjs";
 import { checkPseudoElementAnimations, checkAllCanvasDimensions, checkClipClassOverride, checkVoiceoverOverlap, checkVoiceoverCompleteness } from "../tools/validators.mjs";
 import { dimensionsForFormat } from "../lib/canvas.mjs";
-import { probeDuration } from "../tools/ffmpeg-cli.mjs";
 
 const SKILL_PATH = join(import.meta.dirname, "..", "..", ".agents", "skills", "hyperframes", "SKILL.md");
 // User-prepared reaction SFX ("cười/vỗ tay cuối mỗi scene") — a separate, code-only
@@ -86,22 +85,42 @@ function diffNewFindings(baseline, current) {
   return (current.findings ?? []).filter((f) => !baseKeys.has(findingKey(f)));
 }
 
+// "SFX cuối scene" (user request) — the reaction sound needs a dedicated slot
+// strictly AFTER a scene's voice/captions end, and the NEXT scene must not begin
+// crossfading until that sound finishes. `sfxByScene` (built by routes.mjs from
+// video-plan.json's per-scene `sfxFile`/`sfxDuration` — see build-footage-plan.mjs's
+// applySceneSfx) maps sceneId -> {file, duration}; 0 for any scene without one.
+function sfxGapFor(sceneId, sfxByScene) {
+  return sfxByScene?.[sceneId]?.duration ?? 0;
+}
+
 /** Same crossfade formula the prompt asks the LLM to compute
  *  (`data-start[i] = data-start[i-1] + scene_duration[i-1] - 0.3`), done once in code
  *  as ground truth — `doneScenes` must be in the same order the LLM was told to
- *  use them (narrative order, per scenesWithTiming.scenes). */
-function crossfadeStarts(doneScenes) {
+ *  use them (narrative order, per scenesWithTiming.scenes).
+ *
+ *  A scene with a trailing SFX gap does NOT get the usual 0.3s crossfade overlap —
+ *  user requirement: the reaction sound must fully finish before the NEXT scene
+ *  starts, not just before the current one's voice does. Applying the normal -0.3
+ *  here would let scene i+1 start fading in while the SFX is still audible (confirmed
+ *  via a dry-run of this exact formula: a 1.2s SFX ending at 5.2s but the next scene
+ *  starting at 4.9s). So: no gap → normal 0.3s crossfade; gap → next scene waits for
+ *  the SFX to fully end, THEN gets its own fresh crossfade in from there. */
+function crossfadeStarts(doneScenes, sfxByScene) {
   const starts = [0];
   for (let i = 1; i < doneScenes.length; i++) {
-    starts.push(Math.round((starts[i - 1] + doneScenes[i - 1]._audio.scene_duration - 0.3) * 1000) / 1000);
+    const prevGap = sfxGapFor(doneScenes[i - 1].sceneId, sfxByScene);
+    const prevEnd = starts[i - 1] + doneScenes[i - 1]._audio.scene_duration + prevGap;
+    starts.push(Math.round((prevGap > 0 ? prevEnd : prevEnd - 0.3) * 1000) / 1000);
   }
   return starts;
 }
 
-function computeTotalDuration(doneScenes) {
-  const starts = crossfadeStarts(doneScenes);
+function computeTotalDuration(doneScenes, sfxByScene) {
+  const starts = crossfadeStarts(doneScenes, sfxByScene);
   const lastIdx = doneScenes.length - 1;
-  return Math.round((starts[lastIdx] + doneScenes[lastIdx]._audio.scene_duration) * 1000) / 1000;
+  const lastGap = sfxGapFor(doneScenes[lastIdx].sceneId, sfxByScene);
+  return Math.round((starts[lastIdx] + doneScenes[lastIdx]._audio.scene_duration + lastGap) * 1000) / 1000;
 }
 
 /**
@@ -137,8 +156,8 @@ function enforceMusicTag(html, musicTrack, musicVolume, totalDuration) {
   return withoutOldMusic.slice(0, insertAt) + tag + "\n\n    " + withoutOldMusic.slice(insertAt);
 }
 
-function buildVoiceoverBlock(doneScenes) {
-  const starts = crossfadeStarts(doneScenes);
+function buildVoiceoverBlock(doneScenes, sfxByScene) {
+  const starts = crossfadeStarts(doneScenes, sfxByScene);
   return doneScenes
     .map((s, i) => {
       if (!s._audio?.voiceover) return null;
@@ -162,8 +181,8 @@ function buildVoiceoverBlock(doneScenes) {
  * data-start/data-duration/src are 100% deterministic from `doneScenes`, so there's
  * no reason to keep gambling on the LLM getting the enumeration right.
  */
-function enforceVoiceoverTags(html, doneScenes) {
-  const correctBlock = buildVoiceoverBlock(doneScenes);
+function enforceVoiceoverTags(html, doneScenes, sfxByScene) {
+  const correctBlock = buildVoiceoverBlock(doneScenes, sfxByScene);
   // Same quote-agnostic hardening as enforceMusicTag above.
   const withoutOldVo = html.replace(/[ \t]*<audio\b[^>]*data-track-index=["']21["'][^>]*>\s*<\/audio>\n?/g, "");
   const marker = withoutOldVo.search(/<div[^>]*data-composition-src=/);
@@ -171,19 +190,24 @@ function enforceVoiceoverTags(html, doneScenes) {
   return withoutOldVo.slice(0, marker) + correctBlock + "\n\n    " + withoutOldVo.slice(marker);
 }
 
-function buildSceneBlock(doneScenes, width, height) {
-  const starts = crossfadeStarts(doneScenes);
+function buildSceneBlock(doneScenes, width, height, sfxByScene) {
+  const starts = crossfadeStarts(doneScenes, sfxByScene);
   return doneScenes
     .map((s, i) => {
       const num = s.sceneId.replace(/^scene_?/, "");
       const track = i % 2 === 0 ? 10 : 11;
-      return `    <div id="scene-${num}" class="clip" data-composition-id="scene-${num}" data-composition-src="compositions/scene_${num}.html" data-start="${starts[i]}" data-duration="${s._audio.scene_duration}" data-track-index="${track}" data-width="${width}" data-height="${height}"></div>`;
+      // Extended by this scene's own trailing SFX gap (0 if none) — the footage clip
+      // itself was cut this much longer (see footage-scene-writer.mjs), so the host
+      // div's own visibility window must match or the clip would go blank/hidden
+      // during the reaction sound instead of continuing to roll under it.
+      const duration = Math.round((s._audio.scene_duration + sfxGapFor(s.sceneId, sfxByScene)) * 1000) / 1000;
+      return `    <div id="scene-${num}" class="clip" data-composition-id="scene-${num}" data-composition-src="compositions/scene_${num}.html" data-start="${starts[i]}" data-duration="${duration}" data-track-index="${track}" data-width="${width}" data-height="${height}"></div>`;
     })
     .join("\n");
 }
 
-function buildCrossfadeScript(doneScenes) {
-  const starts = crossfadeStarts(doneScenes);
+function buildCrossfadeScript(doneScenes, sfxByScene) {
+  const starts = crossfadeStarts(doneScenes, sfxByScene);
   const lines = [];
   for (let i = 0; i < doneScenes.length - 1; i++) {
     const num = doneScenes[i].sceneId.replace(/^scene_?/, "");
@@ -212,13 +236,13 @@ function buildCrossfadeScript(doneScenes) {
  * `doneScenes` data enforceVoiceoverTags already uses — no reason to leave either to
  * the model.
  */
-function enforceSceneTiming(html, doneScenes, width, height) {
+function enforceSceneTiming(html, doneScenes, width, height, sfxByScene) {
   // Must run AFTER enforceVoiceoverTags — relies on the voiceover block already
   // being correct and sitting immediately before where the scene divs used to be
   // (that's where the LLM always writes them), so inserting right after the LAST
   // voiceover <audio> tag lands scenes back in the same spot without guessing at
   // generic HTML structure.
-  const sceneBlock = buildSceneBlock(doneScenes, width, height);
+  const sceneBlock = buildSceneBlock(doneScenes, width, height, sfxByScene);
   // Same quote-agnostic hardening as enforceMusicTag/enforceVoiceoverTags above —
   // backreference so `data-composition-src='compositions/scene_01.html'` (single
   // quotes) is stripped just as reliably as the double-quoted form.
@@ -230,7 +254,7 @@ function enforceSceneTiming(html, doneScenes, width, height) {
   const withScenes =
     insertAt === -1 || !sceneBlock ? withoutOldScenes : withoutOldScenes.slice(0, insertAt) + "\n" + sceneBlock + "\n" + withoutOldScenes.slice(insertAt);
 
-  const crossfadeScript = buildCrossfadeScript(doneScenes);
+  const crossfadeScript = buildCrossfadeScript(doneScenes, sfxByScene);
   // Found live (user report): the model doesn't always match the worked example's
   // single-quote style for the selector string — when it wrote `tl.to("#scene-01",
   // ...)` (double quotes), this regex's single-quote-only pattern silently failed to
@@ -259,8 +283,8 @@ function enforceSceneTiming(html, doneScenes, width, height) {
  * per-scene values (see enforceSceneTiming/enforceVoiceoverTags above) — the OLD
  * total is the only remaining occurrence of that exact number in the file.
  */
-function enforceTotalDuration(html, doneScenes) {
-  const correctTotal = computeTotalDuration(doneScenes);
+function enforceTotalDuration(html, doneScenes, sfxByScene) {
+  const correctTotal = computeTotalDuration(doneScenes, sfxByScene);
   const rootMatch = html.match(/<div id="root"[^>]*data-duration="([\d.]+)"/);
   if (!rootMatch) return html;
   const oldTotal = rootMatch[1];
@@ -271,54 +295,43 @@ function enforceTotalDuration(html, doneScenes) {
 
 /**
  * Optional "cười/vỗ tay cuối mỗi scene" feature (user request) — never involves the
- * LLM at all: picks are random, but WHERE each lands (data-start/data-duration) is
- * 100% computed from `doneScenes`, same `crossfadeStarts()` ground truth
- * enforceVoiceoverTags already uses. All reaction tags share ONE track (40) — they
- * never overlap in time by construction (one per scene, placed at that scene's own
- * end), same reasoning karaoke caption chunks already reuse one track for. Silently
- * no-ops (returns html with old tags stripped, nothing added) if the toggle is off or
- * `assets/sfx/reactions/` has no files yet — never blocks a render on a pool the user
- * hasn't filled in.
+ * LLM at all. `sfxByScene` is decided up front by build-footage-plan.mjs's
+ * applySceneSfx (persisted on video-plan.json, read by routes.mjs), NOT picked here —
+ * this function only PLACES the already-chosen file. It plays in its own slot right
+ * after the scene's voice/captions end (never overlapping the last word — the footage
+ * clip itself was cut this much longer, see footage-scene-writer.mjs), and
+ * crossfadeStarts() already pushed every later scene back to wait for it to finish.
+ * Silently no-ops (returns html with old tags stripped, nothing added) if
+ * `sfxByScene` is empty. All reaction tags share ONE track (40) — they never overlap
+ * in time by construction, same reasoning karaoke caption chunks reuse one track for.
  */
-async function enforceSfxTags(html, doneScenes, projectDir, sceneSfxEnabled, signal) {
+function enforceSfxTags(html, doneScenes, projectDir, sfxByScene) {
   // These ids are only ever written by THIS function (the LLM is never told about
   // this feature) — stripping on every attempt just makes a rerun idempotent, no
   // quote-style hardening needed unlike the other enforce* functions above.
   const withoutOld = html.replace(/[ \t]*<audio\b[^>]*\bid=["']sfx-reaction-[^>][^>]*>\s*<\/audio>\n?/g, "");
-  if (!sceneSfxEnabled) return withoutOld;
-
-  let files;
-  try {
-    files = readdirSync(SFX_REACTION_DIR).filter((f) => f.endsWith(".mp3") && !f.startsWith("._"));
-  } catch {
-    files = [];
-  }
-  if (!files.length) return withoutOld;
+  if (!sfxByScene || !Object.keys(sfxByScene).length) return withoutOld;
 
   const destDir = join(projectDir, "assets", "sfx", "reactions");
   mkdirSync(destDir, { recursive: true });
 
-  const starts = crossfadeStarts(doneScenes);
+  const starts = crossfadeStarts(doneScenes, sfxByScene);
   const tags = [];
   for (let i = 0; i < doneScenes.length; i++) {
     const s = doneScenes[i];
-    const file = files[Math.floor(Math.random() * files.length)];
-    const srcPath = join(SFX_REACTION_DIR, file);
-    let sfxDuration;
-    try {
-      sfxDuration = await probeDuration(srcPath, { signal });
-    } catch {
-      continue; // unreadable file on disk — skip this scene's sfx rather than fail the whole root step
-    }
-    const destPath = join(destDir, file);
+    const pick = sfxByScene[s.sceneId];
+    if (!pick) continue;
+    const srcPath = join(SFX_REACTION_DIR, pick.file);
+    if (!existsSync(srcPath)) continue; // removed from the pool since the plan was built — skip gracefully
+    const destPath = join(destDir, pick.file);
     if (!existsSync(destPath)) copyFileSync(srcPath, destPath);
 
-    const sceneEnd = starts[i] + s._audio.scene_duration;
-    const effectiveDuration = Math.round(Math.min(sfxDuration, s._audio.scene_duration) * 1000) / 1000;
-    const start = Math.round((sceneEnd - effectiveDuration) * 1000) / 1000;
+    // Right after the scene's own voice/captions portion — the footage clip was
+    // already cut long enough to cover this, so no overlap and no clamping needed.
+    const start = Math.round((starts[i] + s._audio.scene_duration) * 1000) / 1000;
     const num = s.sceneId.replace(/^scene_?/, "");
     tags.push(
-      `    <audio id="sfx-reaction-${num}" class="clip" data-start="${start}" data-duration="${effectiveDuration}" data-track-index="40" data-volume="0.9" src="assets/sfx/reactions/${file}"></audio>`
+      `    <audio id="sfx-reaction-${num}" class="clip" data-start="${start}" data-duration="${pick.duration}" data-track-index="40" data-volume="0.9" src="assets/sfx/reactions/${pick.file}"></audio>`
     );
   }
   if (!tags.length) return withoutOld;
@@ -364,11 +377,11 @@ export async function runRootComposer({
   doneSceneIds,
   format,
   template,
-  // "Số scene / 1 clip" grouping (build-footage-plan.mjs) has a footage-template
-  // sibling knob; this one is generic — read off videoPlan.footageConfig?.sceneSfxEnabled
-  // by the caller (routes.mjs), currently only ever populated by the "footage" template's
-  // UI, but the mechanism itself doesn't depend on any footage-specific state.
-  sceneSfxEnabled = false,
+  // "SFX cuối scene" — sceneId -> {file, duration}, already decided by
+  // build-footage-plan.mjs's applySceneSfx (not picked here, see enforceSfxTags'
+  // own doc comment). Built by routes.mjs from videoPlan.scenes; empty object for
+  // any project that doesn't use it.
+  sfxByScene = {},
   model = CHEAP_MODEL,
   // Was 8 — confirmed live that's too tight: the model spent 6 of 8 turns re-reading
   // index.html/compositions/*.html/assets/* via read_file/list_dir even though all
@@ -534,12 +547,12 @@ trả lời bằng 1 câu tóm tắt — không tool call nào nữa.`;
     // and the other checks below always see the corrected version, and a project
     // that fails for some OTHER reason still ends up with correct audio in the
     // partially-failed file on disk.
-    const totalDuration = computeTotalDuration(doneScenes);
+    const totalDuration = computeTotalDuration(doneScenes, sfxByScene);
     const withMusic = enforceMusicTag(rawHtml, scenesWithTiming._audio?.music_track, scenesWithTiming._audio?.music_volume ?? 0.18, totalDuration);
-    const withVoiceover = enforceVoiceoverTags(withMusic, doneScenes);
-    const withSceneTiming = enforceSceneTiming(withVoiceover, doneScenes, width, height);
-    const withTotalDuration = enforceTotalDuration(withSceneTiming, doneScenes);
-    const html = await enforceSfxTags(withTotalDuration, doneScenes, projectDir, sceneSfxEnabled, signal);
+    const withVoiceover = enforceVoiceoverTags(withMusic, doneScenes, sfxByScene);
+    const withSceneTiming = enforceSceneTiming(withVoiceover, doneScenes, width, height, sfxByScene);
+    const withTotalDuration = enforceTotalDuration(withSceneTiming, doneScenes, sfxByScene);
+    const html = enforceSfxTags(withTotalDuration, doneScenes, projectDir, sfxByScene);
     if (html !== rawHtml) writeFileSync(indexPath, html);
 
     const current = await lint(projectDir);

@@ -2,28 +2,25 @@ import { useEffect, useState } from "react";
 import { api } from "../api.js";
 import { useJobStatus } from "../useJobStatus.js";
 import { LiveLog } from "./LiveLog.jsx";
-import { ModelSelect } from "./ModelSelect.jsx";
-import { EXPENSIVE_MODELS } from "../lib/pipelineOptions.js";
 
 /**
  * "Dán kịch bản có sẵn" tab — user pastes their OWN already-written script (not an
- * idea for AI to expand). The AI's only job is cutting it into scenes by meaning —
- * see script-scene-cutter.mjs's own doc comment on why narration text is always
- * reconstructed in code from the model's chosen word boundaries, never retyped by
- * the model itself, so a carefully-written line can never come back paraphrased.
+ * idea for AI to expand). Scene-cutting is 100% code, no LLM at all — see
+ * script-scene-cutter.mjs's own doc comment on why (found live: even a strong hint
+ * still let a model cut in the wrong place sometimes). A line containing only "==="
+ * is the explicit scene-cut marker; a script with none falls back to splitting on
+ * blank lines.
  *
  * Deliberately NOT auto-run into the rest of the pipeline (unlike AudioImport.jsx) —
- * the model still made a creative choice here (WHERE to cut), worth eyeballing in
- * scenes.json before spending on TTS/video-plan, same reasoning as Investigation.jsx's
+ * still worth eyeballing scenes.json before spending on TTS/video-plan (e.g. to catch
+ * a missed "===" merging two beats together), same reasoning as Investigation.jsx's
  * "ai" mode keeping the normal pause-after-plan checkpoint.
  */
 export function ScriptImport({ profiles, onProjectCreated }) {
   const [title, setTitle] = useState("");
   const [orientation, setOrientation] = useState("portrait");
   const [scriptText, setScriptText] = useState("");
-  const [targetDuration, setTargetDuration] = useState("30–60s");
   const [profileSlug, setProfileSlug] = useState("");
-  const [model, setModel] = useState("");
 
   const [projectId, setProjectId] = useState(null);
   const [platform, setPlatform] = useState(null);
@@ -47,7 +44,7 @@ export function ScriptImport({ profiles, onProjectCreated }) {
     try {
       const { id, platform: plat } = await api.createProject(title, orientation);
       setPlatform(plat);
-      await api.runScriptPlan(id, { scriptText, targetDuration, platform: plat, model: model || undefined, profileSlug: profileSlug || undefined });
+      await api.runScriptPlan(id, { scriptText, platform: plat, profileSlug: profileSlug || undefined });
       setProjectId(id); // after accepted — starts useJobStatus's SSE subscription
     } catch (err) {
       setError(err.message);
@@ -62,12 +59,12 @@ export function ScriptImport({ profiles, onProjectCreated }) {
     <form onSubmit={submit} className="card">
       <h2>Dán kịch bản có sẵn</h2>
       <p className="muted">
-        Dán nguyên văn kịch bản bạn đã tự viết — AI <strong>không viết lại, không
-        paraphrase</strong> bất kỳ chữ nào, chỉ chọn ranh giới cắt cảnh theo ý nghĩa.
-        Để dòng trống giữa các đoạn để gợi ý điểm cắt tự nhiên (giống 1 nhịp/1 beat
-        riêng). Sau khi cắt xong, bạn nên xem lại <code>scenes.json</code> trước khi
-        chạy tiếp bước đọc giọng (TTS) — vì đây là chỗ duy nhất AI "quyết định" thay
-        bạn (chọn điểm cắt), phần chữ thì luôn giữ nguyên 100%.
+        Dán nguyên văn kịch bản bạn đã tự viết — <strong>không AI viết lại, không
+        paraphrase</strong> bất kỳ chữ nào, cắt cảnh 100% bằng code theo đúng dấu bạn
+        đánh. Gõ 1 dòng chỉ có <code>===</code> ở chỗ muốn ngắt sang scene mới; kịch
+        bản không có dấu nào thì tự cắt theo dòng trống giữa các đoạn. Sau khi cắt
+        xong, xem lại <code>scenes.json</code> trước khi chạy tiếp bước đọc giọng
+        (TTS) để chắc không sót chỗ nào cần đánh dấu.
       </p>
 
       <input
@@ -79,7 +76,7 @@ export function ScriptImport({ profiles, onProjectCreated }) {
       />
 
       <textarea
-        placeholder="Dán nguyên văn kịch bản vào đây — để dòng trống giữa các đoạn/nhịp..."
+        placeholder={"Dán nguyên văn kịch bản vào đây...\n\n===\n\n(đặt \"===\" trên 1 dòng riêng ở chỗ muốn ngắt scene)"}
         value={scriptText}
         onChange={(e) => setScriptText(e.target.value)}
         rows={14}
@@ -87,16 +84,6 @@ export function ScriptImport({ profiles, onProjectCreated }) {
         disabled={running}
       />
       <p className="muted">{wordCount} từ (~{Math.max(1, Math.round(wordCount / 2.5))}s đọc, ước tính)</p>
-
-      <div className="inline-form">
-        <select value={targetDuration} onChange={(e) => setTargetDuration(e.target.value)} disabled={running} title="Chỉ để tham khảo — AI ưu tiên cắt đúng ranh giới ý nghĩa hơn khớp đúng con số này">
-          <option value="20–30s">Ngắn (20-30s)</option>
-          <option value="30–60s">Vừa (30-60s)</option>
-          <option value="60–90s">Dài (60-90s)</option>
-          <option value="2–3 phút">Rất dài (2-3 phút)</option>
-        </select>
-        <ModelSelect value={model} onChange={setModel} options={EXPENSIVE_MODELS} title="Model cắt cảnh" />
-      </div>
 
       <div className="inline-form">
         <select

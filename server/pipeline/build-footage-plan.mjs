@@ -8,8 +8,14 @@
  * user-configured `footageConfig`. Cheaper and faster than the other two templates'
  * video-plan step — no DashScope call at all.
  */
-import { readFileSync, writeFileSync } from "fs";
-import { join } from "path";
+import { readFileSync, writeFileSync, readdirSync } from "fs";
+import { join, resolve } from "path";
+import { probeDuration } from "../tools/ffmpeg-cli.mjs";
+
+// Same pool root-composer.mjs's enforceSfxTags reads from — see that file's own doc
+// comment on why this is a separate, code-only pool from the id-keyed assets/sfx/
+// catalog "sub"/"motion" pick sfx_picks from.
+const SFX_REACTION_DIR = resolve(import.meta.dirname, "..", "..", "assets", "sfx", "reactions");
 
 /**
  * @param {object} params
@@ -24,21 +30,22 @@ import { join } from "path";
  * @param {(event: object) => void} [params.onEvent]
  * @returns {{ok: true, usage: {promptTokens:0, completionTokens:0, totalTokens:0, apiCalls:0}}}
  */
-export function buildFootagePlan({ projectDir, format, footageConfig, onEvent }) {
+export async function buildFootagePlan({ projectDir, format, footageConfig, onEvent }) {
   const scenesWithTiming = JSON.parse(readFileSync(join(projectDir, "scenes-with-timing.json"), "utf-8"));
 
-  const scenes = applyFootageGrouping(
+  let scenes = applyFootageGrouping(
     scenesWithTiming.scenes.map((scene) => ({
       sceneId: scene.sceneId,
       duration: scene._audio?.scene_duration ?? scene.duration,
     })),
     footageConfig
   );
+  scenes = await applySceneSfx(scenes, footageConfig);
 
   const plan = {
     template: "footage",
     format,
-    total_duration: scenes.reduce((sum, s) => sum + (s.duration ?? 0), 0),
+    total_duration: scenes.reduce((sum, s) => sum + (s.duration ?? 0) + (s.sfxDuration ?? 0), 0),
     scenes,
     footageConfig,
   };
@@ -73,6 +80,40 @@ function applyFootageGrouping(scenes, footageConfig) {
     }
     i += groupSize;
     groupId++;
+  }
+  return result;
+}
+
+// Picks 1 reaction SFX per scene (random file from assets/sfx/reactions/, code-only —
+// see root-composer.mjs's enforceSfxTags for why the LLM is never involved) and probes
+// its REAL duration up front, at plan-build time — not lazily at root-composer time —
+// so the pick is stable across root retries, and footage-scene-writer.mjs can extend
+// its own footage cut to physically cover the SFX's tail (the clip keeps rolling
+// under the sound instead of freezing/going blank once the scene's own captioned
+// portion ends). User request: SFX must play in a dedicated slot AFTER the scene's
+// voice finishes — never overlapping the last word — and the next scene must not
+// start until the SFX itself finishes.
+async function applySceneSfx(scenes, footageConfig) {
+  if (!footageConfig?.sceneSfxEnabled) return scenes;
+  let files;
+  try {
+    files = readdirSync(SFX_REACTION_DIR).filter((f) => f.endsWith(".mp3") && !f.startsWith("._"));
+  } catch {
+    files = [];
+  }
+  if (!files.length) return scenes;
+
+  const result = [];
+  for (const scene of scenes) {
+    const file = files[Math.floor(Math.random() * files.length)];
+    let duration;
+    try {
+      duration = await probeDuration(join(SFX_REACTION_DIR, file));
+    } catch {
+      result.push(scene); // unreadable file on disk — this scene just doesn't get an sfx
+      continue;
+    }
+    result.push({ ...scene, sfxFile: file, sfxDuration: Math.round(duration * 1000) / 1000 });
   }
   return result;
 }

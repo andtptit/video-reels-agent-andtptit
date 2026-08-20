@@ -30,6 +30,10 @@ server/state/
 # leaving PNG/HTML/JSON untracked-but-visible; excluding the whole tree instead.
 output/
 
+# Exported "gọn" copies of rendered videos (History tab's "Xuất gọn"/"Xuất tất cả") —
+# same generated-artifact reasoning as output/ above, just a different destination.
+output-ready/
+
 # "Hàng loạt" (Batch) scratch working dirs — see routes.mjs's withBatchDir doc
 # comment: only ever holds ideas.json + job-status.json for an in-progress batch
 # review, never a real project. Ephemeral, not source.

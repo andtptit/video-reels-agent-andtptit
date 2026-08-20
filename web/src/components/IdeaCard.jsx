@@ -63,11 +63,17 @@ export function IdeaCard({
         <p className="idea-text">{idea.idea}</p>
       )}
 
-      <div className="idea-badges">
-        <span className="idea-badge">{HOOK_LABELS[idea.hookStyle] ?? idea.hookStyle}</span>
-        <span className="idea-badge">{TONE_LABELS[idea.tone] ?? idea.tone}</span>
-        <span className="idea-badge idea-badge-subtopic">{idea.subTopic}</span>
-      </div>
+      {idea.scriptText ? (
+        <div className="idea-badges">
+          <span className="idea-badge">Kịch bản có sẵn</span>
+        </div>
+      ) : (
+        <div className="idea-badges">
+          <span className="idea-badge">{HOOK_LABELS[idea.hookStyle] ?? idea.hookStyle}</span>
+          <span className="idea-badge">{TONE_LABELS[idea.tone] ?? idea.tone}</span>
+          <span className="idea-badge idea-badge-subtopic">{idea.subTopic}</span>
+        </div>
+      )}
 
       {idea.status === "error" && idea.error && <p className="error">{idea.error}</p>}
 
@@ -90,7 +96,7 @@ export function IdeaCard({
             </label>
             <button type="button" className="linklike" disabled={disabled} onClick={() => setEditing(true)}>Sửa</button>
             <button type="button" className="linklike" disabled={disabled} onClick={onDelete}>Xoá</button>
-            {idea.status === "pending" && (
+            {idea.status === "pending" && !idea.scriptText && (
               <button type="button" className="linklike" onClick={() => setTestOpen((v) => !v)}>
                 {testOpen ? "Ẩn test kịch bản" : "Test kịch bản"}
               </button>

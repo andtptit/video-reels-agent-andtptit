@@ -472,6 +472,31 @@ router.post("/batches", (req, res) => {
   res.status(202).json({ batchId, step: "ideate", status: "running" });
 });
 
+// Bulk "Kịch bản có sẵn" — same batch dir/ideas.json shape as POST /batches above
+// (Batch.jsx's approve/run loop is agnostic to how an idea got its content), but no
+// LLM ideate call at all: scripts are already fully written and split client-side on
+// "---", so this writes ideas.json directly and returns immediately (no background
+// step to poll for, unlike /batches' async "ideate"). Each idea gets `scriptText`
+// instead of the AI fields (hookStyle/tone/subTopic) — runApproval (Batch.jsx) reads
+// that field to call POST /projects/:id/script-plan instead of /plan.
+router.post("/batches/from-scripts", (req, res) => {
+  const { scripts, profileSlug } = req.body ?? {};
+  if (!Array.isArray(scripts) || !scripts.length) return res.status(400).json({ error: "scripts is required (mảng, ít nhất 1 kịch bản)" });
+  if (!profileSlug) return res.status(400).json({ error: "profileSlug is required — chọn 1 profile kênh trước" });
+
+  const { id: batchId, dir: batchDir } = createBatchDir();
+  const ideas = scripts.map((s, i) => ({
+    ideaId: `idea-${String(i + 1).padStart(2, "0")}`,
+    idea: String(s.title ?? "").trim() || `Kịch bản ${i + 1}`,
+    scriptText: String(s.scriptText ?? "").trim(),
+    kept: true,
+    status: "pending",
+  }));
+
+  writeFileSync(join(batchDir, "ideas.json"), JSON.stringify({ profileSlug, createdAt: new Date().toISOString(), ideas }, null, 2));
+  res.status(201).json({ batchId });
+});
+
 router.get("/batches/:id", withBatchDir, (req, res) => {
   res.json({ id: req.params.id, status: readJobStatus(req.batchDir), ideas: readIdeasFile(req.batchDir) });
 });
@@ -685,15 +710,13 @@ router.post("/projects/:id/investigation-plan", withProjectDir, (req, res) => {
 // reconstructed in code, never retyped by the model). Same "fake plan done, leave
 // audio real" pattern as /investigation-plan above.
 router.post("/projects/:id/script-plan", withProjectDir, (req, res) => {
-  const { scriptText, targetDuration, platform, model, profileSlug } = req.body ?? {};
+  const { scriptText, platform, profileSlug } = req.body ?? {};
   if (!scriptText?.trim()) return res.status(400).json({ error: "scriptText is required" });
   setProjectProfile(req.projectDir, profileSlug);
 
-  runStep(req.projectDir, "script-plan", (onEvent, signal) =>
-    queues.dashscope.run(() =>
-      runScriptSceneCutter({ projectDir: req.projectDir, scriptText, targetDuration, platform, model, onEvent, signal })
-    )
-  )
+  // No LLM call at all — see script-scene-cutter.mjs's own doc comment — so this
+  // doesn't need queues.dashscope (that queue is for rate-limiting real API calls).
+  runStep(req.projectDir, "script-plan", (onEvent) => runScriptSceneCutter({ projectDir: req.projectDir, scriptText, platform, onEvent }))
     .then(() => {
       emitProgress(req.projectDir, { step: "plan", status: "done" });
     })
@@ -1005,6 +1028,15 @@ router.post("/projects/:id/root", withProjectDir, (req, res) => {
     return res.status(400).json({ error: "No scenes have finished generating yet — generate at least one scene first" });
   }
 
+  // "SFX cuối scene" — already decided per-scene at video-plan time (see
+  // build-footage-plan.mjs's applySceneSfx), not re-picked here. Empty for any
+  // project/scene that doesn't use it.
+  const sfxByScene = Object.fromEntries(
+    (videoPlan.scenes ?? [])
+      .filter((s) => s.sfxFile && s.sfxDuration)
+      .map((s) => [s.sceneId, { file: s.sfxFile, duration: s.sfxDuration }])
+  );
+
   runInBackground(req.projectDir, "root", (onEvent, signal) =>
     queues.dashscope.run(() =>
       runRootComposer({
@@ -1014,7 +1046,7 @@ router.post("/projects/:id/root", withProjectDir, (req, res) => {
         doneSceneIds,
         format: videoPlan.format,
         template: videoPlan.template,
-        sceneSfxEnabled: videoPlan.footageConfig?.sceneSfxEnabled,
+        sfxByScene,
         model: videoPlan.cheapModel,
         onEvent,
         signal,

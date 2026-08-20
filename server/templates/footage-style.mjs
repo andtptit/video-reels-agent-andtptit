@@ -29,7 +29,14 @@ const DEFAULT_FONT = "Itim"; // must match templates/sub-styles/image-full-focus
  * @param {string} params.videoPath - project-relative path to the pre-cut, pre-concat
  *   footage clip (assets/footage/scene_XX.mp4), already normalized to width×height.
  * @param {{word: string, start: number, end: number}[]} params.wordTimestamps
- * @param {number} params.sceneDuration - composition's data-duration
+ * @param {number} params.sceneDuration - voice/caption portion only. Captions are
+ *   sized against this — NOT `videoDuration` below — so nothing lingers on screen
+ *   during a trailing SFX beat that has no narration of its own.
+ * @param {number} [params.videoDuration] - the footage clip's own data-duration,
+ *   defaults to `sceneDuration`. Longer than `sceneDuration` when this scene has a
+ *   "SFX cuối scene" reaction sound (see footage-scene-writer.mjs's own doc comment):
+ *   the clip is cut that much longer so it keeps rolling under the sound instead of
+ *   freezing/going blank once captions end.
  * @param {string} [params.narration]
  * @param {string} [params.fontFamily]
  * @param {"bottom"|"center"} [params.captionPosition] - see karaoke-captions.mjs's
@@ -44,6 +51,7 @@ export function render({
   videoPath,
   wordTimestamps,
   sceneDuration,
+  videoDuration = sceneDuration,
   narration = "",
   fontFamily = DEFAULT_FONT,
   captionPosition = "bottom",
@@ -85,7 +93,7 @@ export function render({
 </head>
 <body>
   <div id="${compositionId}" data-composition-id="${compositionId}" data-width="${width}" data-height="${height}">
-    <video id="${p}-bg-video" class="clip" src="${videoPath}" data-start="0" data-duration="${sceneDuration}"
+    <video id="${p}-bg-video" class="clip" src="${videoPath}" data-start="0" data-duration="${videoDuration}"
            data-track-index="0" muted playsinline
            style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:0;"></video>
     <div class="${p}-shade"></div>

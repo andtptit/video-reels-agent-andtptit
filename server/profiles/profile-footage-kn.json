@@ -1,11 +1,11 @@
 {
   "name": "Profile footage_KN",
   "slug": "profile-footage-kn",
-  "updatedAt": "2026-08-13T05:39:04.530Z",
-  "ttsProvider": "vbee",
-  "ttsRate": 1,
+  "updatedAt": "2026-08-19T08:18:28.051Z",
+  "ttsProvider": "edge-tts",
+  "ttsRate": 1.2,
   "ttsVoice": "",
-  "musicTrack": "default",
+  "musicTrack": "scheming-weasel-faster-1-mp3cutn-mp3cut",
   "musicVolume": 20,
   "template": "footage",
   "visualStyle": "animation",
@@ -32,5 +32,10 @@
   "footageZoomMin": "1.07",
   "footageZoomMax": 1.15,
   "channelTheme": "Chia sẻ kinh nghiệm vợ chồng, ngôn từ sảng khoái, sexy, chủ đề giữ chồng, giữ lửa trong chuyện sinh hoạt vợ chồng",
-  "defaultAudience": "Các vợ chồng trẻ"
+  "defaultAudience": "Các vợ chồng trẻ",
+  "footageScenesPerClipMin": 1,
+  "footageScenesPerClipMax": 1,
+  "footageSceneSfxEnabled": true,
+  "footageColorGrade": "dark",
+  "captionPosition": "bottom"
 }

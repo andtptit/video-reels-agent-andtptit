@@ -14,9 +14,37 @@
 import { existsSync, mkdirSync, readdirSync, statSync, copyFileSync, readFileSync, writeFileSync } from "fs";
 import { join, resolve } from "path";
 import { listProjects, resolveProjectDir } from "./project-id.mjs";
+import { listProfiles } from "./profiles.mjs";
 
 const ROOT = resolve(import.meta.dirname, "..", "..");
 export const EXPORT_DIR = join(ROOT, "output-ready");
+const UNASSIGNED_FOLDER = "Chưa gắn profile";
+
+function sanitizeFolderName(name) {
+  // Windows/Drive-illegal path characters only — Vietnamese diacritics and spaces are
+  // fine on every filesystem this workspace actually runs/syncs on.
+  const cleaned = String(name ?? "").trim().replace(/[\\/:*?"<>|]/g, "-");
+  return cleaned || UNASSIGNED_FOLDER;
+}
+
+/**
+ * Numeric prefix (1_, 2_, ...) so Drive/Explorer sorts videos in a stable, human-
+ * meaningful order — user request. Scoped PER PROFILE SUBFOLDER (each channel's own
+ * queue, not one global count) and computed from ALL render-ready projects sharing
+ * that profile, oldest-first — so a project gets the SAME number whether exported
+ * alone ("Xuất gọn") or as part of "Xuất tất cả", and re-exporting later keeps
+ * renumbering consistently as the set of finished projects changes.
+ */
+function exportPlacement(projectId) {
+  const all = listProjects().filter((p) => p.renderDone);
+  const target = all.find((p) => p.id === projectId);
+  const profileSlug = target?.profileSlug;
+  const profile = profileSlug ? listProfiles().find((p) => p.slug === profileSlug) : null;
+  const folder = sanitizeFolderName(profile?.name);
+  const sameProfile = all.filter((p) => p.profileSlug === profileSlug).sort((a, b) => a.mtime - b.mtime);
+  const index = sameProfile.findIndex((p) => p.id === projectId) + 1;
+  return { folder, index: index || sameProfile.length + 1 };
+}
 
 function newestRender(projectDir) {
   const rendersDir = join(projectDir, "renders");
@@ -36,19 +64,22 @@ function captionText(projectDir) {
   return { text: "", source: null };
 }
 
-/** @returns {{exported: boolean, videoFile: string|null, captionSource: string|null, destName: string}} */
+/** @returns {{exported: boolean, videoFile: string|null, captionSource: string|null, destName: string, folder: string|null}} */
 export function exportProject(projectId) {
   const projectDir = resolveProjectDir(projectId);
   const [date, slug] = projectId.split("/");
-  const destName = `${date}-${slug}`;
   const render = newestRender(projectDir);
-  if (!render) return { exported: false, videoFile: null, captionSource: null, destName };
+  if (!render) return { exported: false, videoFile: null, captionSource: null, destName: `${date}-${slug}`, folder: null };
 
-  mkdirSync(EXPORT_DIR, { recursive: true });
-  copyFileSync(join(projectDir, "renders", render), join(EXPORT_DIR, `${destName}.mp4`));
+  const { folder, index } = exportPlacement(projectId);
+  const destName = `${index}_${date}-${slug}`;
+  const destDir = join(EXPORT_DIR, folder);
+
+  mkdirSync(destDir, { recursive: true });
+  copyFileSync(join(projectDir, "renders", render), join(destDir, `${destName}.mp4`));
   const { text, source } = captionText(projectDir);
-  writeFileSync(join(EXPORT_DIR, `${destName}.txt`), text);
-  return { exported: true, videoFile: render, captionSource: source, destName };
+  writeFileSync(join(destDir, `${destName}.txt`), text);
+  return { exported: true, videoFile: render, captionSource: source, destName, folder };
 }
 
 /** Exports every project that has at least 1 render — used by "Xuất tất cả". Always

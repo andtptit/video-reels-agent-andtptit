@@ -110,6 +110,19 @@ export function Batch({ onProjectCreated, profiles, onProfilesChanged }) {
 
   const [profileSaveMsg, setProfileSaveMsg] = useState(null);
 
+  // "Kịch bản có sẵn" hàng loạt — nhập nhiều kịch bản tự viết cùng lúc thay vì để AI
+  // sinh ý tưởng. Dùng CHUNG batch engine bên dưới (ideas.json, duyệt, chạy tuần tự)
+  // — mỗi kịch bản trở thành 1 "idea" có field `scriptText` thay vì hookStyle/tone do
+  // AI sinh (xem runApproval's nhánh scriptText, và routes.mjs's /batches/from-scripts).
+  const [pasteScriptsText, setPasteScriptsText] = useState("");
+  const [scriptsImporting, setScriptsImporting] = useState(false);
+  const [scriptsImportError, setScriptsImportError] = useState(null);
+
+  // List display helpers — a batch accumulates ideas/scripts across many sessions
+  // (ideas.json never auto-prunes), so once most of them are "done" the grid gets
+  // long and unhelpful; hiding done ones lets the user focus on what's still pending.
+  const [hideDone, setHideDone] = useState(false);
+
   const [batchId, setBatchId] = useState(null);
   const [ideasMeta, setIdeasMeta] = useState(null); // full ideas.json envelope
   const [restoring, setRestoring] = useState(false);
@@ -230,6 +243,70 @@ export function Batch({ onProjectCreated, profiles, onProfilesChanged }) {
   // touching anything) and never switches `batchId` over to it.
   const [merging, setMerging] = useState(false);
 
+  // Splits on a line that's ONLY dashes ("---", "----"...) — chosen over a blank line
+  // because a blank line already means something WITHIN one script (a paragraph/beat
+  // break the scene-cutter treats as a hint, same convention as the single-script
+  // "Kịch bản có sẵn" tab). Title = first non-empty line, truncated — same rough idea
+  // as how a project's own slug gets derived from idea text elsewhere.
+  function parseScripts(text) {
+    return text
+      .split(/^-{3,}\s*$/m)
+      .map((chunk) => chunk.trim())
+      .filter(Boolean)
+      .map((scriptText) => {
+        const firstLine = scriptText.split("\n").find((l) => l.trim())?.trim() ?? "";
+        const title = firstLine.length > 60 ? `${firstLine.slice(0, 60)}…` : firstLine;
+        return { title, scriptText };
+      });
+  }
+
+  async function importScripts() {
+    setScriptsImportError(null);
+    const scripts = parseScripts(pasteScriptsText);
+    if (!scripts.length) {
+      setScriptsImportError("Không tìm thấy kịch bản nào — dán ít nhất 1 kịch bản, các kịch bản cách nhau bởi dòng \"---\".");
+      return;
+    }
+    if (!profileSlug) {
+      setScriptsImportError("Chọn 1 channel profile trước.");
+      return;
+    }
+    setScriptsImporting(true);
+    try {
+      const existing = ideasMetaRef.current?.ideas ?? [];
+      if (!batchId) {
+        const { batchId: id } = await api.createBatchFromScripts({ scripts, profileSlug });
+        setBatchId(id);
+        saveStoredBatchId(profileSlug, id);
+        const { ideas } = await api.getBatch(id);
+        setIdeasMeta(ideas);
+      } else {
+        // Same append-not-overwrite merge as generateIdeas' own merge path — an
+        // idea already here (approved or not) must never get silently orphaned by
+        // pasting a second round of scripts.
+        const maxN = existing.reduce((m, i) => {
+          const n = parseInt(String(i.ideaId).replace("idea-", ""), 10);
+          return Number.isFinite(n) && n > m ? n : m;
+        }, 0);
+        const newIdeas = scripts.map((s, i) => ({
+          ideaId: `idea-${String(maxN + i + 1).padStart(2, "0")}`,
+          idea: s.title,
+          scriptText: s.scriptText,
+          kept: true,
+          status: "pending",
+        }));
+        const merged = [...existing, ...newIdeas];
+        await api.saveBatchIdeas(batchId, merged);
+        setIdeasMeta((prev) => ({ ...prev, ideas: merged }));
+      }
+      setPasteScriptsText("");
+    } catch (err) {
+      setScriptsImportError(err.message);
+    } finally {
+      setScriptsImporting(false);
+    }
+  }
+
   async function generateIdeas() {
     setFormError(null);
     const existing = ideasMetaRef.current?.ideas ?? [];
@@ -292,6 +369,18 @@ export function Batch({ onProjectCreated, profiles, onProfilesChanged }) {
     });
   }
 
+  // Applies to whatever's currently VISIBLE (respects "Ẩn project đã chạy xong") —
+  // one persisted update instead of N sequential patchIdea calls.
+  function setKeptForIds(ideaIds, kept) {
+    setIdeasMeta((prev) => {
+      if (!prev) return prev;
+      const idSet = new Set(ideaIds);
+      const ideas = prev.ideas.map((i) => (idSet.has(i.ideaId) ? { ...i, kept } : i));
+      persistIdeas(ideas);
+      return { ...prev, ideas };
+    });
+  }
+
   /** Creates the real project for one idea and promotes an already-generated
    *  /test-content-plan result into it instead of calling content-planner again —
    *  the whole point of TestScriptPreview's "Dùng kết quả này" button (see its own
@@ -343,7 +432,15 @@ export function Batch({ onProjectCreated, profiles, onProfilesChanged }) {
           patchIdea(idea.ideaId, { status: "creating", error: null });
           ({ id: projectId, platform } = await createProjectWithRetry(idea.idea, orientation));
           patchIdea(idea.ideaId, { status: "planning", projectId, platform });
-          await api.runPlan(projectId, { idea: idea.idea, audience, platform, profileSlug });
+          // Kịch bản có sẵn (đã nhập nguyên văn) — cắt cảnh, KHÔNG gọi content-planner
+          // (không có gì cho AI viết, chữ đã cố định). routes.mjs's /script-plan cũng
+          // đánh dấu step "plan" done y hệt /plan khi xong, nên waitForProjectStep bên
+          // dưới dùng chung không cần rẽ nhánh.
+          if (idea.scriptText) {
+            await api.runScriptPlan(projectId, { scriptText: idea.scriptText, platform, profileSlug });
+          } else {
+            await api.runPlan(projectId, { idea: idea.idea, audience, platform, profileSlug });
+          }
           await waitForProjectStep(projectId, "plan");
           patchIdea(idea.ideaId, { status: "done" });
           await api
@@ -567,6 +664,7 @@ export function Batch({ onProjectCreated, profiles, onProfilesChanged }) {
   const ideas = ideasMeta?.ideas ?? [];
   const keptCount = ideas.filter((i) => i.kept !== false).length;
   const readyIdeas = ideas.filter((i) => i.kept !== false && i.status === "done" && i.projectId);
+  const displayedIdeas = hideDone ? ideas.filter((i) => i.status !== "done") : ideas;
 
   return (
     <div>
@@ -641,10 +739,33 @@ export function Batch({ onProjectCreated, profiles, onProfilesChanged }) {
         {ideateStatus === "error" && <p className="error">{steps.ideate.error}</p>}
       </div>
 
+      <div className="card">
+        <h2>Hoặc: dán nhiều kịch bản có sẵn</h2>
+        <p className="muted">
+          Kịch bản bạn tự viết nguyên văn — cắt cảnh 100% bằng code, không AI viết lại chữ nào. Dán nhiều kịch bản cùng
+          lúc, mỗi kịch bản cách nhau bởi 1 dòng riêng chỉ có "---". Trong 1 kịch bản, đặt 1 dòng chỉ có "===" ở chỗ
+          muốn ngắt scene (không đánh dấu thì tự cắt theo dòng trống). Tiêu đề project tự lấy từ dòng đầu mỗi kịch bản.
+        </p>
+        <textarea
+          value={pasteScriptsText}
+          onChange={(e) => setPasteScriptsText(e.target.value)}
+          placeholder={"Kịch bản 1, scene 1...\n===\nKịch bản 1, scene 2...\n\n---\n\nKịch bản 2, scene 1...\n===\nKịch bản 2, scene 2..."}
+          rows={8}
+          disabled={scriptsImporting}
+        />
+        <button type="button" disabled={!profileSlug || !pasteScriptsText.trim() || scriptsImporting} onClick={importScripts}>
+          {scriptsImporting ? "Đang nhập..." : "Nhập kịch bản"}
+        </button>
+        {!profileSlug && <p className="muted">Cần chọn 1 channel profile trước (ô chọn profile ở trên).</p>}
+        {scriptsImportError && <p className="error">{scriptsImportError}</p>}
+      </div>
+
       {ideas.length > 0 && (
         <div className="card">
           <div className="step-row-head">
-            <h3>Ý tưởng ({ideas.length}) — giữ {keptCount}</h3>
+            <h3>
+              Ý tưởng ({displayedIdeas.length}{displayedIdeas.length !== ideas.length ? `/${ideas.length}` : ""}) — giữ {keptCount}
+            </h3>
             <div style={{ display: "flex", gap: "8px" }}>
               <button
                 type="button"
@@ -669,8 +790,35 @@ export function Batch({ onProjectCreated, profiles, onProfilesChanged }) {
             />
             Chạy tự động luôn cả pipeline (audio→video-plan→scene→root→render) sau khi duyệt — không cần bấm "Chạy hàng loạt" riêng
           </label>
+          <div className="inline-form" style={{ marginTop: "8px" }}>
+            <label style={{ display: "inline-flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
+              <input
+                type="checkbox"
+                checked={hideDone}
+                onChange={(e) => setHideDone(e.target.checked)}
+                style={{ width: "auto", marginBottom: 0 }}
+              />
+              Ẩn project đã chạy xong
+            </label>
+            <button
+              type="button"
+              className="linklike"
+              disabled={approving || !displayedIdeas.length}
+              onClick={() => setKeptForIds(displayedIdeas.map((i) => i.ideaId), true)}
+            >
+              Chọn hàng loạt
+            </button>
+            <button
+              type="button"
+              className="linklike"
+              disabled={approving || !displayedIdeas.length}
+              onClick={() => setKeptForIds(displayedIdeas.map((i) => i.ideaId), false)}
+            >
+              Bỏ tích
+            </button>
+          </div>
           <div className="idea-grid">
-            {ideas.map((idea) => (
+            {displayedIdeas.map((idea) => (
               <IdeaCard
                 key={idea.ideaId}
                 idea={idea}

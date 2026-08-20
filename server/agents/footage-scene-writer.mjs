@@ -205,6 +205,15 @@ export async function runFootageWriter({
   const { width, height } = dimensionsForFormat(format);
 
   const sceneDuration = sceneTiming?._audio?.scene_duration ?? scene.duration;
+  // "SFX cuối scene" (user request): the reaction sound must play in its OWN slot
+  // strictly AFTER the voice/captions end, never overlapping the last word — and the
+  // NEXT scene must not start until it finishes. The footage clip itself is cut this
+  // much longer than the captioned portion so it keeps rolling under the sound
+  // instead of freezing/going blank; root-composer.mjs places the actual <audio> tag
+  // and stretches the crossfade timing to match (see its own doc comment). Captions
+  // still only ever cover `sceneDuration` (the real voice portion) — see the
+  // footageStyle.render() call below.
+  const videoDuration = sceneDuration + (scene.sfxDuration ?? 0);
   const footageDir = join(projectDir, "assets", "footage");
   mkdirSync(footageDir, { recursive: true });
   const finalVideoPath = `assets/footage/scene_${padded}.mp4`;
@@ -224,7 +233,7 @@ export async function runFootageWriter({
       isLeader: !!scene.footageGroupLeader,
       resolvedLibraryDir,
       destPath: finalVideoAbsPath,
-      sceneDuration,
+      sceneDuration: videoDuration,
       width,
       height,
       flipEnabled,
@@ -242,7 +251,7 @@ export async function runFootageWriter({
     onEvent?.({ type: "write", outPath: finalVideoPath });
   } else if (!existsSync(finalVideoAbsPath)) {
     const clipCount = Math.round(randomInRange(minClipsPerScene, maxClipsPerScene));
-    const clipDurations = splitDuration(sceneDuration, clipCount, minClipSeconds, maxClipSeconds);
+    const clipDurations = splitDuration(videoDuration, clipCount, minClipSeconds, maxClipSeconds);
     // Found live (user report): with `includeImages` omitted (the original,
     // unchanged default), a folder containing only still images scanned as
     // completely empty ("Kho footage rỗng") even with 100+ files in it — this
@@ -326,6 +335,7 @@ export async function runFootageWriter({
     videoPath: finalVideoPath,
     wordTimestamps: sceneTiming?._audio?.word_timestamps ?? [],
     sceneDuration,
+    videoDuration,
     narration: sceneTiming?.narration ?? "",
     ...(fontFamily ? { fontFamily } : {}),
     captionPosition,
