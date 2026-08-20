@@ -232,13 +232,26 @@ export async function synthesize({
   if (!voiceId) throw new Error("Missing VBEE_VOICE_CODE (hoặc truyền ttsVoice) — chưa biết dùng giọng nào");
   if (signal?.aborted) throw signal.reason instanceof CancelledError ? signal.reason : new CancelledError();
 
-  const opts = { text, voiceCode: voiceId, speed: rate, outputFormat: "mp3", appId, token, signal };
+  // Confirmed live (user report): Vbee's voice reads "—" (em-dash, common in
+  // LLM-written narration for a dramatic beat) straight through with no pause at all,
+  // while ";" DOES trigger a pause on this account's configured voice — replaced here
+  // (not via prompt instructions to the LLM) because a text-level swap is guaranteed,
+  // where telling the LLM "never use —" is not (same "code owns mechanical
+  // transforms, never trust the LLM to comply" reasoning as root-composer.mjs/
+  // script-scene-cutter.mjs elsewhere in this codebase). Scoped to Vbee specifically
+  // — this is Vbee's own pause quirk + this account's own ";" pause config, not
+  // something ElevenLabs/edge-tts need. `normalizedText` (not the original `text`) is
+  // what's actually sent AND what alignKnownTextToWhisperTiming below treats as
+  // "known text", so captions/timing stay consistent with what was really spoken.
+  const normalizedText = text.replace(/—/g, ";");
+
+  const opts = { text: normalizedText, voiceCode: voiceId, speed: rate, outputFormat: "mp3", appId, token, signal };
   const buf = preferRealtime && text.length <= REALTIME_MAX_CHARS ? await synthesizeRealtime(opts) : await synthesizeBatch(opts);
   writeFileSync(destPath, buf);
 
   const { words: rawWords } = await whisperTranscribe(destPath, { engine: "whisper", model: whisperModel, language, signal });
   const whisperWords = rawWords.map((w) => ({ word: w.text ?? w.word, start: w.start, end: w.end }));
-  const wordTimestamps = alignKnownTextToWhisperTiming(text, whisperWords);
+  const wordTimestamps = alignKnownTextToWhisperTiming(normalizedText, whisperWords);
   const voDuration = wordTimestamps.at(-1)?.end ?? 0;
 
   return { wordTimestamps, voDuration, audioBytes: buf.length };

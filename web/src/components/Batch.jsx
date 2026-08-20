@@ -402,7 +402,12 @@ export function Batch({ onProjectCreated, profiles, onProfilesChanged }) {
     const keptIdeas = (ideasMetaRef.current?.ideas ?? []).filter((i) => i.kept !== false);
     if (!keptIdeas.length) return;
 
-    const profile = autoContinueAll ? profiles.find((p) => p.slug === profileSlug) : null;
+    // Looked up unconditionally now (not just for autoContinueAll) — content-planner's
+    // `model` below needs profile.plannerModel regardless of whether the rest of the
+    // pipeline runs automatically; previously this was only resolved for the
+    // autoContinueAll branch, so a plain "duyệt" approval silently fell back to
+    // run-agent.mjs's DEFAULT_MODEL instead of the profile's own chosen model.
+    const profile = profiles.find((p) => p.slug === profileSlug);
     if (autoContinueAll && !profile) {
       setFormError("Không tìm thấy profile đã chọn — chọn lại profile trước khi chạy tự động toàn bộ.");
       return;
@@ -439,7 +444,7 @@ export function Batch({ onProjectCreated, profiles, onProfilesChanged }) {
           if (idea.scriptText) {
             await api.runScriptPlan(projectId, { scriptText: idea.scriptText, platform, profileSlug });
           } else {
-            await api.runPlan(projectId, { idea: idea.idea, audience, platform, profileSlug });
+            await api.runPlan(projectId, { idea: idea.idea, audience, platform, profileSlug, model: profile?.plannerModel || undefined });
           }
           await waitForProjectStep(projectId, "plan");
           patchIdea(idea.ideaId, { status: "done" });

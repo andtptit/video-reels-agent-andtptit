@@ -57,6 +57,12 @@ const PROFILE_FIELDS = [
   // hookStyle/tone rotation in idea-generator.mjs stays as-is (keeps ideas diverse);
   // this is a LAYER ON TOP for substance, not a replacement.
   "contentPlaybook",
+  // Optional override of idea-generator.mjs's fixed 4-value TONES list, for channels
+  // whose content genre can't naturally support all 4 (e.g. a pure-confession/love-
+  // letter channel has no honest "day-kien-thuc"/"thuc-hanh-tung-buoc" moment — forcing
+  // those tones produced ideas with a mismatched tag, found live via real batch output
+  // review). Empty/absent falls back to idea-generator.mjs's own default list.
+  "ideaTones",
   "plannerModel",
   "cheapModel",
   "imgModel",

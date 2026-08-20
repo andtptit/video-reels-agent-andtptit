@@ -37,6 +37,12 @@ const TONES = ["day-kien-thuc", "de-ton-thuong", "bold-provocative", "thuc-hanh-
  *   `contentPlaybook` field. Layered ON TOP of the fixed hookStyle/tone rotation
  *   below, never replacing it — diversity rules stay mechanical/enforceable, while
  *   this free text shapes WHAT the ideas are actually about.
+ * @param {string[]} [params.tones] - overrides the default TONES list — see
+ *   lib/profiles.mjs's `ideaTones` field. A channel whose content genre can't
+ *   naturally support all 4 default tones (found live: a pure-confession/love-letter
+ *   channel forced into "day-kien-thuc"/"thuc-hanh-tung-buoc" produced ideas with a
+ *   tag that plainly didn't fit the actual content) can narrow this to only the
+ *   tones that genuinely fit.
  */
 export async function runIdeaGenerator({
   batchDir,
@@ -45,6 +51,7 @@ export async function runIdeaGenerator({
   count = 10,
   avoidList = [],
   contentPlaybook,
+  tones = TONES,
   model = DEFAULT_MODEL,
   maxTurns = 6,
   onEvent,
@@ -66,20 +73,29 @@ Mỗi ý tưởng gồm ĐÚNG 4 field:
 - "subTopic": cụm 2-5 từ tiếng Việt mô tả chủ đề con hẹp của ý tưởng đó (dùng để kiểm
   tra trùng lặp — phải đủ cụ thể để 2 ý tưởng thật sự khác nhau thì subTopic cũng khác
   nhau rõ).
-- "tone": ĐÚNG 1 trong 4 giá trị sau, không tự bịa giá trị khác: ${TONES.join(", ")}.
+- "tone": ĐÚNG 1 trong ${tones.length} giá trị sau, không tự bịa giá trị khác: ${tones.join(", ")}.
 
 QUY TẮC ĐA DẠNG (BẮT BUỘC, không thỏa hiệp):
 1. TUYỆT ĐỐI KHÔNG quá 2 ý tưởng cùng subTopic giống/gần giống nhau trong ${count} ý
    tưởng — phải phủ ít nhất ${Math.ceil(count / 2)} chủ đề con khác nhau.
 2. TUYỆT ĐỐI KHÔNG để 2 ý tưởng LIÊN TIẾP (theo đúng thứ tự trong mảng "ideas" sẽ ghi
    ra) trùng "hookStyle".
-3. Cả 4 giá trị "tone" phải xuất hiện ít nhất 1 lần trong ${count} ý tưởng (nếu
-   ${count} nhỏ hơn 4, ưu tiên đa dạng tone nhiều nhất có thể).
+3. Cả ${tones.length} giá trị "tone" phải xuất hiện ít nhất 1 lần trong ${count} ý
+   tưởng (nếu ${count} nhỏ hơn ${tones.length}, ưu tiên đa dạng tone nhiều nhất có
+   thể) — NHƯNG chỉ gán tone thật sự khớp nội dung ý tưởng đó; TUYỆT ĐỐI KHÔNG ép
+   1 tone không hợp vào 1 ý tưởng chỉ để đủ đầu việc phủ tone.
 4. TUYỆT ĐỐI KHÔNG trùng hoặc na ná bất kỳ mục nào trong danh sách "Chủ đề đã lên video
    thật — TRÁNH" ở user message bên dưới (nếu có).
 5. "idea" và "subTopic" viết HOÀN TOÀN bằng tiếng Việt — không tự chèn từ/cụm tiếng Anh
    trừ khi chủ đề kênh bắt buộc phải giữ nguyên tên riêng.
-5. Mỗi ý tưởng phải khớp đúng chủ đề kênh và đối tượng xem cho sẵn — không lạc đề.
+6. Mỗi ý tưởng phải khớp đúng chủ đề kênh và đối tượng xem cho sẵn — không lạc đề.
+7. ĐA DẠNG CẤU TRÚC CÂU THẬT SỰ, không chỉ đổi nhãn hookStyle: KHÔNG được quá 2 ý
+   tưởng trong ${count} ý tưởng dùng chung 1 khung câu "[vế A] — [vế B]" nối bằng dấu
+   gạch ngang. Đổi công thức câu theo đúng hookStyle của nó — "cau-hoi" phải là 1 câu
+   hỏi thật (có dấu ?), "so-lieu" phải mở bằng số liệu/con số cụ thể, "tuyen-bo" là 1
+   câu khẳng định dứt khoát không có vế giải thích đi kèm, "ke-chuyen" kể 1 tình
+   huống có trình tự thời gian, "thu-nhan" là lời thú nhận trực tiếp ở ngôi thứ
+   nhất — không phải cùng 1 khung "[hành động] — [diễn giải]" mặc thêm nhãn khác nhau.
 
 Bạn đang chạy tự động (non-interactive) — KHÔNG được hỏi lại vì không ai trả lời. Dùng
 tool \`write_file\` để lưu đúng 1 file vào thư mục làm việc (path tương đối, không tiền

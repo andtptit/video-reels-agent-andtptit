@@ -170,6 +170,7 @@ export function History({ onProjectDeleted, profiles = [] }) {
   const [exportingAll, setExportingAll] = useState(false);
   const [exportAllMsg, setExportAllMsg] = useState(null);
   const [selectedSlug, setSelectedSlug] = useState(null); // null = "Tất cả"
+  const [selectedDate, setSelectedDate] = useState(""); // "" = "Tất cả ngày"
 
   useEffect(() => {
     load();
@@ -221,7 +222,20 @@ export function History({ onProjectDeleted, profiles = [] }) {
     if (p.profileSlug) countBySlug[p.profileSlug] = (countBySlug[p.profileSlug] ?? 0) + 1;
   }
   const profilesWithVideos = profiles.filter((pr) => countBySlug[pr.slug]);
-  const visibleProjects = selectedSlug ? projects.filter((p) => p.profileSlug === selectedSlug) : projects;
+
+  // Same "count against ALL projects, independent of the other filter" convention as
+  // countBySlug above — keeps both filters' displayed counts stable no matter which
+  // one the user touches first, at the cost of a count that can read "3" for a date
+  // that only has 1 video left once the profile filter is also applied.
+  const countByDate = {};
+  for (const p of projects) {
+    if (p.date) countByDate[p.date] = (countByDate[p.date] ?? 0) + 1;
+  }
+  const datesAvailable = Object.keys(countByDate).sort((a, b) => (a < b ? 1 : -1)); // newest first
+
+  const visibleProjects = projects.filter(
+    (p) => (!selectedSlug || p.profileSlug === selectedSlug) && (!selectedDate || p.date === selectedDate)
+  );
 
   return (
     <div className="card">
@@ -235,24 +249,36 @@ export function History({ onProjectDeleted, profiles = [] }) {
         </div>
         {exportAllMsg && <p className="muted">{exportAllMsg}</p>}
       </div>
-      {profilesWithVideos.length > 0 && (
-        <div className="app-tabs" style={{ marginBottom: 16, flexWrap: "wrap" }}>
-          <button type="button" className={selectedSlug === null ? "active" : ""} onClick={() => setSelectedSlug(null)}>
-            Tất cả ({projects.length})
-          </button>
-          {profilesWithVideos.map((pr) => (
-            <button
-              key={pr.slug}
-              type="button"
-              className={selectedSlug === pr.slug ? "active" : ""}
-              onClick={() => setSelectedSlug(pr.slug)}
-            >
-              {pr.name} ({countBySlug[pr.slug]})
+      <div className="inline-form" style={{ marginTop: 0, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
+        {profilesWithVideos.length > 0 && (
+          <div className="app-tabs" style={{ flexWrap: "wrap" }}>
+            <button type="button" className={selectedSlug === null ? "active" : ""} onClick={() => setSelectedSlug(null)}>
+              Tất cả ({projects.length})
             </button>
-          ))}
-        </div>
-      )}
-      {!visibleProjects.length && <p className="muted">Profile này chưa có video nào render xong.</p>}
+            {profilesWithVideos.map((pr) => (
+              <button
+                key={pr.slug}
+                type="button"
+                className={selectedSlug === pr.slug ? "active" : ""}
+                onClick={() => setSelectedSlug(pr.slug)}
+              >
+                {pr.name} ({countBySlug[pr.slug]})
+              </button>
+            ))}
+          </div>
+        )}
+        {datesAvailable.length > 1 && (
+          <select value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} style={{ width: "auto" }}>
+            <option value="">Tất cả ngày</option>
+            {datesAvailable.map((d) => (
+              <option key={d} value={d}>
+                {d} ({countByDate[d]})
+              </option>
+            ))}
+          </select>
+        )}
+      </div>
+      {!visibleProjects.length && <p className="muted">Không có video nào khớp bộ lọc.</p>}
       <div className="dash-grid">
         {visibleProjects.map((p) => (
           <HistoryCard key={p.id} project={p} onDeleted={handleDeleted} />

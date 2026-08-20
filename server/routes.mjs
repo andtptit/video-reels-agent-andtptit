@@ -458,7 +458,11 @@ router.post("/batches", (req, res) => {
     ...readIdeaHistory(profileSlug, { limit: 30 }).map((h) => `${h.subTopic} — ${h.idea}`),
     ...(Array.isArray(avoidExtra) ? avoidExtra.filter((s) => typeof s === "string" && s.trim()) : []),
   ];
-  const contentPlaybook = listProfiles().find((p) => p.slug === profileSlug)?.contentPlaybook;
+  const profileForBatch = listProfiles().find((p) => p.slug === profileSlug);
+  const contentPlaybook = profileForBatch?.contentPlaybook;
+  // See lib/profiles.mjs's `ideaTones` doc comment — only passed when the profile set
+  // a non-empty override, otherwise idea-generator.mjs falls back to its own default.
+  const tones = Array.isArray(profileForBatch?.ideaTones) && profileForBatch.ideaTones.length ? profileForBatch.ideaTones : undefined;
 
   writeFileSync(
     join(batchDir, "ideas.json"),
@@ -466,7 +470,7 @@ router.post("/batches", (req, res) => {
   );
 
   runInBackground(batchDir, "ideate", (onEvent, signal) =>
-    queues.dashscope.run(() => runIdeaGenerator({ batchDir, channelTheme, audience, count: n, avoidList, contentPlaybook, onEvent, signal }))
+    queues.dashscope.run(() => runIdeaGenerator({ batchDir, channelTheme, audience, count: n, avoidList, contentPlaybook, ...(tones ? { tones } : {}), onEvent, signal }))
   );
 
   res.status(202).json({ batchId, step: "ideate", status: "running" });
