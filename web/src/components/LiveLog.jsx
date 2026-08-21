@@ -71,9 +71,10 @@ function formatEvent(e) {
         ? null
         : `Cảnh báo: ${e.findings?.length ?? 0} image_prompt còn dính chữ/màu neon (${e.findings?.map((f) => f.sceneId).join(", ")}) — nên kiểm tra lại trước khi sinh ảnh`;
     case "diversity-check":
-      return e.issue === "count-mismatch"
-        ? `Cảnh báo: sinh ${e.actual} ý tưởng thay vì ${e.expected} yêu cầu`
-        : `Cảnh báo: ý tưởng #${(e.index ?? 0) + 1} trùng hookStyle với ý tưởng trước`;
+      if (e.issue === "count-mismatch") return `Cảnh báo: sinh ${e.actual} ý tưởng thay vì ${e.expected} yêu cầu`;
+      if (e.issue === "duplicate-of-history") return `Cảnh báo: ý tưởng "${e.idea}" trùng gần như y nguyên 1 video đã lên trước đó — nên xoá hoặc viết lại`;
+      if (e.issue === "duplicate-within-batch") return `Cảnh báo: ý tưởng "${e.idea}" trùng gần như y nguyên với 1 ý tưởng khác trong cùng đợt sinh này`;
+      return `Cảnh báo: ý tưởng #${(e.index ?? 0) + 1} trùng hookStyle với ý tưởng trước`;
     case "transcribe-start":
       return "Đang phiên âm audio (whisper local, có thể mất vài phút)...";
     case "transcribe-done":

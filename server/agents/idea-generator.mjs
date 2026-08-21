@@ -162,6 +162,32 @@ không tool call nào nữa.`;
     }
   }
 
+  // Hard duplicate check — confirmed live: the LLM was told an idea's subTopic was in
+  // the "TRÁNH" avoid-list and generated the EXACT same idea text again anyway (word
+  // for word, a day apart), and it got approved into a real project before anyone
+  // noticed. The "TRÁNH" instruction alone isn't reliable enough on its own — this
+  // catches an exact/near-exact repeat mechanically instead of trusting compliance.
+  // Still a soft warning only (same philosophy as the checks above): a false positive
+  // here (two genuinely different ideas that just normalize to the same string) isn't
+  // worth blocking the batch over, the user reviews every idea before anything real
+  // gets created anyway.
+  const normalize = (s) => String(s ?? "").toLowerCase().replace(/\s+/g, " ").trim();
+  const avoidIdeaTexts = avoidList.map((a) => {
+    const sep = a.indexOf(" — ");
+    return normalize(sep >= 0 ? a.slice(sep + 3) : a);
+  });
+  const seenInBatch = new Map();
+  for (const idea of ideas) {
+    const norm = normalize(idea.idea);
+    if (!norm) continue;
+    if (avoidIdeaTexts.includes(norm)) {
+      onEvent?.({ type: "diversity-check", issue: "duplicate-of-history", ideaId: idea.ideaId, idea: idea.idea });
+    } else if (seenInBatch.has(norm)) {
+      onEvent?.({ type: "diversity-check", issue: "duplicate-within-batch", ideaId: idea.ideaId, duplicateOf: seenInBatch.get(norm), idea: idea.idea });
+    }
+    seenInBatch.set(norm, idea.ideaId);
+  }
+
   const envelope = {
     channelTheme,
     audience,
