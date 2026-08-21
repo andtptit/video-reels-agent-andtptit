@@ -38,6 +38,50 @@ export function resolveLibraryDir(libraryDir) {
   return isAbsolute(libraryDir) ? libraryDir : join(ROOT, libraryDir);
 }
 
+/**
+ * Lists sub-folders directly under `assets/footage-library/` — for a UI picker
+ * ("Tạo biến thể"'s "Nguồn footage" dropdown) that needs to offer every footage set
+ * a user has ever dropped in, not just the one folder a given profile happens to
+ * point at. Returns workspace-relative paths (matching how `footageLibraryDir` is
+ * typed/stored everywhere else, e.g. profile JSON's own field) so a picked value can
+ * be written straight back into a profile/footageConfig without any conversion.
+ */
+export function listFootageSubfolders() {
+  mkdirSync(FOOTAGE_LIBRARY_DIR, { recursive: true });
+  return readdirSync(FOOTAGE_LIBRARY_DIR, { withFileTypes: true })
+    .filter((e) => e.isDirectory())
+    .map((e) => `assets/footage-library/${e.name}`)
+    .sort();
+}
+
+// Same slug rules as new-project.mjs's own slugify() (lowercase, strip diacritics,
+// non-alphanumeric collapsed to "-") — mirrors ProfileManager.jsx's client-side
+// slugifyFolderName() used for the Pexels-fetch auto-naming, but re-done here too
+// since the client's slug is untrusted input, not proof against a crafted name.
+function slugifyFolderName(name) {
+  return String(name ?? "")
+    .normalize("NFD").replace(/[̀-ͯ]/g, "")
+    .toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-+|-+$)/g, "")
+    .slice(0, 40);
+}
+
+/**
+ * Explicitly creates (empty) a new sub-folder under assets/footage-library/ — for
+ * "Hồ sơ kênh"'s "Tạo thư mục mới" control, so a user can set up a fresh folder to
+ * drop new Pexels clips into BEFORE downloading anything, instead of only finding out
+ * a folder exists once files are already in it. Scanning a folder (scanFootageLibrary)
+ * already creates it as an mkdirSync side-effect, but that's incidental, not an
+ * intentional "create" action a user should have to rely on.
+ * @returns {string} the created folder's workspace-relative path
+ */
+export function createFootageSubfolder(name) {
+  const slug = slugifyFolderName(name);
+  if (!slug) throw new Error("Tên thư mục không hợp lệ (cần ít nhất 1 ký tự chữ/số)");
+  const dir = join(FOOTAGE_LIBRARY_DIR, slug);
+  mkdirSync(dir, { recursive: true });
+  return `assets/footage-library/${slug}`;
+}
+
 function manifestPath(libraryDir) {
   return join(libraryDir, "manifest.json");
 }

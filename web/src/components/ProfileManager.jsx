@@ -91,6 +91,12 @@ export function ProfileManager({ profiles, onProfilesChanged, startExpanded = fa
   const [footageLibraryDir, setFootageLibraryDir] = useState("");
   const [footageScan, setFootageScan] = useState(null);
   const [footageScanLoading, setFootageScanLoading] = useState(false);
+  // Existing sub-folders under assets/footage-library/, for the "Thư mục có sẵn"
+  // picker — same source History.jsx's "Tạo biến thể" folder dropdown uses.
+  const [footageFolders, setFootageFolders] = useState([]);
+  const [newFolderName, setNewFolderName] = useState("");
+  const [creatingFolder, setCreatingFolder] = useState(false);
+  const [newFolderError, setNewFolderError] = useState(null);
 
   const [channelTheme, setChannelTheme] = useState("");
   const [defaultAudience, setDefaultAudience] = useState("");
@@ -126,12 +132,30 @@ export function ProfileManager({ profiles, onProfilesChanged, startExpanded = fa
   useEffect(() => {
     if (!expanded) return;
     api.listMusicLibrary().then((r) => setMusicTracks(r.tracks ?? [])).catch(() => {});
+    api.listFootageFolders().then((r) => setFootageFolders(r.folders ?? [])).catch(() => {});
   }, [expanded]);
 
   useEffect(() => {
     if (!expanded || footageLibraryDir.trim()) return; // custom dir has its own "Kiểm tra thư mục" button below
     api.getFootageLibraryInfo().then((r) => setFootageLibraryCount(r.count)).catch(() => setFootageLibraryCount(null));
   }, [expanded, footageLibraryDir]);
+
+  async function createNewFootageFolder() {
+    if (!newFolderName.trim()) return;
+    setCreatingFolder(true);
+    setNewFolderError(null);
+    try {
+      const { folder } = await api.createFootageFolder(newFolderName);
+      setFootageFolders((prev) => (prev.includes(folder) ? prev : [...prev, folder].sort()));
+      setFootageLibraryDir(folder);
+      setFootageScan(null);
+      setNewFolderName("");
+    } catch (err) {
+      setNewFolderError(err.message);
+    } finally {
+      setCreatingFolder(false);
+    }
+  }
 
   async function checkFootageLibraryDir(dirOverride) {
     const dir = (dirOverride ?? footageLibraryDir).trim();
@@ -736,6 +760,35 @@ export function ProfileManager({ profiles, onProfilesChanged, startExpanded = fa
 
         {template === "footage" && (
           <div style={{ display: "flex", flexDirection: "column", gap: "8px", width: "100%" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+              <span>Thư mục có sẵn:</span>
+              <select
+                value={footageFolders.includes(footageLibraryDir) ? footageLibraryDir : ""}
+                onChange={(e) => {
+                  if (!e.target.value) return;
+                  setFootageLibraryDir(e.target.value);
+                  setFootageScan(null);
+                  checkFootageLibraryDir(e.target.value);
+                }}
+                style={{ width: "auto" }}
+              >
+                <option value="">— Chọn thư mục đã có —</option>
+                {footageFolders.map((f) => (
+                  <option key={f} value={f}>{f}</option>
+                ))}
+              </select>
+              <input
+                value={newFolderName}
+                onChange={(e) => setNewFolderName(e.target.value)}
+                placeholder="Tên thư mục mới (vd: ban-linh-nhin-lai)"
+                style={{ width: "220px" }}
+                disabled={creatingFolder}
+              />
+              <button type="button" className="linklike" onClick={createNewFootageFolder} disabled={creatingFolder || !newFolderName.trim()}>
+                {creatingFolder ? "Đang tạo…" : "+ Tạo thư mục mới"}
+              </button>
+            </div>
+            {newFolderError && <p className="error">{newFolderError}</p>}
             <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
               <span>Thư mục footage:</span>
               <input

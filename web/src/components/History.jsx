@@ -29,11 +29,36 @@ function waitForCaptionStep(projectId, { pollMs = 1500, timeoutMs = 90_000 } = {
   });
 }
 
+/** Same shape as Batch.jsx's own waitForProjectStep (that one isn't exported, so
+ *  duplicated here rather than reaching across components) — polls a project's given
+ *  step until it leaves "running", used by "Tạo biến thể"'s per-scene/root/render
+ *  orchestration loop below. */
+function waitForProjectStep(projectId, stepKey, { pollMs = 1000, timeoutMs = 180_000 } = {}) {
+  const deadline = Date.now() + timeoutMs;
+  return new Promise((resolvePromise, reject) => {
+    const check = async () => {
+      let status;
+      try {
+        ({ status } = await api.getProject(projectId));
+      } catch (err) {
+        return reject(err);
+      }
+      const s = status.steps?.[stepKey];
+      if (s?.status === "done") return resolvePromise(s);
+      if (s?.status === "error") return reject(new Error(s.error || `Bước "${stepKey}" thất bại`));
+      if (s?.status === "cancelled") return reject(new Error(s.error || `Bước "${stepKey}" đã bị huỷ`));
+      if (Date.now() > deadline) return reject(new Error(`Timeout chờ "${stepKey}" cho project ${projectId}`));
+      setTimeout(check, pollMs);
+    };
+    check();
+  });
+}
+
 // Redesigned per user reference (an external content-dashboard repo's card grid +
 // copy-button UX) — same underlying data/actions as the old version (video preview,
 // caption copy, open folder, delete), just laid out as a cleaner 2-column card grid
 // instead of the generic .scene-grid/.scene-card also shared by SceneGrid/Hook.
-function HistoryCard({ project, onDeleted }) {
+function HistoryCard({ project, onDeleted, selected, onToggleSelect }) {
   const [renders, setRenders] = useState(null);
   const [caption, setCaption] = useState(null);
   const [copied, setCopied] = useState(false);
@@ -120,10 +145,23 @@ function HistoryCard({ project, onDeleted }) {
   return (
     <div className="dash-card">
       <div className="dash-card-header">
-        <div>
-          <strong>{project.slug}</strong>
-          <div className="muted" style={{ fontSize: "0.8em" }}>{project.date} · {formatDate(project.mtime)}</div>
-          {project.remixedFrom && <div className="muted" style={{ fontSize: "0.8em" }}>remix từ {project.remixedFrom.split("/")[1]}</div>}
+        <div style={{ display: "flex", gap: "8px", alignItems: "flex-start" }}>
+          {/* "Tạo biến thể" chỉ hợp template "footage" (footage random-pick, không phải
+             ảnh AI theo prompt) — card style khác thì không hiện checkbox này. */}
+          {project.template === "footage" && onToggleSelect && (
+            <input
+              type="checkbox"
+              checked={!!selected}
+              onChange={() => onToggleSelect(project.id)}
+              style={{ width: "auto", marginTop: "4px" }}
+              title="Chọn để tạo biến thể hàng loạt"
+            />
+          )}
+          <div>
+            <strong>{project.slug}</strong>
+            <div className="muted" style={{ fontSize: "0.8em" }}>{project.date} · {formatDate(project.mtime)}</div>
+            {project.remixedFrom && <div className="muted" style={{ fontSize: "0.8em" }}>remix từ {project.remixedFrom.split("/")[1]}</div>}
+          </div>
         </div>
         {caption && (
           <button type="button" className={`dash-copy-btn${copied ? " copied" : ""}`} onClick={copyCaption}>
@@ -172,14 +210,86 @@ export function History({ onProjectDeleted, profiles = [] }) {
   const [selectedSlug, setSelectedSlug] = useState(null); // null = "Tất cả"
   const [selectedDate, setSelectedDate] = useState(""); // "" = "Tất cả ngày"
 
+  // "Tạo biến thể" — cuối ngày tích chọn nhiều video (template "footage") rồi tạo
+  // hàng loạt biến thể (đổi footage + nhạc, giữ nguyên kịch bản/giọng đọc gốc).
+  const [selectedIds, setSelectedIds] = useState(() => new Set());
+  const [variantFormOpen, setVariantFormOpen] = useState(false);
+  const [variantCount, setVariantCount] = useState(1);
+  const [libraryDirOverride, setLibraryDirOverride] = useState(""); // "" = giữ nguồn gốc của từng video
+  const [musicPool, setMusicPool] = useState([]); // [] = giữ nhạc gốc của từng video
+  const [footageFolders, setFootageFolders] = useState([]);
+  const [musicTracks, setMusicTracks] = useState([]);
+  const [variantRunning, setVariantRunning] = useState(false);
+  const [variantProgress, setVariantProgress] = useState(null); // "{done}/{total}"
+  const [variantError, setVariantError] = useState(null);
+
   useEffect(() => {
     load();
+    api.listFootageFolders().then((r) => setFootageFolders(r.folders ?? [])).catch(() => {});
+    api.listMusicLibrary().then((r) => setMusicTracks(r.tracks ?? [])).catch(() => {});
   }, []);
 
   function load() {
     api.listProjects()
       .then((r) => setProjects((r.projects ?? []).filter((p) => p.renderDone)))
       .catch((err) => setError(err.message));
+  }
+
+  function toggleSelect(id) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  async function runVariants() {
+    const targets = (projects ?? []).filter((p) => selectedIds.has(p.id) && p.template === "footage");
+    if (!targets.length) return;
+    setVariantRunning(true);
+    setVariantError(null);
+    const total = targets.length * variantCount;
+    let done = 0;
+    setVariantProgress(`0/${total}`);
+    try {
+      for (const project of targets) {
+        for (let i = 0; i < variantCount; i++) {
+          const musicTrack = musicPool.length ? musicPool[Math.floor(Math.random() * musicPool.length)] : undefined;
+          // createProject()'s slugify() hard-truncates to 50 chars — project.slug is
+          // often ALREADY at that limit, so appending " bien the N" naively got sliced
+          // away entirely, leaving an identical slug to the source and a real
+          // "thư mục đã tồn tại" collision (confirmed live). Keep only a short prefix
+          // of the source slug + a random/time token that's short enough to always
+          // survive the truncation, so every call is guaranteed unique regardless of
+          // how long project.slug already is.
+          const shortBase = project.slug.slice(0, 25).replace(/-+$/, "");
+          const uniqueToken = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
+          const { id: newId, sceneIds } = await api.createFootageVariant(project.id, {
+            variantIdea: `${shortBase}-bt${i + 1}-${uniqueToken}`,
+            libraryDir: libraryDirOverride || undefined,
+            musicTrack,
+          });
+          for (const sceneId of sceneIds) {
+            await api.runScene(newId, sceneId);
+            await waitForProjectStep(newId, `scene:${sceneId}`);
+          }
+          await api.runRoot(newId);
+          await waitForProjectStep(newId, "root");
+          await api.runRender(newId);
+          await waitForProjectStep(newId, "render", { timeoutMs: 600_000 });
+          done++;
+          setVariantProgress(`${done}/${total}`);
+        }
+      }
+      setVariantFormOpen(false);
+      setSelectedIds(new Set());
+      load();
+    } catch (err) {
+      setVariantError(err.message);
+    } finally {
+      setVariantRunning(false);
+    }
   }
 
   function handleDeleted(id) {
@@ -236,6 +346,12 @@ export function History({ onProjectDeleted, profiles = [] }) {
   const visibleProjects = projects.filter(
     (p) => (!selectedSlug || p.profileSlug === selectedSlug) && (!selectedDate || p.date === selectedDate)
   );
+  const visibleFootageProjects = visibleProjects.filter((p) => p.template === "footage");
+  const selectedCount = visibleFootageProjects.filter((p) => selectedIds.has(p.id)).length;
+
+  function toggleMusicPoolTrack(track) {
+    setMusicPool((prev) => (prev.includes(track) ? prev.filter((t) => t !== track) : [...prev, track]));
+  }
 
   return (
     <div className="card">
@@ -246,8 +362,100 @@ export function History({ onProjectDeleted, profiles = [] }) {
             {exportingAll ? "Đang xuất…" : "Xuất tất cả ra output-ready/"}
           </button>
           <button type="button" className="linklike" onClick={openExportFolder}>Mở thư mục output-ready</button>
+          {visibleFootageProjects.length > 0 && (
+            <>
+              <button
+                type="button"
+                className="linklike"
+                onClick={() =>
+                  setSelectedIds((prev) => {
+                    const next = new Set(prev);
+                    for (const p of visibleFootageProjects) next.add(p.id);
+                    return next;
+                  })
+                }
+              >
+                Chọn tất cả footage đang hiển thị
+              </button>
+              <button
+                type="button"
+                className="linklike"
+                onClick={() =>
+                  setSelectedIds((prev) => {
+                    const next = new Set(prev);
+                    for (const p of visibleFootageProjects) next.delete(p.id);
+                    return next;
+                  })
+                }
+              >
+                Bỏ chọn
+              </button>
+              {selectedCount > 0 && (
+                <button type="button" onClick={() => setVariantFormOpen((v) => !v)}>
+                  Tạo biến thể cho {selectedCount} video đã chọn
+                </button>
+              )}
+            </>
+          )}
         </div>
         {exportAllMsg && <p className="muted">{exportAllMsg}</p>}
+        {variantFormOpen && selectedCount > 0 && (
+          <div className="card" style={{ marginTop: 12 }}>
+            <p className="muted">
+              Mỗi video đã chọn sẽ được tạo lại {variantCount} bản, giữ nguyên kịch bản + giọng đọc gốc — chỉ đổi footage
+              và nhạc nền. Không gọi AI/TTS, chỉ tốn thời gian dựng + render.
+            </p>
+            <div className="inline-form">
+              <label>
+                Số biến thể / video
+                <input
+                  type="number"
+                  min={1}
+                  max={10}
+                  value={variantCount}
+                  onChange={(e) => setVariantCount(Math.max(1, Number(e.target.value) || 1))}
+                  style={{ width: "70px" }}
+                  disabled={variantRunning}
+                />
+              </label>
+              <label>
+                Nguồn footage
+                <select value={libraryDirOverride} onChange={(e) => setLibraryDirOverride(e.target.value)} disabled={variantRunning}>
+                  <option value="">Giữ nguyên nguồn gốc của từng video</option>
+                  {footageFolders.map((f) => (
+                    <option key={f} value={f}>{f}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <p className="muted" style={{ marginBottom: 4 }}>
+              Nhạc nền — không chọn gì thì giữ nguyên nhạc gốc của từng video; chọn 1 vài track để random trong nhóm đó:
+            </p>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginBottom: 12 }}>
+              {musicTracks.map((t) => (
+                <label key={t} style={{ display: "inline-flex", alignItems: "center", gap: "4px", fontSize: "0.9em" }}>
+                  <input
+                    type="checkbox"
+                    checked={musicPool.includes(t)}
+                    onChange={() => toggleMusicPoolTrack(t)}
+                    disabled={variantRunning}
+                    style={{ width: "auto" }}
+                  />
+                  {t}
+                </label>
+              ))}
+            </div>
+            <div className="inline-form" style={{ marginTop: 0 }}>
+              <button type="button" onClick={runVariants} disabled={variantRunning}>
+                {variantRunning ? `Đang tạo… (${variantProgress})` : "Tạo"}
+              </button>
+              <button type="button" className="linklike" onClick={() => setVariantFormOpen(false)} disabled={variantRunning}>
+                Huỷ
+              </button>
+            </div>
+            {variantError && <p className="error">{variantError}</p>}
+          </div>
+        )}
       </div>
       <div className="inline-form" style={{ marginTop: 0, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
         {profilesWithVideos.length > 0 && (
@@ -281,7 +489,7 @@ export function History({ onProjectDeleted, profiles = [] }) {
       {!visibleProjects.length && <p className="muted">Không có video nào khớp bộ lọc.</p>}
       <div className="dash-grid">
         {visibleProjects.map((p) => (
-          <HistoryCard key={p.id} project={p} onDeleted={handleDeleted} />
+          <HistoryCard key={p.id} project={p} onDeleted={handleDeleted} selected={selectedIds.has(p.id)} onToggleSelect={toggleSelect} />
         ))}
       </div>
     </div>

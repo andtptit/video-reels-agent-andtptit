@@ -56,12 +56,13 @@ export function listProjects() {
       if (!existsSync(join(projectDir, "index.html"))) continue;
       const mtime = statSync(projectDir).mtimeMs;
       let remixedFrom;
+      let template;
       const videoPlanFile = join(projectDir, "video-plan.json");
       if (existsSync(videoPlanFile)) {
         try {
-          remixedFrom = JSON.parse(readFileSync(videoPlanFile, "utf-8")).remixedFrom;
+          ({ remixedFrom, template } = JSON.parse(readFileSync(videoPlanFile, "utf-8")));
         } catch {
-          /* malformed video-plan.json — just omit remixedFrom */
+          /* malformed video-plan.json — just omit remixedFrom/template */
         }
       }
       projects.push({
@@ -70,6 +71,7 @@ export function listProjects() {
         date: dateDir.name,
         mtime,
         ...(remixedFrom ? { remixedFrom } : {}),
+        ...(template ? { template } : {}),
         ...summarizeProjectStatus(projectDir),
       });
     }

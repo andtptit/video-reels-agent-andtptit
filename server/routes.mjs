@@ -19,6 +19,7 @@ import { createProject } from "./pipeline/new-project.mjs";
 import { runGenerateAudio } from "./pipeline/generate-audio.mjs";
 import { runAudioImport } from "./pipeline/audio-import.mjs";
 import { createRemixProject } from "./pipeline/remix-project.mjs";
+import { createFootageVariant } from "./pipeline/create-footage-variant.mjs";
 import { runContentPlanner } from "./agents/content-planner.mjs";
 import { runInvestigationContentPlanner } from "./agents/investigation-content-planner.mjs";
 import { runScriptSceneCutter } from "./agents/script-scene-cutter.mjs";
@@ -32,7 +33,7 @@ import { runRootComposer } from "./agents/root-composer.mjs";
 import { runCaptionWriter } from "./agents/caption-writer.mjs";
 import { buildFootagePlan } from "./pipeline/build-footage-plan.mjs";
 import { runFootageWriter } from "./agents/footage-scene-writer.mjs";
-import { scanFootageLibrary, resolveLibraryDir } from "./lib/footage-library.mjs";
+import { scanFootageLibrary, resolveLibraryDir, listFootageSubfolders, createFootageSubfolder } from "./lib/footage-library.mjs";
 import { searchAndSaveVideos } from "./providers/video/pexels-video.mjs";
 import { chatCompletion } from "./providers/llm/dashscope.mjs";
 import { render } from "./tools/hyperframes-cli.mjs";
@@ -771,6 +772,54 @@ router.get("/music-library", (req, res) => {
     .filter((f) => f.endsWith(".mp3") && !f.startsWith("._"))
     .map((f) => f.replace(/\.mp3$/, ""));
   res.json({ tracks });
+});
+
+// Sub-folders under assets/footage-library/ — powers "Tạo biến thể"'s "Nguồn footage"
+// picker (History.jsx), so the user can point a variant at a DIFFERENT footage set
+// than the one its source project's profile happens to use, without editing the
+// profile itself.
+router.get("/footage-library/folders", (req, res) => {
+  res.json({ folders: listFootageSubfolders() });
+});
+
+// "Hồ sơ kênh"'s "Tạo thư mục mới" — explicit create, so a user can set up a fresh
+// footage folder before downloading any Pexels clips into it (see
+// createFootageSubfolder's own doc comment for why this isn't just left to scanning's
+// mkdirSync side-effect).
+router.post("/footage-library/folders", (req, res) => {
+  const { name } = req.body ?? {};
+  if (!name?.trim()) return res.status(400).json({ error: "name is required" });
+  try {
+    res.status(201).json({ folder: createFootageSubfolder(name) });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// "Tạo biến thể" (History.jsx) — reuses an already-rendered template:"footage"
+// project's narration+voice UNCHANGED (no content-planner/TTS call) and only
+// re-points footage/music. Only scaffolds the filesystem; the caller still has to
+// drive scene-generate (re-picks footage) → root → render per the normal single-
+// project routes, same "client loops over existing per-step routes" pattern
+// Batch.jsx's runApproval already uses — see create-footage-variant.mjs's own doc
+// comment for why this doesn't get a server-side bulk/fan-out endpoint either.
+router.post("/projects/:id/footage-variant", withProjectDir, (req, res) => {
+  const { variantIdea, libraryDir, musicTrack, musicVolume } = req.body ?? {};
+  if (!variantIdea?.trim()) return res.status(400).json({ error: "variantIdea is required" });
+
+  let created;
+  try {
+    created = createFootageVariant({ sourceProjectDir: req.projectDir, variantIdea, libraryDir, musicTrack, musicVolume });
+  } catch (err) {
+    return res.status(400).json({ error: err.message });
+  }
+
+  res.status(201).json({
+    id: toProjectId(created.projectDir),
+    sourceId: req.params.id,
+    platform: created.platform,
+    sceneIds: created.sceneIds,
+  });
 });
 
 router.post("/projects/:id/audio", withProjectDir, (req, res) => {
